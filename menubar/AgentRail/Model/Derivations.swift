@@ -1,6 +1,8 @@
 import Foundation
 
 private let staleAfter: TimeInterval = 10 * 60
+/// A running job whose last pill is still `.active` has a tool in flight, which can legitimately be silent for long.
+private let staleAfterToolInFlight: TimeInterval = 60 * 60
 private let hiddenAfter: TimeInterval = 24 * 60 * 60
 
 func progress(_ job: Job) -> (done: Int, total: Int, pct: Int?) {
@@ -11,8 +13,9 @@ func progress(_ job: Job) -> (done: Int, total: Int, pct: Int?) {
 }
 
 func isStale(_ item: JobItem, now: Date) -> Bool {
-    (item.job.status == .running || item.job.status == .planning)
-        && now.timeIntervalSince(item.session.updatedAt) > staleAfter
+    guard item.job.status == .running || item.job.status == .planning else { return false }
+    let toolInFlight = item.job.status == .running && item.job.now?.pills.last?.kind == .active
+    return now.timeIntervalSince(item.session.updatedAt) > (toolInFlight ? staleAfterToolInFlight : staleAfter)
 }
 
 func visibleJobs(_ sessions: [Session], now: Date) -> [JobItem] {
@@ -64,4 +67,12 @@ func menubarSummary(_ items: [JobItem], now: Date) -> (jobs: Int, agents: Int, a
     let pcts = live.compactMap { progress($0.job).pct }
     let avg = pcts.isEmpty ? nil : Int((Double(pcts.reduce(0, +)) / Double(pcts.count)).rounded())
     return (live.count, agentCount, avg, live.contains { $0.job.status == .waiting })
+}
+
+/// Title, else prompt, else the project; a job a collector joined mid-session has no title or prompt.
+func displayTitle(_ item: JobItem) -> String {
+    for candidate in [item.job.title, item.job.prompt, item.session.project] where !candidate.isEmpty {
+        return candidate
+    }
+    return String(localized: "Untitled job")
 }
