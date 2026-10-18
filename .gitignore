@@ -1,2 +1,6 @@
 .superpowers/
 node_modules/
+menubar/build/
+DerivedData/
+xcuserdata/
+.DS_Store

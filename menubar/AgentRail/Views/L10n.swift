@@ -1,0 +1,48 @@
+import Foundation
+
+/// Localized strings that need plurals, locale-aware numbers or are shared by several views.
+enum L10n {
+    static func jobs(_ n: Int) -> String { String(localized: "\(n) jobs") }
+    static func agents(_ n: Int) -> String { String(localized: "\(n) agents") }
+
+    /// The locale of the language the UI strings resolved to (not the system region's formats).
+    private static let uiLocale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")
+
+    /// "60%" in English, "%60" in Turkish.
+    static func percent(_ pct: Int) -> String {
+        (Double(pct) / 100).formatted(.percent.precision(.fractionLength(0)).locale(uiLocale))
+    }
+
+    static func sourceName(_ source: Source) -> String {
+        switch source {
+        case .claude: String(localized: "Claude")
+        case .codex: String(localized: "Codex")
+        case .unknown: String(localized: "Agent")
+        }
+    }
+
+    static func jobStatus(_ status: JobStatus) -> String {
+        switch status {
+        case .planning: String(localized: "planning")
+        case .running: String(localized: "running")
+        case .waiting: String(localized: "waiting for you")
+        case .done: String(localized: "done")
+        case .error: String(localized: "error")
+        case .unknown: String(localized: "unknown")
+        }
+    }
+
+    static func milestoneState(done: Bool, active: Bool) -> String {
+        done ? String(localized: "done") : active ? String(localized: "active") : String(localized: "pending")
+    }
+
+    static func agentStatus(_ status: AgentStatus) -> String {
+        switch status {
+        case .running: String(localized: "running")
+        case .done: String(localized: "done")
+        case .error: String(localized: "needs attention")
+        case .stale: String(localized: "no activity")
+        case .unknown: String(localized: "unknown")
+        }
+    }
+}

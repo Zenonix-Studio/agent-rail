@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "source": "claude",
+  "sessionId": "wait",
+  "cwd": "/work/docs-site",
+  "updatedAt": "2026-10-18T20:41:27.497Z",
+  "jobs": [
+    {
+      "id": "claude:wait:1",
+      "seq": 1,
+      "title": "Rewrite onboarding docs",
+      "summary": "",
+      "prompt": "Rewrite the onboarding docs",
+      "status": "waiting",
+      "milestones": [
+        {
+          "key": "1",
+          "title": "Outline",
+          "status": "done"
+        },
+        {
+          "key": "2",
+          "title": "Draft",
+          "status": "done"
+        },
+        {
+          "key": "3",
+          "title": "Review",
+          "status": "done"
+        },
+        {
+          "key": "4",
+          "title": "Polish",
+          "status": "done"
+        },
+        {
+          "key": "5",
+          "title": "Publish",
+          "status": "pending"
+        }
+      ],
+      "startedAt": "2026-10-18T20:17:27.497Z",
+      "updatedAt": "2026-10-18T20:41:27.497Z",
+      "endedAt": null,
+      "now": {
+        "milestone": "",
+        "pills": [
+          {
+            "label": "Edit intro.md",
+            "kind": "ok"
+          }
+        ],
+        "attempt": 1,
+        "file": "intro.md"
+      }
+    }
+  ],
+  "agents": {},
+  "project": "docs-site"
+}

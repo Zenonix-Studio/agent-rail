@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "source": "claude",
+  "sessionId": "run",
+  "cwd": "/work/login-app",
+  "updatedAt": "2026-10-18T20:46:27.496Z",
+  "jobs": [
+    {
+      "id": "claude:run:1",
+      "seq": 1,
+      "title": "Fix login flow",
+      "summary": "Repair the sign-in screen.",
+      "prompt": "Fix the login flow",
+      "status": "running",
+      "milestones": [
+        {
+          "key": "1",
+          "title": "Read code",
+          "status": "done"
+        },
+        {
+          "key": "2",
+          "title": "Update model",
+          "status": "done"
+        },
+        {
+          "key": "3",
+          "title": "Add validation",
+          "status": "done"
+        },
+        {
+          "key": "4",
+          "title": "Edit login view",
+          "status": "active"
+        },
+        {
+          "key": "5",
+          "title": "Verify",
+          "status": "pending"
+        }
+      ],
+      "startedAt": "2026-10-18T20:17:27.496Z",
+      "updatedAt": "2026-10-18T20:46:27.496Z",
+      "endedAt": null,
+      "now": {
+        "milestone": "4",
+        "pills": [
+          {
+            "label": "Build ok",
+            "kind": "ok"
+          },
+          {
+            "label": "Build failed",
+            "kind": "warn"
+          },
+          {
+            "label": "Edit LoginView.swift",
+            "kind": "active"
+          }
+        ],
+        "attempt": 2,
+        "file": "LoginView.swift"
+      }
+    }
+  ],
+  "agents": {
+    "a1": {
+      "id": "a1",
+      "name": "Explore",
+      "status": "running",
+      "activity": "Reading Auth.swift",
+      "job": 1,
+      "updatedAt": "2026-10-18T20:46:27.496Z",
+      "endedAt": null
+    },
+    "a2": {
+      "id": "a2",
+      "name": "worker",
+      "status": "done",
+      "activity": "Finished",
+      "job": 1,
+      "updatedAt": "2026-10-18T20:39:27.496Z",
+      "endedAt": "2026-10-18T20:39:27.496Z"
+    }
+  },
+  "project": "login-app"
+}

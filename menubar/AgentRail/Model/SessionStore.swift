@@ -1,0 +1,140 @@
+import Foundation
+import Observation
+
+/// Live view of `<root>/sessions/*.json`. Read-only: never writes under the state root.
+@MainActor @Observable
+final class SessionStore {
+    private(set) var sessions: [Session] = []
+    var now: Date = Date()
+
+    var items: [JobItem] { visibleJobs(sessions, now: now) }
+    var summary: (jobs: Int, agents: Int, avgPct: Int?, attention: Bool) { menubarSummary(items, now: now) }
+    var doneTodayCount: Int { doneToday(sessions, now: now) }
+
+    /// The state root (`$AGENT_RAIL_HOME` or `~/.agent-rail`); the popover opens it in Finder.
+    @ObservationIgnored let root: URL
+    @ObservationIgnored private let sessionsDir: URL
+    @ObservationIgnored private let worker: LoadWorker
+    @ObservationIgnored private var signature: [String: Date]
+    @ObservationIgnored private var loading = false
+    @ObservationIgnored private var reloadPending = false
+    @ObservationIgnored private var watcher: (any DispatchSourceFileSystemObject)?
+    @ObservationIgnored private var debounce: Task<Void, Never>?
+    @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var lastReload = Date()
+
+    private static let debounceDelay: Duration = .milliseconds(150)
+    /// Elapsed time shows in minutes and staleness starts at 10 min, so `now` needs no finer tick.
+    private static let tick: TimeInterval = 30
+    /// Safety net for a missed watcher event and for files aging out of the 24 h window.
+    private static let safetyReload: TimeInterval = 60
+
+    init(root: URL = StateRoot.url()) {
+        self.root = root
+        sessionsDir = root.appendingPathComponent("sessions", isDirectory: true)
+        // The first load is synchronous so the first frame (and `--dump-after`) has data.
+        var loader = SessionLoader(directory: sessionsDir)
+        sessions = loader.load(now: Date())
+        signature = loader.signature
+        worker = LoadWorker(loader: loader)
+        openWatcher()
+        let timer = Timer(timeInterval: Self.tick, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    // MARK: Timer
+
+    private func tick() {
+        // The directory may not exist yet (no session has ever written); retry until it does.
+        let reopened = watcher == nil && openWatcher()
+        now = Date()
+        if reopened || now.timeIntervalSince(lastReload) >= Self.safetyReload { reload() }
+    }
+
+    // MARK: Watcher
+
+    @discardableResult
+    private func openWatcher() -> Bool {
+        closeWatcher()
+        let fd = open(sessionsDir.path, O_EVTONLY)
+        guard fd >= 0 else { return false }
+        let source = DispatchSource.makeFileSystemObjectSource(
+            fileDescriptor: fd, eventMask: [.write, .rename, .delete], queue: .main)
+        source.setEventHandler { [weak self, weak source] in
+            let removed = source?.data.intersection([.delete, .rename]).isEmpty == false
+            MainActor.assumeIsolated { self?.directoryChanged(removed: removed) }
+        }
+        source.setCancelHandler { close(fd) }
+        watcher = source
+        source.resume()
+        return true
+    }
+
+    private func closeWatcher() {
+        watcher?.cancel()
+        watcher = nil
+    }
+
+    private func directoryChanged(removed: Bool) {
+        // The directory itself was deleted or moved: drop the stale fd, the timer re-opens it.
+        if removed, !FileManager.default.fileExists(atPath: sessionsDir.path) { closeWatcher() }
+        scheduleReload()
+    }
+
+    private func scheduleReload() {
+        debounce?.cancel()
+        debounce = Task { [weak self] in
+            try? await Task.sleep(for: Self.debounceDelay)
+            guard !Task.isCancelled else { return }
+            self?.reload()
+        }
+    }
+
+    // MARK: Loading
+
+    /// Scans on a background actor and publishes on the main actor; overlapping requests coalesce.
+    private func reload() {
+        guard !loading else { reloadPending = true; return }
+        loading = true
+        lastReload = Date()
+        Task { [weak self, worker] in
+            let date = Date()
+            let result = await worker.load(now: date)
+            self?.publish(result, at: date)
+        }
+    }
+
+    private func publish(_ result: LoadResult, at date: Date) {
+        loading = false
+        // Assign only on a real change so observers (the menubar label) do not redraw for nothing.
+        if result.signature != signature {
+            signature = result.signature
+            sessions = result.sessions
+            now = date
+        }
+        if reloadPending {
+            reloadPending = false
+            reload()
+        }
+    }
+}
+
+struct LoadResult: Sendable {
+    let sessions: [Session]
+    let signature: [String: Date]
+}
+
+/// Owns the loader and its decode cache; runs the directory scan off the main actor.
+actor LoadWorker {
+    private var loader: SessionLoader
+
+    init(loader: SessionLoader) { self.loader = loader }
+
+    func load(now: Date) -> LoadResult {
+        let sessions = loader.load(now: now)
+        return LoadResult(sessions: sessions, signature: loader.signature)
+    }
+}
