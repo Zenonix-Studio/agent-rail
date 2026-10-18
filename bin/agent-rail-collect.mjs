@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock } from '../core/state.mjs';
+import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock } from '../core/state.mjs';
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce } from '../core/reduce.mjs';
@@ -52,7 +52,13 @@ async function main() {
   }
   const path = sessionPath(source, event.sessionId);
   withSessionLock(path, () => {
-    writeSession(path, reduce(readSession(path), { source, ...event }, new Date()));
+    const prev = readSession(path);
+    // A newer collector owns this file: never downgrade it.
+    if (typeof prev?.schema === 'number' && prev.schema > SCHEMA_VERSION) {
+      logError(`skipped ${path}: schema ${prev.schema} is newer than ${SCHEMA_VERSION}`);
+      return;
+    }
+    writeSession(path, reduce(prev, { source, ...event }, new Date()));
   }, logError);
   // The only stdout output: ask the agent to write the title/summary marker (spike Q5 shape, both tools).
   if (event.event?.type === 'prompt' && !event.agentId) {
