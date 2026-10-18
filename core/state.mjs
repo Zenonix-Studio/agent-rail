@@ -70,16 +70,7 @@ export function writeSession(path, session) {
   }
 }
 
-/**
- * @param {Job} job A job without a `milestones` array counts as 0/0.
- * @returns {{done: number, total: number, pct: number|null}}
- */
-export function progress(job) {
-  const milestones = Array.isArray(job?.milestones) ? job.milestones : [];
-  const total = milestones.length;
-  const done = milestones.filter((m) => m?.status === 'done').length;
-  return { done, total, pct: total === 0 ? null : Math.round((100 * done) / total) };
-}
+export { progress } from './progress.mjs';
 
 const LOCK_WAIT_MS = 400;
 const LOCK_STALE_MS = 2000;

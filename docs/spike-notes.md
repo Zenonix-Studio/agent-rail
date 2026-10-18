@@ -85,3 +85,18 @@ is detected in Claude by a new `prompt_id`, in Codex by a new `turn_id`; Codex `
 3. `TaskUpdate` with subject/activeForm/description/`deleted` status, and `TaskGet`, not exercised.
 4. Whether interactive Claude exposes the task tools without the env flag (inferred yes).
 5. Codex `update_plan` `explanation` field and whether `PermissionRequest` exists in Codex hooks (we registered it; nothing fired).
+
+## 7. Claude Code mod sandbox (Task 7)
+
+Checked 2026-10-18 on Claude Code 2.1.302 with a throwaway mod loaded by `claude -p --plugin-dir`, then in an interactive tmux session.
+
+- `$.fs.read` / `$.fs.list` on absolute paths outside the working directory work: the mod read `~/.agent-rail/sessions/claude-<id>.json` with no extra permission. The in-memory `reduce` fallback is **not needed**.
+- `$.env.get('HOME')` answers the home directory (the module has no Node, so no `os.homedir()`); `AGENT_RAIL_HOME` is honored the same way as in `core/state.mjs`.
+- `$.session.id()` equals the `session_id` the settings hooks receive (seen in `classic.UserPromptSubmit`), so the mod finds its own session file.
+- There is no file-watch API on `$.fs`; the mod polls with `$.clock.every(1000)` and writes `$.state` only when the file text (or, for a live job, the elapsed second) changed.
+- The mod cannot import `core/state.mjs` (it imports `node:fs`). `progress()` moved to the pure `core/progress.mjs`; `state.mjs` re-exports it.
+- One plugin carries both kinds of hooks: `hooks/hooks.json` keeps its `hooks` (command hooks) and adds `"modules": ["../mod/register.tsx"]`; `claude plugin validate` accepts it.
+- Placement: a pane opened unasked is placed only from 144 columns, so on narrower terminals the mod draws the same lines in the `AbovePrompt` band instead; `/rail` opens the pane at any width (docked beside the transcript in fullscreen, inline above the prompt otherwise). The band yields while the pane is shown.
+- An interactive `--plugin-dir` session writes `.claude-plugin/types/` (self-ignored) and a root `tsconfig.json` that extends it.
+
+Desktop app: **pending** (Task 7 step 4 not run; the controller will ask the user). Expected per the mod docs: `ui.render` hooks also draw for the `desktop` surface, but the mod has only been seen on the terminal.
