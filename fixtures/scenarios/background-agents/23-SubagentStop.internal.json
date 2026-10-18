@@ -1,0 +1,15 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-3",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "agent-0394",
+  "agent_type": "",
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "agent_transcript_path": "/home/user/.claude/transcripts/<id>/subagents/agent-<id>.jsonl",
+  "last_assistant_message": "<placeholder last message>",
+  "background_tasks": [],
+  "session_crons": []
+}

@@ -26,19 +26,21 @@ const STEP_MAX = 14;
  * @param {RenderableJob} job
  * @param {number} width Columns available.
  * @param {number} [nowMs] Clock for the elapsed time of an unfinished job.
+ * @param {number} [agents] Subagents of this job still running (`runningAgents` in core/progress.mjs).
  * @returns {string[]} Plain lines, none longer than `width`.
  */
-export function renderJob(job, width, nowMs = Date.now()) {
-  return renderJobSegments(job, width, nowMs).map((line) => line.map((s) => s.text).join(''));
+export function renderJob(job, width, nowMs = Date.now(), agents = 0) {
+  return renderJobSegments(job, width, nowMs, agents).map((line) => line.map((s) => s.text).join(''));
 }
 
 /**
  * @param {RenderableJob} job
  * @param {number} width
  * @param {number} [nowMs]
+ * @param {number} [agents] Subagents of this job still running.
  * @returns {Line[]}
  */
-export function renderJobSegments(job, width, nowMs = Date.now()) {
+export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
   const w = Math.max(10, Math.floor(width) || 0);
   const title = str(job?.title) || 'Untitled job';
   const milestones = Array.isArray(job?.milestones) ? job.milestones : [];
@@ -46,13 +48,15 @@ export function renderJobSegments(job, width, nowMs = Date.now()) {
   const isDone = status === 'done';
   const { done, total, pct } = progress(job);
   const tail = statusTail(status);
+  const hint = agentsHint(agents, w < COMPACT_WIDTH);
+  const hintLen = tailLen(hint);
 
   if (total === 0) {
     // "Planning · 0/?" comes from the missing plan, whatever the status says.
     const label = isDone ? `Done · ${elapsed(job, nowMs)}` : 'Planning · 0/?';
-    const lead = `${clip(title, w - label.length - 2 - tailLen(tail))}  `;
+    const lead = `${clip(title, w - label.length - 2 - tailLen(tail) - hintLen)}  `;
     /** @type {Line[]} */
-    const lines = [[seg(lead, 'bold'), seg(label, isDone ? 'done' : 'dim'), ...tail]];
+    const lines = [[seg(lead, 'bold'), seg(label, isDone ? 'done' : 'dim'), ...tail, ...hint]];
     // Spec §7 fallback: a planless job still shows what the agent is doing.
     const now = job?.now;
     if (!isDone && now && typeof now === 'object') {
@@ -72,7 +76,7 @@ export function renderJobSegments(job, width, nowMs = Date.now()) {
     const info = ` · ${done}/${total} · ${pctText}`;
     const name = clip(current, w - 2 - info.length - tailLen(tail));
     return [
-      [seg(clip(title, w), 'bold')],
+      [seg(clip(title, w - hintLen), 'bold'), ...hint],
       [seg('▸ ', isDone ? 'done' : 'active'), seg(name, 'plain'), seg(info, 'dim'), ...tail],
     ].map((l) => fit(l, w));
   }
@@ -80,9 +84,10 @@ export function renderJobSegments(job, width, nowMs = Date.now()) {
   /** @type {Line[]} */
   const lines = [];
 
-  const titleRoom = w - pctText.length - 1;
+  const titleRoom = w - pctText.length - 1 - hintLen;
   const shownTitle = clip(title, titleRoom);
-  lines.push([seg(shownTitle, 'bold'), seg(' '.repeat(w - shownTitle.length - pctText.length), 'plain'), seg(pctText, 'bold')]);
+  const gap = Math.max(1, w - shownTitle.length - hintLen - pctText.length);
+  lines.push([seg(shownTitle, 'bold'), ...hint, seg(' '.repeat(gap), 'plain'), seg(pctText, 'bold')]);
 
   const counts = `  ${done}/${total} · ${elapsed(job, nowMs)}`;
   const barW = Math.max(BAR_MIN, Math.min(BAR_MAX, w - counts.length - tailLen(tail)));
@@ -252,6 +257,16 @@ function statusTail(status) {
   if (status === 'waiting') return [seg(' · waiting for you', 'warn')];
   if (status === 'error') return [seg(' · error', 'error')];
   return [];
+}
+
+/**
+ * Title-line hint while subagents of the job still run, e.g. ` · 2 agents running`.
+ * @param {unknown} n @param {boolean} compact @returns {Segment[]}
+ */
+function agentsHint(n, compact) {
+  if (!Number.isInteger(n) || n <= 0) return [];
+  const noun = n === 1 ? 'agent' : 'agents';
+  return [seg(compact ? ` · ${n} ${noun}` : ` · ${n} ${noun} running`, 'dim')];
 }
 
 /** @param {Segment[]} tail */

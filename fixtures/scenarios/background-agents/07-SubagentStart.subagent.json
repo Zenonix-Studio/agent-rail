@@ -1,0 +1,9 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-1",
+  "agent_id": "agent-0311",
+  "agent_type": "general-purpose",
+  "hook_event_name": "SubagentStart"
+}

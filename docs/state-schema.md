@@ -72,16 +72,31 @@ With no milestones there is no %: viewers show "Planning · 0/?".
 
 - `planning`: the prompt arrived but the main agent has not used a tool or
   made a plan yet.
-- `running`: the main agent is working.
-- `waiting`: waiting for the user. Either the agent asked for a permission or
-  sent a notification, or its turn ended while milestones were still unfinished
-  (it asked a question or paused). The next prompt continues the same job,
+- `running`: the main agent is working, or its turn ended while subagents of
+  this job (`Agent.job == seq`) are still `running`: it waits on them. The job
+  stays `running` with `endedAt: null` until a later main-agent stop finds no
+  running subagent of the job. When Claude's stop lists its running background
+  tasks, a subagent of the job missing from that list is marked `stale` first.
+  A main-agent tool call (e.g. in the short turn after a hand-back) means the
+  main agent works again; its next stop decides anew.
+- `waiting`: waiting for the user. Either the agent or a subagent asked for a
+  permission or sent a notification (Claude's idle notice after a stop that
+  left subagents running does not count), or its turn ended
+  while milestones were still unfinished and no subagent of the job was running
+  (it asked a question or paused). A tool call from a subagent of the job after
+  such a stop sets it back to `running`. The next prompt continues the same job,
   unless it brings a new plan (see below).
-- `done`: the main agent stopped with every milestone done (or with no plan),
-  or the session ended. `endedAt` is set.
+- `done`: the main agent stopped with every milestone done (or with no plan)
+  and no subagent of the job still running, or the session ended. `endedAt` is
+  set.
 - `error`: reserved; not written by this version.
 
-A follow-up prompt on a `done` or `waiting` job reopens it. It becomes a new job
+Prompts that Claude Code injects to hand a background agent's result back to
+the main agent (`<task-notification>…`) are not user prompts: they never start,
+reopen or split a job.
+
+A follow-up prompt on a `done` or `waiting` job, or on a `running` job whose
+main agent already stopped, reopens it. It becomes a new job
 only when the agent's next plan event is new work: a Codex plan that shares no
 step with the current milestones, or a Claude task created when every current
 milestone is already done. Otherwise the same job continues and new milestones
@@ -117,12 +132,16 @@ milestone changes.
 ## Agent
 
 A subagent of the main agent. Subagents never change milestones or %.
+Claude Code's own helper agents (prompt suggestions, internal forks) report an
+`agent_id` with an empty or missing `agent_type` and never start as subagents:
+an id whose events carry no `agent_type` is listed only once a subagent start
+was seen for it. Ids with an `agent_type` are always listed.
 
 | Field | Type | Meaning |
 |---|---|---|
 | `id` | `string` | The agent id the hooks report. |
 | `name` | `string` | Agent type or name (`Explore`, `worker`, …); `'agent'` when unknown. |
-| `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: still running when its job finished or the session ended, and it never reported back. |
+| `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: it never reported back. Either it was still running when its job finished or the session ended, or a Claude main-agent stop no longer listed it among the running background tasks. |
 | `activity` | `string` | One line: its latest action. |
 | `job` | `number \| null` | `seq` of the job it started in; `null` if it started before any job. |
 | `updatedAt` | `string` | Last event from this agent. |
@@ -131,5 +150,5 @@ A subagent of the main agent. Subagents never change milestones or %.
 ## Internal fields (ignore)
 
 Listed only so readers know they are expected: `Session._pendingPrompt`,
-`Job._prevEndedAt`, `Job._summaryFromPlan`, `Now._counts`, `Now._open`,
+`Job._prevEndedAt`, `Job._mainStopped`, `Job._summaryFromPlan`, `Now._counts`, `Now._open`,
 `Now._retryBase`, `Pill._id`.

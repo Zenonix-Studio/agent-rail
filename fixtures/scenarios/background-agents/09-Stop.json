@@ -1,0 +1,27 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-1",
+  "permission_mode": "bypassPermissions",
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "rail: Two background step writers \u2014 Two agents append steps to their own files in the background.",
+  "background_tasks": [
+    {
+      "id": "agent-0310",
+      "type": "subagent",
+      "status": "running",
+      "description": "<description>",
+      "agent_type": "general-purpose"
+    },
+    {
+      "id": "agent-0311",
+      "type": "subagent",
+      "status": "running",
+      "description": "<description>",
+      "agent_type": "general-purpose"
+    }
+  ],
+  "session_crons": []
+}

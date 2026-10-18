@@ -1,0 +1,30 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-1",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "agent-0310",
+  "agent_type": "general-purpose",
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "agent_transcript_path": "/home/user/.claude/transcripts/<id>/subagents/agent-<id>.jsonl",
+  "last_assistant_message": "<placeholder last message>",
+  "background_tasks": [
+    {
+      "id": "agent-0310",
+      "type": "subagent",
+      "status": "running",
+      "description": "<description>",
+      "agent_type": "general-purpose"
+    },
+    {
+      "id": "agent-0311",
+      "type": "subagent",
+      "status": "running",
+      "description": "<description>",
+      "agent_type": "general-purpose"
+    }
+  ],
+  "session_crons": []
+}

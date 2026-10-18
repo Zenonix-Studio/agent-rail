@@ -7,8 +7,10 @@ import { classifyTool } from './flow.mjs';
  *  |{type:'task-update', key:string, status:'pending'|'active'|'done'|'deleted'}
  *  |{type:'tool', phase:'pre'|'post', name:string, label:string, file:string|null, ok:boolean|null, id:string|null}
  *  |{type:'agent-start', name:string}|{type:'agent-stop', ok:boolean}
- *  |{type:'waiting'}|{type:'stop', lastMessage:string|null}|{type:'session-end'}} Event
- * @typedef {{sessionId:string, cwd:string, agentId:string|null, event:Event}} Normalized
+ *  |{type:'waiting', idle?:boolean}|{type:'stop', lastMessage:string|null, background?:string[]|null}|{type:'session-end'}} Event
+ *  `idle`: Claude's idle_prompt notice. `background`: ids of the background tasks a Claude Stop lists as running; null when absent.
+ * @typedef {{sessionId:string, cwd:string, agentId:string|null, agentType?:string|null, event:Event}} Normalized
+ *  `agentType`: Claude's agent_type, null when empty or missing (the reducer uses it to skip helper agents).
  */
 
 /** Claude's task tools: only TaskCreate / TaskUpdate change milestones; the rest are not shown as pills. */
@@ -16,6 +18,9 @@ const TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', '
 
 /** @type {Record<string, 'pending'|'active'|'done'|'deleted'>} */
 const STATUS = { pending: 'pending', in_progress: 'active', completed: 'done', deleted: 'deleted' };
+
+/** Claude Code hands a finished background agent's result back to the main agent as this prompt. */
+const NOTICE_PREFIX = '<task-notification>';
 
 /** @param {unknown} v @returns {string|null} */
 const str = (v) => (typeof v === 'string' && v !== '' ? v : null);
@@ -41,14 +46,16 @@ function convert(p) {
   const cwd = typeof p.cwd === 'string' ? p.cwd : '';
   const agentId = str(p.agent_id);
   const event = toEvent(p);
-  return event ? { sessionId, cwd, agentId, event } : null;
+  return event ? { sessionId, cwd, agentId, agentType: str(p.agent_type), event } : null;
 }
 
 /** @param {any} p @returns {Event|null} */
 function toEvent(p) {
   switch (p.hook_event_name) {
     case 'UserPromptSubmit':
-      return typeof p.prompt === 'string' ? { type: 'prompt', text: p.prompt } : null;
+      if (typeof p.prompt !== 'string') return null;
+      // A background agent's result is delivered to the main agent as a prompt; it is not the user's.
+      return p.prompt.startsWith(NOTICE_PREFIX) ? null : { type: 'prompt', text: p.prompt };
     case 'PreToolUse':
       return toolEvent(p, 'pre', null);
     case 'PostToolUse':
@@ -56,14 +63,15 @@ function toEvent(p) {
     case 'PostToolUseFailure':
       return toolEvent(p, 'post', false);
     case 'PermissionRequest':
-    case 'Notification':
       return { type: 'waiting' };
+    case 'Notification':
+      return p.notification_type === 'idle_prompt' ? { type: 'waiting', idle: true } : { type: 'waiting' };
     case 'SubagentStart':
       return { type: 'agent-start', name: str(p.agent_type) ?? 'agent' };
     case 'SubagentStop':
       return { type: 'agent-stop', ok: true };
     case 'Stop':
-      return { type: 'stop', lastMessage: str(p.last_assistant_message) };
+      return { type: 'stop', lastMessage: str(p.last_assistant_message), background: runningTasks(p.background_tasks) };
     case 'SessionEnd':
       return { type: 'session-end' };
     default:
@@ -100,6 +108,12 @@ function toolEvent(p, phase, ok) {
     ok,
     id: str(p.tool_use_id), // pairs pre/post of parallel calls
   };
+}
+
+/** @param {unknown} tasks Stop's `background_tasks` @returns {string[]|null} ids still running; null when absent */
+function runningTasks(tasks) {
+  if (!Array.isArray(tasks)) return null;
+  return tasks.filter((t) => t && t.status === 'running' && str(t.id)).map((t) => t.id);
 }
 
 /** @param {any} p @param {any} input @returns {Event|null} */
