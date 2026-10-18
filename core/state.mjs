@@ -3,8 +3,11 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 /**
+ * State contract, documented in docs/state-schema.md. Fields starting with `_`
+ * are the collector's internal bookkeeping: readers MUST ignore them, and any
+ * field they do not know.
  * @typedef {'ok'|'warn'|'active'|'info'} PillKind
- * @typedef {{ label: string, kind: PillKind, id?: string }} Pill `id` is set only on active pills, to pair the post.
+ * @typedef {{ label: string, kind: PillKind, _id?: string }} Pill `_id` is set only on active pills, to pair the post.
  * @typedef {{ milestone: string, pills: Pill[], attempt: number, file: string|null }} Now
  * @typedef {{ key: string, title: string, status: 'pending'|'active'|'done' }} Milestone
  * @typedef {{
@@ -14,15 +17,18 @@ import { dirname, join } from 'node:path';
  *   endedAt: string|null, now: Now|null
  * }} Job
  * @typedef {{
- *   id: string, name: string, status: 'running'|'done'|'error',
- *   activity: string, updatedAt: string
- * }} Agent
+ *   id: string, name: string, status: 'running'|'done'|'error'|'stale',
+ *   activity: string, job: number|null, updatedAt: string, endedAt: string|null
+ * }} Agent `job` is the seq of the job the agent started in.
  * @typedef {{
  *   schema: 1, source: 'claude'|'codex', sessionId: string, cwd: string,
  *   project: string, updatedAt: string, jobs: Job[],
- *   agents: Record<string, Agent>, pendingPrompt: string|null
+ *   agents: Record<string, Agent>, _pendingPrompt: string|null
  * }} Session
  */
+
+/** Schema this collector writes. Additive changes keep it; breaking changes increment it. */
+export const SCHEMA_VERSION = 1;
 
 /** @returns {string} `$AGENT_RAIL_HOME` or `~/.agent-rail`. */
 export function stateRoot() {

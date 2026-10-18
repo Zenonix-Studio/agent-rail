@@ -1,5 +1,6 @@
 import { basename } from 'node:path';
 import { extractMeta } from './flow.mjs';
+import { SCHEMA_VERSION } from './state.mjs';
 
 /** @typedef {import('./state.mjs').Session} Session */
 /** @typedef {import('./state.mjs').Job} Job */
@@ -14,11 +15,13 @@ import { extractMeta } from './flow.mjs';
 const SOURCES = new Set(['claude', 'codex']);
 const JOB_STATUS = new Set(['planning', 'running', 'waiting', 'done', 'error']);
 const MILESTONE_STATUS = new Set(['pending', 'active', 'done']);
-const AGENT_STATUS = new Set(['running', 'done', 'error']);
+const AGENT_STATUS = new Set(['running', 'done', 'error', 'stale']);
 const PILL_KINDS = new Set(['ok', 'warn', 'active', 'info']);
 const MAX_PILLS = 3;
 const MAX_OPEN = 20; // open call ids kept for pre/post pairing
 const TITLE_MAX = 48;
+// R18: these labels count every repeat as a retry; others only after they failed.
+const RETRY_LABELS = new Set(['Build', 'Test']);
 
 /** @param {unknown} v @returns {v is Record<string, any>} */
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -84,10 +87,16 @@ function apply(s, input, at) {
         const a = agent(s, agentId, at);
         a.name = str(e.name) ?? a.name;
         a.status = 'running';
+        a.job = current(s)?.seq ?? null;
+        a.endedAt = null;
       }
       break;
     case 'agent-stop':
-      if (agentId) agent(s, agentId, at).status = e.ok === false ? 'error' : 'done';
+      if (agentId) {
+        const a = agent(s, agentId, at);
+        a.status = e.ok === false ? 'error' : 'done';
+        a.endedAt = at;
+      }
       break;
     case 'waiting': {
       const job = current(s);
@@ -98,26 +107,27 @@ function apply(s, input, at) {
       break;
     }
     case 'stop':
-      if (!agentId) finish(s, e.lastMessage, at);
+      if (!agentId) finish(s, e.lastMessage, at, false);
       break;
     case 'session-end':
-      if (!agentId) finish(s, null, at);
+      if (!agentId) finish(s, null, at, true);
       break;
     default:
       break;
   }
 }
 
-/** Rule 1: start a job, reopen a done one (pending split decision), or ignore. */
+/** Rule 1: start a job, reopen a done or paused one (pending split decision), or ignore. */
 function onPrompt(s, text, at) {
   const job = current(s);
   if (!job) {
     s.jobs.push(newJob(s, 1, text, 'planning', at));
     return;
   }
-  if (job.status === 'done') {
-    s.pendingPrompt = text;
-    job._prevEndedAt = job.endedAt;
+  if (job.status === 'done' || job.status === 'waiting') {
+    // A paused job (R16) already holds its stop time in _prevEndedAt.
+    s._pendingPrompt = text;
+    if (job.status === 'done') job._prevEndedAt = job.endedAt;
     job.status = 'running';
     job.endedAt = null;
     job.updatedAt = at;
@@ -129,22 +139,28 @@ function onPrompt(s, text, at) {
   }
 }
 
-/** Rules 2 and 3: split on a disjoint plan after a follow-up prompt, then apply the change. */
+/** Rules 2 and 3: after a follow-up prompt, decide split vs continue (R15), then apply the change. */
 function onMilestones(s, e, at) {
   let job = ensureJob(s, at);
 
-  if (s.pendingPrompt !== null && (e.type === 'plan' || e.type === 'task-create')) {
-    if (isDisjoint(job, e)) {
-      job.status = 'done';
-      job.endedAt = job._prevEndedAt ?? at;
-      delete job._prevEndedAt;
-      job.updatedAt = at;
-      job = newJob(s, job.seq + 1, s.pendingPrompt, 'running', at);
-      s.jobs.push(job);
-    } else {
-      delete job._prevEndedAt;
+  if (s._pendingPrompt !== null) {
+    // R15: a Codex plan splits when disjoint; a Claude task-create splits only
+    // once every milestone is done; a task-update on a known key continues.
+    const decided = e.type !== 'task-update' || job.milestones.some((m) => m.key === e.key);
+    if (decided) {
+      const split = e.type === 'plan' ? isDisjoint(job, e) : e.type === 'task-create' && job.milestones.every((m) => m.status === 'done');
+      if (split) {
+        job.status = 'done';
+        job.endedAt = job._prevEndedAt ?? at;
+        delete job._prevEndedAt;
+        job.updatedAt = at;
+        job = newJob(s, job.seq + 1, s._pendingPrompt, 'running', at);
+        s.jobs.push(job);
+      } else {
+        delete job._prevEndedAt;
+      }
+      s._pendingPrompt = null;
     }
-    s.pendingPrompt = null;
   }
 
   // R3: a Codex plan explanation / the first Claude task description is a stand-in summary.
@@ -165,14 +181,11 @@ function onMilestones(s, e, at) {
 }
 
 /**
- * R10: Codex plans are snapshots keyed by step title; Claude task ids never
- * reset, so a created task is compared by title against current milestones.
+ * R10: Codex plans are snapshots keyed by step title; a new plan sharing no key
+ * with the current milestones is a new job.
  * @param {Job} job @param {Record<string, any>} e @returns {boolean}
  */
 function isDisjoint(job, e) {
-  if (e.type === 'task-create') {
-    return typeof e.title === 'string' && !job.milestones.some((m) => m.title === e.title);
-  }
   const items = planItems(e);
   if (items.length === 0) return false;
   const keys = new Set(job.milestones.map((m) => m.key));
@@ -222,16 +235,13 @@ function onTool(s, agentId, e, at) {
     const a = agent(s, agentId, at);
     const base = file ? basename(file) : null;
     a.activity = base && !label.includes(base) ? `${label} · ${base}` : label;
-    const job = current(s);
-    if (job && job.status === 'waiting') {
-      job.status = 'running';
-      job.updatedAt = at;
-    }
+    // M3: only the main agent's activity clears 'waiting'.
     return;
   }
 
   const job = ensureJob(s, at);
-  if (job.status === 'waiting') job.status = 'running';
+  // R17: main-agent tool activity means the job runs, plan or not.
+  if (job.status === 'waiting' || job.status === 'planning') job.status = 'running';
   const key = activeKey(job);
   if (!job.now || job.now.milestone !== key) job.now = emptyNow(key);
   const now = job.now;
@@ -239,7 +249,7 @@ function onTool(s, agentId, e, at) {
   const id = str(e.id);
 
   if (e.phase === 'pre') {
-    now.pills.push(id ? { label, kind: 'active', id } : { label, kind: 'active' });
+    now.pills.push(id ? { label, kind: 'active', _id: id } : { label, kind: 'active' });
     counts[label] = (counts[label] ?? 0) + 1;
     if (id) now._open = [...now._open, id].slice(-MAX_OPEN);
   } else {
@@ -252,29 +262,44 @@ function onTool(s, agentId, e, at) {
     for (let k = now.pills.length - 1; k >= 0; k--) {
       const p = now.pills[k];
       if (p.kind !== 'active') continue;
-      if (id !== null ? p.id === id : p.label === label) { i = k; break; }
+      if (id !== null ? p._id === id : p.label === label) { i = k; break; }
     }
     if (i >= 0) now.pills[i] = pill;
     else now.pills.push(pill);
     // A post whose pre was never seen still counts as one occurrence.
     if (i < 0 && !opened) counts[label] = (counts[label] ?? 0) + 1;
+    // R18: a failure starts a retry count for labels that do not always count.
+    if (e.ok === false && !RETRY_LABELS.has(label) && !(label in now._retryBase)) now._retryBase[label] = (counts[label] ?? 1) - 1;
   }
   now.pills = now.pills.slice(-MAX_PILLS);
-  now.attempt = counts[label];
+  const n = counts[label] ?? 1;
+  now.attempt = RETRY_LABELS.has(label) ? n : label in now._retryBase ? n - now._retryBase[label] : 1;
   if (file) now.file = file;
   job.updatedAt = at;
 }
 
-/** Rules 7-8: close the current job and adopt the agent-written title/summary. */
-function finish(s, lastMessage, at) {
-  s.pendingPrompt = null;
+/**
+ * Rules 7-8: close the current job and adopt the agent-written title/summary.
+ * R16: a main-agent Stop with unfinished milestones only pauses the job
+ * ('waiting' for the user); session end always finishes it.
+ * @param {boolean} final true on session end
+ */
+function finish(s, lastMessage, at, final) {
+  s._pendingPrompt = null;
   const job = current(s);
-  if (!job) return;
-  if (job.status !== 'done') {
-    job.status = 'done';
-    job.endedAt = at;
+  if (job && job.status !== 'done') {
+    if (!final && job.milestones.some((m) => m.status !== 'done')) {
+      job.status = 'waiting';
+      job._prevEndedAt = at; // where the job ends if a follow-up splits off a new one
+    } else {
+      job.status = 'done';
+      job.endedAt = at;
+      delete job._prevEndedAt;
+    }
   }
-  delete job._prevEndedAt;
+  // I5: subagents still marked running when the job or session ends never reported back.
+  if (final || job?.status === 'done') closeAgents(s, at);
+  if (!job) return;
   const meta = extractMeta(lastMessage);
   if (meta) {
     if (job.title === fallbackTitle(job.prompt)) job.title = meta.title;
@@ -283,6 +308,16 @@ function finish(s, lastMessage, at) {
     delete job._summaryFromPlan;
   }
   job.updatedAt = at;
+}
+
+/** @param {Session} s @param {string} at */
+function closeAgents(s, at) {
+  for (const a of Object.values(s.agents)) {
+    if (a.status !== 'running') continue;
+    a.status = 'stale';
+    a.endedAt = at;
+    a.updatedAt = at;
+  }
 }
 
 /** @param {Session} s @returns {Job|null} */
@@ -319,7 +354,7 @@ function newJob(s, seq, prompt, status, at) {
 /** @returns {Agent} */
 function agent(s, id, at) {
   if (!isObj(s.agents[id])) {
-    s.agents[id] = { id, name: 'agent', status: 'running', activity: '', updatedAt: at };
+    s.agents[id] = { id, name: 'agent', status: 'running', activity: '', job: current(s)?.seq ?? null, updatedAt: at, endedAt: null };
   }
   s.agents[id].updatedAt = at;
   return s.agents[id];
@@ -333,10 +368,11 @@ function activeKey(job) {
 /**
  * @param {string} milestone
  * @returns {Now} `_counts` tracks label occurrences for `attempt`; `_open` holds
- *   call ids whose pre was counted but whose post has not arrived yet.
+ *   call ids whose pre was counted but whose post has not arrived yet;
+ *   `_retryBase[label]` is the count before that label's first failure (R18).
  */
 function emptyNow(milestone) {
-  return { milestone, pills: [], attempt: 0, file: null, _counts: {}, _open: [] };
+  return { milestone, pills: [], attempt: 0, file: null, _counts: {}, _open: [], _retryBase: {} };
 }
 
 // --- Defensive copy of stored state -------------------------------------
@@ -352,7 +388,7 @@ function sanitize(prev, input, at) {
     for (const [id, a] of Object.entries(p.agents)) if (isObj(a)) agents[id] = fixAgent(id, a, at);
   }
   return {
-    schema: 1,
+    schema: SCHEMA_VERSION,
     source,
     sessionId,
     cwd,
@@ -360,7 +396,7 @@ function sanitize(prev, input, at) {
     updatedAt: at,
     jobs: Array.isArray(p.jobs) ? p.jobs.filter(isObj).map((j, i) => fixJob(j, i, source, sessionId, at)) : [],
     agents,
-    pendingPrompt: typeof p.pendingPrompt === 'string' ? p.pendingPrompt : null,
+    _pendingPrompt: typeof p._pendingPrompt === 'string' ? p._pendingPrompt : null,
   };
 }
 
@@ -395,21 +431,23 @@ function fixJob(j, i, source, sessionId, at) {
 
 function fixNow(n) {
   if (!isObj(n)) return null;
-  const counts = {};
-  if (isObj(n._counts)) {
-    for (const [k, v] of Object.entries(n._counts)) if (Number.isFinite(v)) counts[k] = v;
-  }
+  const nums = (o) => {
+    const out = {};
+    if (isObj(o)) for (const [k, v] of Object.entries(o)) if (Number.isFinite(v)) out[k] = v;
+    return out;
+  };
   return {
     milestone: typeof n.milestone === 'string' ? n.milestone : '',
     pills: Array.isArray(n.pills)
       ? n.pills
         .filter((x) => isObj(x) && typeof x.label === 'string' && PILL_KINDS.has(x.kind))
-        .map((x) => (str(x.id) ? { label: x.label, kind: x.kind, id: x.id } : { label: x.label, kind: x.kind }))
+        .map((x) => (str(x._id) ? { label: x.label, kind: x.kind, _id: x._id } : { label: x.label, kind: x.kind }))
       : [],
     attempt: Number.isFinite(n.attempt) ? n.attempt : 0,
     file: str(n.file),
-    _counts: counts,
+    _counts: nums(n._counts),
     _open: Array.isArray(n._open) ? n._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
+    _retryBase: nums(n._retryBase),
   };
 }
 
@@ -419,6 +457,8 @@ function fixAgent(id, a, at) {
     name: str(a.name) ?? 'agent',
     status: AGENT_STATUS.has(a.status) ? a.status : 'running',
     activity: typeof a.activity === 'string' ? a.activity : '',
+    job: Number.isInteger(a.job) ? a.job : null,
     updatedAt: str(a.updatedAt) ?? at,
+    endedAt: str(a.endedAt),
   };
 }
