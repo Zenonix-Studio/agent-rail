@@ -15,7 +15,7 @@
       "id": "agent-0311",
       "type": "subagent",
       "status": "running",
-      "description": "<description>",
+      "description": "Agent 2 step writer",
       "agent_type": "general-purpose"
     }
   ],

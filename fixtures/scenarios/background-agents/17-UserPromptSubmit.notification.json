@@ -5,5 +5,5 @@
   "prompt_id": "prompt-0301-2",
   "permission_mode": "bypassPermissions",
   "hook_event_name": "UserPromptSubmit",
-  "prompt": "<task-notification>\n<task-id>agent-0310</task-id>\n<status>completed</status>\n<summary>Agent \"<description>\" finished</summary>\n<result><placeholder result></result>\n</task-notification>"
+  "prompt": "<task-notification>\n<task-id>agent-0310</task-id>\n<status>completed</status>\n<summary>Agent \"Agent 1 step writer\" finished</summary>\n<result><placeholder result></result>\n</task-notification>"
 }

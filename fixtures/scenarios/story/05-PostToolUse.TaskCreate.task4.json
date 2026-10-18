@@ -1,0 +1,25 @@
+{
+  "session_id": "session-0401",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0401-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskCreate",
+  "tool_input": {
+    "subject": "Fix issues",
+    "description": "Fix the issues and rebuild.",
+    "activeForm": "Fixing issues"
+  },
+  "tool_response": {
+    "task": {
+      "id": "4",
+      "subject": "Fix issues"
+    }
+  },
+  "tool_use_id": "toolu-0404",
+  "duration_ms": 60
+}

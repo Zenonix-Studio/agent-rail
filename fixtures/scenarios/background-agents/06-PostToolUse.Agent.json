@@ -7,7 +7,7 @@
   "hook_event_name": "PostToolUse",
   "tool_name": "Agent",
   "tool_input": {
-    "description": "<description>",
+    "description": "Agent 2 step writer",
     "prompt": "<placeholder prompt>",
     "subagent_type": null,
     "run_in_background": null
@@ -17,6 +17,6 @@
     "isAsync": true,
     "status": "async_launched",
     "agentId": "agent-0311",
-    "description": "<description>"
+    "description": "Agent 2 step writer"
   }
 }

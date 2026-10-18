@@ -7,37 +7,238 @@ import { basename } from 'node:path';
 const LEAD = String.raw`(?:^|[;&|\n(])\s*(?:npx\s+)?`;
 const TEST = new RegExp(`${LEAD}(?:xcodebuild test|swift test|npm test|pytest|vitest|jest|cargo test|go test)\\b`);
 const BUILD = new RegExp(`${LEAD}(?:xcodebuild|swift build|npm run build|pnpm build|yarn build|make|gradle|cargo build|tsc)\\b`);
-const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'apply_patch']);
-const READ_TOOLS = new Set(['Read', 'Grep', 'Glob']);
+const SHELL_TOOLS = new Set(['Bash', 'shell', 'local_shell', 'exec_command', 'unified_exec', 'container.exec']);
+const DISPATCH_TOOLS = new Set(['Agent', 'Task']);
+/** Tools that are bookkeeping, not work: never shown as a step. */
+const SKIP_TOOLS = new Set(['ToolSearch', 'TaskList', 'TaskGet', 'TaskOutput', 'TaskStop']);
+const FIXED = {
+  AskUserQuestion: 'Asking you a question',
+  EnterPlanMode: 'Planning',
+  ExitPlanMode: 'Presenting the plan',
+  BashOutput: 'Checking command output',
+  KillShell: 'Stopping a command',
+  KillBash: 'Stopping a command',
+  collaborationwait_agent: 'Waiting for agents',
+  collaborationclose_agent: 'Closing an agent',
+  collaborationsend_input: 'Messaging an agent',
+};
+
+/** Longest step label, in characters; longer ones end in "…". */
+export const LABEL_MAX = 60;
+const AGENT_NAME_MAX = 40;
 
 /**
- * Maps a tool call to the short label used for "right now" pills.
+ * One step of the work, as shown in the flow. Steps with the same `group` in a
+ * row collapse into one pill (`groupLabel`).
+ * @typedef {{
+ *   label: string, fail: string, key: string,
+ *   group: string|null, item: string|null, agentName?: string|null, agentType?: string|null
+ * }} Step
+ *  `label`: human sentence, e.g. "Editing LoginView.swift". `fail`: what to show when it failed.
+ *  `key`: what the retry counter counts (`Build`, `Test`, else the label).
+ *  `group`: collapse family (`read`, `search`, `edit`, `dispatch`, `web`, or `=<label>` for exact repeats).
+ *  `item`: the file / pattern / agent the step is about, for the collapsed count.
+ *  `agentName`/`agentType`: for a dispatch, the name the new agent is shown under and its type.
+ */
+
+/**
+ * Describes a tool call as a short human sentence, preferring the agent's own
+ * words (a Bash `description`, an Agent `description`) over the tool's name.
  * @param {string} name Tool name as sent by the agent.
  * @param {unknown} input Raw `tool_input`.
- * @returns {string} `Test`, `Build`, `Edit <basename>`, `Read`, or the tool name.
+ * @returns {Step|null} null for bookkeeping tools that are not steps (ToolSearch, TaskList, …).
  */
-export function classifyTool(name, input) {
+export function describeTool(name, input) {
   const tool = typeof name === 'string' && name !== '' ? name : 'tool';
   const args = input && typeof input === 'object' ? /** @type {any} */ (input) : {};
+  if (SKIP_TOOLS.has(tool)) return null;
 
-  if (EDIT_TOOLS.has(tool)) {
-    const file = tool === 'apply_patch' ? patchFile(args.command) : args.file_path;
-    return typeof file === 'string' && file !== '' ? `Edit ${basename(file)}` : 'Edit';
+  if (tool === 'Edit' || tool === 'MultiEdit' || tool === 'NotebookEdit') {
+    return fileStep('Editing', 'edit', args.file_path ?? args.notebook_path, 'Editing a file');
   }
-  if (READ_TOOLS.has(tool)) return 'Read';
-
-  const cmd = Array.isArray(args.command) ? args.command.join(' ') : args.command;
-  if (typeof cmd === 'string') {
-    if (TEST.test(cmd)) return 'Test';
-    if (BUILD.test(cmd)) return 'Build';
+  if (tool === 'Write') return fileStep('Writing', 'edit', args.file_path, 'Writing a file');
+  if (tool === 'apply_patch') {
+    const m = /^\*\*\* (Add|Update|Delete) File: (.+)$/m.exec(typeof args.command === 'string' ? args.command : '');
+    const verb = m?.[1] === 'Add' ? 'Writing' : m?.[1] === 'Delete' ? 'Deleting' : 'Editing';
+    return fileStep(verb, 'edit', m?.[2]?.trim(), 'Editing files');
   }
-  return tool;
+  if (tool === 'Read') return fileStep('Reading', 'read', args.file_path, 'Reading a file');
+  if (tool === 'Grep' || tool === 'Glob') {
+    const pat = text(args.pattern);
+    return step(pat ? `Searching for '${clipText(pat, 32)}'` : 'Searching the code', { group: 'search', item: pat });
+  }
+  if (SHELL_TOOLS.has(tool)) return shellStep(args);
+  if (DISPATCH_TOOLS.has(tool)) {
+    const desc = text(args.description);
+    const type = text(args.subagent_type);
+    const label = desc
+      ? type && type !== 'general-purpose' ? `${type}: ${desc}` : `Dispatched agent: ${desc}`
+      : type ? `Dispatched ${type} agent` : 'Dispatched an agent';
+    return step(label, { group: 'dispatch', item: desc ?? type, agentName: clipText(desc ?? type ?? '', AGENT_NAME_MAX) || null, agentType: type });
+  }
+  if (tool === 'collaborationspawn_agent' || tool === 'spawn_agent') {
+    const task = text(args.task_name) ?? text(args.name);
+    const shown = task ? sentence(words(task)) : null;
+    return step(shown ? `Dispatched agent: ${shown}` : 'Dispatched an agent', { group: 'dispatch', item: shown, agentName: shown && clipText(shown, AGENT_NAME_MAX), agentType: null });
+  }
+  if (tool === 'Skill') {
+    const skill = text(args.skill) ?? text(args.name);
+    return step(skill ? `Using skill ${skill}` : 'Using a skill');
+  }
+  if (tool === 'WebSearch' || tool === 'web_search') {
+    const q = text(args.query);
+    return step(q ? `Searching the web: ${q}` : 'Searching the web', { group: 'web', item: q });
+  }
+  if (tool === 'WebFetch') {
+    let host = null;
+    try { host = new URL(String(args.url)).host.replace(/^www\./, ''); } catch { /* not a URL */ }
+    return step(host ? `Reading ${host}` : 'Reading a web page', { group: 'web', item: host });
+  }
+  if (FIXED[tool]) return step(FIXED[tool]);
+  const mcp = /^mcp__(.+?)__(.+)$/.exec(tool);
+  if (mcp) return step(mcpLabel(mcp[1], mcp[2]));
+  return step(sentence(words(tool)) || 'Working');
 }
 
-/** @param {unknown} patch apply_patch text @returns {string|null} first file it touches */
-function patchFile(patch) {
-  if (typeof patch !== 'string') return null;
-  return /^\*\*\* (?:Add|Update|Delete) File: (.+)$/m.exec(patch)?.[1]?.trim() ?? null;
+/**
+ * Label of a run of collapsed steps of one group, e.g. "Reading 5 files".
+ * @param {string|null} group
+ * @param {string[]} items One entry per step (null items dropped).
+ * @param {number} n Steps in the run.
+ * @param {string} single Label used when the run is a single step (or one item).
+ * @returns {string}
+ */
+export function groupLabel(group, items, n, single) {
+  const uniq = new Set(items).size;
+  switch (group) {
+    case 'read': return uniq > 1 ? `Reading ${uniq} files` : single;
+    case 'edit': return uniq > 1 ? `Editing ${uniq} files` : single;
+    case 'search': return uniq > 1 ? `Searching ${uniq} patterns` : single;
+    case 'web': return n > 1 ? `Searching the web (${n} lookups)` : single;
+    case 'dispatch': return n > 1 ? `Dispatched ${n} agents` : single;
+    case 'plan': return `Planned ${n} ${n === 1 ? 'step' : 'steps'}`;
+    default: return single;
+  }
+}
+
+/**
+ * Bash and Codex shell calls: the agent's `description`, else Build/Test, else the command head.
+ * @param {any} args @returns {Step}
+ */
+function shellStep(args) {
+  const cmd = shellCommand(args.command ?? args.cmd);
+  const kind = cmd === null ? null : TEST.test(cmd) ? 'Test' : BUILD.test(cmd) ? 'Build' : null;
+  const desc = text(args.description);
+  const fallback = kind === 'Test' ? 'Running tests' : kind === 'Build' ? 'Building' : cmd ? `Running \`${commandHead(cmd)}\`` : 'Running a command';
+  const label = desc ?? fallback;
+  const fail = kind === 'Test' ? 'Tests failed'
+    : kind === 'Build' ? 'Build failed'
+    : desc ? `Failed: ${desc}`
+    : cmd ? `\`${commandHead(cmd)}\` failed` : 'Command failed';
+  return step(label, { key: kind ?? undefined, fail });
+}
+
+/** @param {unknown} c string, or an argv array (Codex) @returns {string|null} the script text */
+function shellCommand(c) {
+  if (Array.isArray(c)) {
+    const parts = c.filter((x) => typeof x === 'string');
+    // ["bash", "-lc", "<script>"]: the script is what ran.
+    if (parts.length >= 3 && /^(?:ba|z)?sh$/.test(basename(parts[0])) && /^-\w*c$/.test(parts[1])) return parts.slice(2).join(' ');
+    return parts.join(' ') || null;
+  }
+  return typeof c === 'string' && c.trim() !== '' ? c : null;
+}
+
+/** First real command of a script, a few words: `cd x && git status -s` → `git status -s`. */
+function commandHead(cmd) {
+  const first = cmd.split('\n')[0];
+  const segs = first.split(/\s*(?:&&|\|\||;|\|)\s*/).filter((x) => x.trim() !== '');
+  const main = segs.find((x) => !/^(?:cd|export|set|source|\.)\s/.test(x.trim())) ?? segs[0] ?? first;
+  // Up to 4 words, stopping before a quoted argument: `git commit -m "…"` → `git commit -m`.
+  const head = main.trim().split(/\s+/).slice(0, 4);
+  const q = head.findIndex((x) => /^['"`$(]/.test(x));
+  return clipText((q > 0 ? head.slice(0, q) : head).join(' '), 36);
+}
+
+/** `mcp__XcodeBuildMCP__build_run_sim` → "XcodeBuild: build run sim". */
+function mcpLabel(server, toolName) {
+  const parts = server.replace(/^claude_ai_/, '').replace(/^plugin_/, '').split(/[_-]+/).filter(Boolean);
+  const seen = new Set();
+  const uniq = parts.filter((p) => !seen.has(p.toLowerCase()) && seen.add(p.toLowerCase()));
+  let name = uniq.join(' ').replace(/[\s_-]*mcp$/i, '').replace(/^mcp[\s_-]*/i, '') || uniq.join(' ') || 'Tool';
+  name = name.charAt(0).toUpperCase() + name.slice(1);
+  let w = words(toolName);
+  // `firebase_get_project` on server "firebase": drop the repeated server name.
+  if (w.length > 1 && w[0].toLowerCase() === name.toLowerCase()) w = w.slice(1);
+  const action = w.map((x) => (isAcronym(x) ? x : x.toLowerCase())).join(' ');
+  return action ? `${name}: ${action}` : name;
+}
+
+/** Splits an identifier into words: snake_case, kebab-case and camelCase. @param {string} id */
+function words(id) {
+  return id
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .split(/[\s_\-.:/]+/)
+    .filter(Boolean);
+}
+
+/** Sentence case, keeping acronyms: ["read", "LSP", "Docs"] → "Read LSP docs". @param {string[]} w */
+function sentence(w) {
+  return w
+    .map((x, i) => (isAcronym(x) ? x : i === 0 ? x.charAt(0).toUpperCase() + x.slice(1).toLowerCase() : x.toLowerCase()))
+    .join(' ');
+}
+
+/** @param {string} w */
+function isAcronym(w) {
+  return w.length > 1 && w === w.toUpperCase() && /[A-Z]/.test(w);
+}
+
+/** @param {string} verb @param {string} group @param {unknown} path @param {string} none @returns {Step} */
+function fileStep(verb, group, path, none) {
+  const file = text(path);
+  const base = file ? basename(file) : null;
+  return step(base ? `${verb} ${base}` : none, { group, item: base });
+}
+
+/**
+ * @param {string} label
+ * @param {{key?: string, fail?: string, group?: string|null, item?: string|null, agentName?: string|null, agentType?: string|null}} [o]
+ * @returns {Step}
+ */
+function step(label, o = {}) {
+  const l = clipText(label, LABEL_MAX);
+  /** @type {Step} */
+  const s = {
+    label: l,
+    fail: clipText(o.fail ?? `Failed: ${l}`, LABEL_MAX),
+    key: o.key ?? l,
+    // No family: exact repeats of the same label still collapse.
+    group: o.group ?? `=${l}`,
+    item: o.item ?? null,
+  };
+  if (o.agentName !== undefined) {
+    s.agentName = o.agentName;
+    s.agentType = o.agentType ?? null;
+  }
+  return s;
+}
+
+/** One line of the agent's own text: whitespace collapsed, trimmed; null when empty. @param {unknown} v */
+function text(v) {
+  if (typeof v !== 'string') return null;
+  const t = v.replace(/\s+/g, ' ').trim();
+  return t === '' ? null : t;
+}
+
+/**
+ * @param {string} t @param {number} max
+ * @returns {string} `t`, cut to `max` characters with a trailing "…".
+ */
+export function clipText(t, max) {
+  const chars = Array.from(t);
+  return chars.length <= max ? t : `${chars.slice(0, max - 1).join('').trimEnd()}…`;
 }
 
 // Marker line asked for by the injected context (Task 6), e.g.
