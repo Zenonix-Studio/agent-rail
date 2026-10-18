@@ -67,7 +67,7 @@ function apply(s, input, at) {
   const agentId = str(input.agentId);
   switch (e.type) {
     case 'prompt':
-      onPrompt(s, typeof e.text === 'string' ? e.text : '', at);
+      if (!agentId) onPrompt(s, typeof e.text === 'string' ? e.text : '', at);
       break;
     case 'plan':
     case 'task-create':

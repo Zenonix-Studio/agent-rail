@@ -51,8 +51,9 @@ export function extractMeta(text) {
   if (typeof text !== 'string') return null;
   const m = META.exec(text);
   if (!m) return null;
-  const title = m[1].trim();
-  const summary = m[2].trim();
+  const title = m[1].trim().split(/\s+/).slice(0, 6).join(' ');
+  // At most two sentences: split after . ! or ? followed by whitespace.
+  const summary = m[2].trim().split(/(?<=[.!?])\s+/).slice(0, 2).join(' ');
   return title && summary ? { title, summary } : null;
 }
 
