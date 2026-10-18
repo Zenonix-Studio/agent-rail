@@ -72,16 +72,27 @@ With no milestones there is no %: viewers show "Planning · 0/?".
 
 - `planning`: the prompt arrived but the main agent has not used a tool or
   made a plan yet.
-- `running`: the main agent is working.
-- `waiting`: waiting for the user. Either the agent asked for a permission or
-  sent a notification, or its turn ended while milestones were still unfinished
-  (it asked a question or paused). The next prompt continues the same job,
+- `running`: the main agent is working, or its turn ended while subagents of
+  this job (`Agent.job == seq`) are still `running`: it waits on them. The job
+  stays `running` with `endedAt: null` until a later main-agent stop finds no
+  running subagent of the job.
+- `waiting`: waiting for the user. Either the agent or a subagent asked for a
+  permission, the agent sent a notification during its turn, or its turn ended
+  while milestones were still unfinished and no subagent of the job was running
+  (it asked a question or paused). A tool call from a subagent of the job after
+  such a stop sets it back to `running`. The next prompt continues the same job,
   unless it brings a new plan (see below).
-- `done`: the main agent stopped with every milestone done (or with no plan),
-  or the session ended. `endedAt` is set.
+- `done`: the main agent stopped with every milestone done (or with no plan)
+  and no subagent of the job still running, or the session ended. `endedAt` is
+  set.
 - `error`: reserved; not written by this version.
 
-A follow-up prompt on a `done` or `waiting` job reopens it. It becomes a new job
+Prompts that Claude Code injects to hand a background agent's result back to
+the main agent (`<task-notification>…`) are not user prompts: they never start,
+reopen or split a job.
+
+A follow-up prompt on a `done` or `waiting` job, or on a `running` job whose
+main agent already stopped, reopens it. It becomes a new job
 only when the agent's next plan event is new work: a Codex plan that shares no
 step with the current milestones, or a Claude task created when every current
 milestone is already done. Otherwise the same job continues and new milestones
@@ -117,6 +128,9 @@ milestone changes.
 ## Agent
 
 A subagent of the main agent. Subagents never change milestones or %.
+Claude Code's own helper agents (prompt suggestions, internal forks) report an
+`agent_id` with an empty or missing `agent_type` and never start as subagents;
+they are not listed.
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -131,5 +145,5 @@ A subagent of the main agent. Subagents never change milestones or %.
 ## Internal fields (ignore)
 
 Listed only so readers know they are expected: `Session._pendingPrompt`,
-`Job._prevEndedAt`, `Job._summaryFromPlan`, `Now._counts`, `Now._open`,
+`Job._prevEndedAt`, `Job._mainStopped`, `Job._summaryFromPlan`, `Now._counts`, `Now._open`,
 `Now._retryBase`, `Pill._id`.

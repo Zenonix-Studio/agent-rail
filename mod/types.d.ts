@@ -6,6 +6,7 @@
 export type RailPill = { label: string; kind: 'ok' | 'warn' | 'active' | 'info' };
 export type RailMilestone = { key: string; title: string; status: 'pending' | 'active' | 'done' };
 export type RailJob = {
+  seq: number;
   title: string;
   status: 'planning' | 'running' | 'waiting' | 'done' | 'error';
   milestones: RailMilestone[];
@@ -13,8 +14,8 @@ export type RailJob = {
   endedAt: string | null;
   now: { milestone: string; pills: RailPill[]; attempt: number; file: string | null } | null;
 };
-/** The current job and the clock it was read at (ms since the epoch). */
-export type RailView = { job: RailJob | null; at: number };
+/** The current job, the clock it was read at (ms since the epoch), and its running subagents. */
+export type RailView = { job: RailJob | null; at: number; agents: number };
 
 declare module 'claude-code' {
   interface PluginState {

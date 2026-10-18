@@ -13,3 +13,13 @@ export function progress(job) {
   const done = milestones.filter((m) => m?.status === 'done').length;
   return { done, total, pct: total === 0 ? null : Math.round((100 * done) / total) };
 }
+
+/**
+ * @param {Pick<import('./state.mjs').Session, 'agents'>|null|undefined} session
+ * @param {number} seq A job's `seq`.
+ * @returns {number} Subagents of that job still marked `running`.
+ */
+export function runningAgents(session, seq) {
+  const agents = session?.agents && typeof session.agents === 'object' ? Object.values(session.agents) : [];
+  return agents.filter((a) => a?.status === 'running' && a.job === seq).length;
+}

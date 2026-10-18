@@ -91,7 +91,7 @@ export function writeSession(path, session) {
   }
 }
 
-export { progress } from './progress.mjs';
+export { progress, runningAgents } from './progress.mjs';
 
 const LOCK_WAIT_MS = 400;
 const LOCK_STALE_MS = 2000;

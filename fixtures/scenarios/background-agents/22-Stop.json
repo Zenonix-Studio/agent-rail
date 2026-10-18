@@ -1,0 +1,12 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-3",
+  "permission_mode": "bypassPermissions",
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "<placeholder last message>",
+  "background_tasks": [],
+  "session_crons": []
+}

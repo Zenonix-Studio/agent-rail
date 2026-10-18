@@ -69,6 +69,33 @@ is detected in Claude by a new `prompt_id`, in Codex by a new `turn_id`; Codex `
 - Claude: `SubagentStart` has only `agent_id, agent_type` (e.g. `general-purpose`) plus common fields. Every hook fired inside the subagent (`PreToolUse`/`PostToolUse`) carries `agent_id` and `agent_type`; main-session hooks lack both. `SubagentStop` carries `agent_id, agent_type, agent_transcript_path, last_assistant_message`. The parent's `PreToolUse` for tool `Agent` has `tool_input.{description, prompt, subagent_type, run_in_background}`, and its `PostToolUse` `tool_response` has `agentId, agentType, status` (links parent tool call to agent). Subagent `session_id` equals the parent's.
 - Codex: `SubagentStart` has `agent_id` (UUID), `agent_type` (`"default"`) and its own `turn_id`; tool hooks inside the subagent carry `agent_id, agent_type`; `session_id` equals the parent's; `SubagentStop` adds `agent_transcript_path` (a rollout file) and `last_assistant_message`. Order seen: parent `PreToolUse collaborationspawn_agent` -> `PostToolUse` -> `SubagentStart`, with `wait_agent` Pre before and Post after `SubagentStop`.
 
+## 8. Background subagents (2026-10-19)
+
+Captured with Claude Code 2.1.302, once headless (`claude -p`) and once interactive (tmux), with a throwaway
+`--settings` file pointing every hook at `--capture`. Sanitized replay: `fixtures/scenarios/background-agents/`.
+
+- The parent's `Agent` call with `tool_input.run_in_background: true` returns at once: `PostToolUse.tool_response`
+  is `{isAsync: true, status: "async_launched", agentId, description, ...}`. `SubagentStart` (with `agent_id`,
+  `agent_type`) fires around that call, before the main agent's `Stop`.
+- The main agent's `Stop` comes while the subagents still work. `Stop` (and `SubagentStop`) carry
+  `background_tasks[]`: `{id, type: "subagent", status: "running", description, agent_type}`, where `id` is the
+  subagent's `agent_id`. It is `[]` once none runs.
+- Real subagent hooks always carry a non-empty `agent_type` (e.g. `general-purpose`), and their ids match
+  `subagents/agent-<id>.jsonl` and the `Agent` result's `agentId`.
+- Claude Code's own helper agents also send hooks, with an `agent_id` but **no usable `agent_type`**, no
+  `SubagentStart` and no transcript:
+  - `SubagentStop` with `agent_type: ""` whose `last_assistant_message` is a suggested next prompt
+    (the prompt-suggestion agent).
+  - `PreToolUse` (`tool_name: "Bash"`) with the `agent_type` key absent, a fresh `tool_use_id`, the same command
+    as a running subagent's call, and no `PostToolUse` (an internal fork).
+  These produced the phantom `agent` entries (activity `Bash`, later `stale`); the normalizer drops them.
+- A finished background agent is handed back to the main agent as a `UserPromptSubmit` whose `prompt` starts with
+  `<task-notification>`. In a real interactive session whose subagents ended with the `SubagentHandback` tool, the
+  transcript also showed a hand-back prompt starting `Another Claude session sent a message:` (seen in the transcript,
+  not in a capture). The main agent then runs a short turn and sends another `Stop`.
+- Interactive only: `Notification` with `notification_type: "idle_prompt"` (`message: "Claude is waiting for your
+  input"`) once the main agent idles; this closes open item 1 for that type.
+
 ## Other findings
 
 - Claude `PostToolUse` fires for success only; failed tools fire **`PostToolUseFailure`** with `error` (e.g. `"Exit code 1\nls: ...: No such file or directory"`), `is_interrupt`, `duration_ms` (no `tool_response`). Successful Bash: `tool_response.{stdout, stderr, interrupted, isImage, noOutputExpected}`.

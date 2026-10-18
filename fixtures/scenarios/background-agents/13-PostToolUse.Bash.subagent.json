@@ -1,0 +1,23 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-1",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "agent-0310",
+  "agent_type": "general-purpose",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "for i in 1 2 3; do echo adim-$i >> step1.txt; sleep 10; done; echo \"exit status: $?\"",
+    "description": "<description>"
+  },
+  "tool_use_id": "toolu-0301-03",
+  "tool_response": {
+    "stdout": "exit=0",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false
+  }
+}

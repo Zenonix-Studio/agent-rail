@@ -1,6 +1,7 @@
 import { basename } from 'node:path';
 import { extractMeta } from './flow.mjs';
 import { SCHEMA_VERSION } from './state.mjs';
+import { runningAgents } from './progress.mjs';
 
 /** @typedef {import('./state.mjs').Session} Session */
 /** @typedef {import('./state.mjs').Job} Job */
@@ -100,7 +101,8 @@ function apply(s, input, at) {
       break;
     case 'waiting': {
       const job = current(s);
-      if (job && job.status !== 'done') {
+      // R19: once its turn ended, the main agent's idle notice adds nothing; a subagent's request still counts.
+      if (job && job.status !== 'done' && !(job._mainStopped && !agentId)) {
         job.status = 'waiting';
         job.updatedAt = at;
       }
@@ -124,8 +126,9 @@ function onPrompt(s, text, at) {
     s.jobs.push(newJob(s, 1, text, 'planning', at));
     return;
   }
-  if (job.status === 'done' || job.status === 'waiting') {
-    // A paused job (R16) already holds its stop time in _prevEndedAt.
+  if (job.status === 'done' || job.status === 'waiting' || job._mainStopped) {
+    // A paused job (R16, R19) already holds its stop time in _prevEndedAt.
+    delete job._mainStopped;
     s._pendingPrompt = text;
     if (job.status === 'done') job._prevEndedAt = job.endedAt;
     job.status = 'running';
@@ -235,7 +238,13 @@ function onTool(s, agentId, e, at) {
     const a = agent(s, agentId, at);
     const base = file ? basename(file) : null;
     a.activity = base && !label.includes(base) ? `${label} · ${base}` : label;
-    // M3: only the main agent's activity clears 'waiting'.
+    // M3: only the main agent's activity clears a permission 'waiting'. R19: after a
+    // main-agent Stop, a working subagent of the job means the job still runs.
+    const job = current(s);
+    if (job && job.status === 'waiting' && job._mainStopped && a.job === job.seq) {
+      job.status = 'running';
+      job.updatedAt = at;
+    }
     return;
   }
 
@@ -282,19 +291,24 @@ function onTool(s, agentId, e, at) {
  * Rules 7-8: close the current job and adopt the agent-written title/summary.
  * R16: a main-agent Stop with unfinished milestones only pauses the job
  * ('waiting' for the user); session end always finishes it.
+ * R19: a main-agent Stop while subagents of the job still run keeps it
+ * 'running': the main agent waits on them, and its next Stop decides.
  * @param {boolean} final true on session end
  */
 function finish(s, lastMessage, at, final) {
   s._pendingPrompt = null;
   const job = current(s);
   if (job && job.status !== 'done') {
-    if (!final && job.milestones.some((m) => m.status !== 'done')) {
-      job.status = 'waiting';
+    const busy = !final && runningAgents(s, job.seq) > 0;
+    if (busy || (!final && job.milestones.some((m) => m.status !== 'done'))) {
+      job.status = busy ? 'running' : 'waiting';
       job._prevEndedAt = at; // where the job ends if a follow-up splits off a new one
+      job._mainStopped = true;
     } else {
       job.status = 'done';
       job.endedAt = at;
       delete job._prevEndedAt;
+      delete job._mainStopped;
     }
   }
   // I5: subagents still marked running when the job or session ends never reported back.
@@ -426,6 +440,7 @@ function fixJob(j, i, source, sessionId, at) {
     now: fixNow(j.now),
   };
   if ('_prevEndedAt' in j) job._prevEndedAt = str(j._prevEndedAt);
+  if (j._mainStopped !== true) delete job._mainStopped;
   return job;
 }
 

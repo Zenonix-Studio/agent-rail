@@ -1,0 +1,22 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-1",
+  "permission_mode": "bypassPermissions",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "<description>",
+    "prompt": "<placeholder prompt>",
+    "subagent_type": null,
+    "run_in_background": null
+  },
+  "tool_use_id": "toolu-0301-02",
+  "tool_response": {
+    "isAsync": true,
+    "status": "async_launched",
+    "agentId": "agent-0311",
+    "description": "<description>"
+  }
+}

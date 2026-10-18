@@ -17,6 +17,9 @@ const TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', '
 /** @type {Record<string, 'pending'|'active'|'done'|'deleted'>} */
 const STATUS = { pending: 'pending', in_progress: 'active', completed: 'done', deleted: 'deleted' };
 
+/** Prompts Claude Code injects when a background agent finishes or hands back its report. */
+const NOTICE_PREFIXES = ['<task-notification>', 'Another Claude session sent a message:'];
+
 /** @param {unknown} v @returns {string|null} */
 const str = (v) => (typeof v === 'string' && v !== '' ? v : null);
 
@@ -40,6 +43,10 @@ function convert(p) {
   if (!sessionId) return null;
   const cwd = typeof p.cwd === 'string' ? p.cwd : '';
   const agentId = str(p.agent_id);
+  // Claude Code's own helper agents (prompt suggestion, forks that replay a
+  // subagent's tool call) send an agent_id with an empty or missing agent_type,
+  // and never a SubagentStart. Real subagents always carry their type.
+  if (agentId && !str(p.agent_type)) return null;
   const event = toEvent(p);
   return event ? { sessionId, cwd, agentId, event } : null;
 }
@@ -48,7 +55,9 @@ function convert(p) {
 function toEvent(p) {
   switch (p.hook_event_name) {
     case 'UserPromptSubmit':
-      return typeof p.prompt === 'string' ? { type: 'prompt', text: p.prompt } : null;
+      if (typeof p.prompt !== 'string') return null;
+      // A background agent's result is delivered to the main agent as a prompt; it is not the user's.
+      return NOTICE_PREFIXES.some((x) => p.prompt.startsWith(x)) ? null : { type: 'prompt', text: p.prompt };
     case 'PreToolUse':
       return toolEvent(p, 'pre', null);
     case 'PostToolUse':
