@@ -1,4 +1,4 @@
-import { classifyTool } from './flow.mjs';
+import { describeTool } from './flow.mjs';
 
 /** @typedef {import('./normalize-claude.mjs').Event} Event */
 /** @typedef {import('./normalize-claude.mjs').Normalized} Normalized */
@@ -77,7 +77,9 @@ function toolEvent(p, phase, agentId) {
       if (m) ok = Number(m[1]) === 0;
     }
   }
-  return { type: 'tool', phase, name, label: classifyTool(name, input), file, ok, id: str(p.tool_use_id) };
+  const step = describeTool(name, input);
+  if (!step) return null;
+  return { type: 'tool', phase, name, ...step, file, ok, id: str(p.tool_use_id) };
 }
 
 /** @param {any} input @returns {Event|null} */

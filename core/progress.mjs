@@ -23,3 +23,13 @@ export function runningAgents(session, seq) {
   const agents = session?.agents && typeof session.agents === 'object' ? Object.values(session.agents) : [];
   return agents.filter((a) => a?.status === 'running' && a.job === seq).length;
 }
+
+/**
+ * @param {Pick<import('./state.mjs').Session, 'agents'>|null|undefined} session
+ * @param {number} seq A job's `seq`.
+ * @returns {import('./state.mjs').Agent[]} Subagents that started in that job, in the order they were first seen.
+ */
+export function jobAgents(session, seq) {
+  const agents = session?.agents && typeof session.agents === 'object' ? Object.values(session.agents) : [];
+  return agents.filter((a) => a && typeof a === 'object' && a.job === seq);
+}

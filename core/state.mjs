@@ -7,9 +7,9 @@ import { dirname, join } from 'node:path';
  * are the collector's internal bookkeeping: readers MUST ignore them, and any
  * field they do not know.
  * @typedef {'ok'|'warn'|'active'|'info'} PillKind
- * @typedef {{ label: string, kind: PillKind, _id?: string }} Pill `_id` is set only on active pills, to pair the post.
+ * @typedef {{ label: string, kind: PillKind, _run?: object }} Pill `label` is a human step ("Editing LoginView.swift"); `_run` is the collapsed run behind it.
  * @typedef {{ milestone: string, pills: Pill[], attempt: number, file: string|null }} Now
- * @typedef {{ key: string, title: string, status: 'pending'|'active'|'done' }} Milestone
+ * @typedef {{ key: string, title: string, status: 'pending'|'active'|'done', _activeForm?: string }} Milestone
  * @typedef {{
  *   id: string, seq: number, title: string, summary: string, prompt: string,
  *   status: 'planning'|'running'|'waiting'|'done'|'error',
@@ -18,12 +18,13 @@ import { dirname, join } from 'node:path';
  * }} Job
  * @typedef {{
  *   id: string, name: string, status: 'running'|'done'|'error'|'stale',
- *   activity: string, job: number|null, updatedAt: string, endedAt: string|null
- * }} Agent `job` is the seq of the job the agent started in.
+ *   activity: string, job: number|null, updatedAt: string, endedAt: string|null,
+ *   _type?: string|null, _run?: object|null
+ * }} Agent `name`: the dispatch description, else the agent type. `job` is the seq of the job the agent started in.
  * @typedef {{
  *   schema: 1, source: 'claude'|'codex', sessionId: string, cwd: string,
  *   project: string, updatedAt: string, jobs: Job[],
- *   agents: Record<string, Agent>, _pendingPrompt: string|null
+ *   agents: Record<string, Agent>, _pendingPrompt: string|null, _dispatch?: object[]
  * }} Session
  */
 
@@ -91,7 +92,7 @@ export function writeSession(path, session) {
   }
 }
 
-export { progress, runningAgents } from './progress.mjs';
+export { progress, runningAgents, jobAgents } from './progress.mjs';
 
 const LOCK_WAIT_MS = 400;
 const LOCK_STALE_MS = 2000;

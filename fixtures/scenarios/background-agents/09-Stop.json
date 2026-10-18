@@ -6,20 +6,20 @@
   "permission_mode": "bypassPermissions",
   "hook_event_name": "Stop",
   "stop_hook_active": false,
-  "last_assistant_message": "rail: Two background step writers \u2014 Two agents append steps to their own files in the background.",
+  "last_assistant_message": "rail: Two background step writers — Two agents append steps to their own files in the background.",
   "background_tasks": [
     {
       "id": "agent-0310",
       "type": "subagent",
       "status": "running",
-      "description": "<description>",
+      "description": "Agent 1 step writer",
       "agent_type": "general-purpose"
     },
     {
       "id": "agent-0311",
       "type": "subagent",
       "status": "running",
-      "description": "<description>",
+      "description": "Agent 2 step writer",
       "agent_type": "general-purpose"
     }
   ],

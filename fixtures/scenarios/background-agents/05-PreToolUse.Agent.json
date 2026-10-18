@@ -7,7 +7,7 @@
   "hook_event_name": "PreToolUse",
   "tool_name": "Agent",
   "tool_input": {
-    "description": "<description>",
+    "description": "Agent 2 step writer",
     "prompt": "<placeholder prompt>",
     "subagent_type": null,
     "run_in_background": null

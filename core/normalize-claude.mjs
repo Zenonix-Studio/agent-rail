@@ -1,14 +1,17 @@
-import { classifyTool } from './flow.mjs';
+import { describeTool } from './flow.mjs';
 
 /**
  * @typedef {{type:'prompt', text:string}
  *  |{type:'plan', items:{key:string,title:string,status:'pending'|'active'|'done'}[], explanation:string|null}
- *  |{type:'task-create', key:string, title:string, description:string|null}
- *  |{type:'task-update', key:string, status:'pending'|'active'|'done'|'deleted'}
- *  |{type:'tool', phase:'pre'|'post', name:string, label:string, file:string|null, ok:boolean|null, id:string|null}
- *  |{type:'agent-start', name:string}|{type:'agent-stop', ok:boolean}
- *  |{type:'waiting', idle?:boolean}|{type:'stop', lastMessage:string|null, background?:string[]|null}|{type:'session-end'}} Event
+ *  |{type:'task-create', key:string, title:string, description:string|null, activeForm:string|null}
+ *  |{type:'task-update', key:string, status:'pending'|'active'|'done'|'deleted', activeForm:string|null}
+ *  |({type:'tool', phase:'pre'|'post', name:string, file:string|null, ok:boolean|null, id:string|null, spawned?:string|null} & import('./flow.mjs').Step)
+ *  |{type:'agent-start', name:string}|{type:'agent-stop', ok:boolean, names?:{id:string, description:string}[]}
+ *  |{type:'waiting', idle?:boolean}|{type:'stop', lastMessage:string|null, background?:string[]|null, names?:{id:string, description:string}[]}|{type:'session-end'}} Event
+ *  A tool event carries its human step (`label`, `fail`, `key`, `group`, `item`, see core/flow.mjs);
+ *  `spawned`: the agent id a Claude Agent call's response names.
  *  `idle`: Claude's idle_prompt notice. `background`: ids of the background tasks a Claude Stop lists as running; null when absent.
+ *  `names`: background agents with the description they were dispatched with (exact names).
  * @typedef {{sessionId:string, cwd:string, agentId:string|null, agentType?:string|null, event:Event}} Normalized
  *  `agentType`: Claude's agent_type, null when empty or missing (the reducer uses it to skip helper agents).
  */
@@ -69,9 +72,9 @@ function toEvent(p) {
     case 'SubagentStart':
       return { type: 'agent-start', name: str(p.agent_type) ?? 'agent' };
     case 'SubagentStop':
-      return { type: 'agent-stop', ok: true };
+      return { type: 'agent-stop', ok: true, names: taskNames(p.background_tasks) };
     case 'Stop':
-      return { type: 'stop', lastMessage: str(p.last_assistant_message), background: runningTasks(p.background_tasks) };
+      return { type: 'stop', lastMessage: str(p.last_assistant_message), background: runningTasks(p.background_tasks), names: taskNames(p.background_tasks) };
     case 'SessionEnd':
       return { type: 'session-end' };
     default:
@@ -99,15 +102,21 @@ function toolEvent(p, phase, ok) {
     return null;
   }
 
-  return {
+  const step = describeTool(name, input);
+  if (!step) return null; // bookkeeping (ToolSearch, …), not a step of the work
+  /** @type {Event} */
+  const e = {
     type: 'tool',
     phase,
     name,
-    label: classifyTool(name, input),
+    ...step,
     file: str(input.file_path) ?? str(input.notebook_path),
     ok,
     id: str(p.tool_use_id), // pairs pre/post of parallel calls
   };
+  // The Agent call's response names the agent it started: the link to its SubagentStart.
+  if (step.group === 'dispatch' && phase === 'post') e.spawned = str(p.tool_response?.agentId);
+  return e;
 }
 
 /** @param {unknown} tasks Stop's `background_tasks` @returns {string[]|null} ids still running; null when absent */
@@ -116,12 +125,23 @@ function runningTasks(tasks) {
   return tasks.filter((t) => t && t.status === 'running' && str(t.id)).map((t) => t.id);
 }
 
+/**
+ * @param {unknown} tasks `background_tasks` of a Stop / SubagentStop
+ * @returns {{id: string, description: string}[]} agent ids with the description they were dispatched with
+ */
+function taskNames(tasks) {
+  if (!Array.isArray(tasks)) return [];
+  return tasks
+    .filter((t) => t && (t.type === undefined || t.type === 'subagent') && str(t.id) && str(t.description))
+    .map((t) => ({ id: t.id, description: t.description }));
+}
+
 /** @param {any} p @param {any} input @returns {Event|null} */
 function taskCreate(p, input) {
   const key = str(p.tool_response?.task?.id);
   const title = str(input.subject) ?? str(p.tool_response?.task?.subject);
   if (!key || !title) return null;
-  return { type: 'task-create', key, title, description: str(input.description) };
+  return { type: 'task-create', key, title, description: str(input.description), activeForm: str(input.activeForm) };
 }
 
 /** @param {any} p @param {any} input @returns {Event|null} */
@@ -129,7 +149,7 @@ function taskUpdate(p, input) {
   const key = str(input.taskId) ?? str(p.tool_response?.taskId);
   const status = STATUS[input.status];
   if (!key || !status) return null;
-  return { type: 'task-update', key, status };
+  return { type: 'task-update', key, status, activeForm: str(input.activeForm) ?? str(input.subject) };
 }
 
 /** @param {any} input @returns {Event|null} */

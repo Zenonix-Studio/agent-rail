@@ -1,0 +1,26 @@
+{
+  "session_id": "session-0401",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0401-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Read",
+  "tool_input": {
+    "file_path": "/work/repo/menubar/AgentRail/Views/PopoverView.swift"
+  },
+  "tool_use_id": "toolu-0406",
+  "tool_response": {
+    "type": "text",
+    "file": {
+      "filePath": "/work/repo/menubar/AgentRail/Views/PopoverView.swift",
+      "content": "<file content>",
+      "numLines": 80,
+      "startLine": 1,
+      "totalLines": 80
+    }
+  }
+}

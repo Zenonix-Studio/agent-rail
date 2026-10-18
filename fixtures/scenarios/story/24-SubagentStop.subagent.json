@@ -1,0 +1,23 @@
+{
+  "session_id": "session-0401",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0401-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "agent_id": "agent-0410",
+  "agent_type": "general-purpose",
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "background_tasks": [
+    {
+      "id": "agent-0410",
+      "type": "subagent",
+      "status": "running",
+      "description": "Review the popover UI",
+      "agent_type": "general-purpose"
+    }
+  ]
+}

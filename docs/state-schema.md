@@ -63,7 +63,7 @@ holds several jobs over time (spec §5.1a).
 | `startedAt` | `string` | When the job started. |
 | `updatedAt` | `string` | Last change to this job. |
 | `endedAt` | `string \| null` | When the job became `done`; `null` while it is not done. |
-| `now` | `Now \| null` | What the main agent is doing right now; `null` before its first tool call. |
+| `now` | `Now \| null` | What the main agent is doing right now; `null` before its first step (a tool call or a plan change). |
 
 Progress is derived, not stored: `done / total` milestones (`core/progress.mjs`).
 With no milestones there is no %: viewers show "Planning · 0/?".
@@ -112,22 +112,49 @@ are appended.
 
 ## Now
 
-The "right now" block under the active milestone. It is reset when the active
-milestone changes.
+The "right now" block under the active milestone: the story of the work, as
+short human sentences. The story reads across milestones: when the active
+milestone changes, the pills carry over (a finished milestone adds an `ok`
+pill with its title, replacing its own start pill), while `attempt`, `file`
+and the internal retry bookkeeping start fresh.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `milestone` | `string` | `key` of the milestone this block belongs to; `''` when no milestone is active. |
-| `pills` | `Pill[]` | The last 3 meaningful actions, oldest first. |
-| `attempt` | `number` | Retry counter for the latest action. Repeats count only for `Build` / `Test`, or for any action after it failed. `1` (or `0` before any action) means "no retry"; viewers show `↻ n` only for `n ≥ 2`. |
+| `milestone` | `string` | `key` of the active milestone; `''` when none is active. |
+| `pills` | `Pill[]` | The last 4 meaningful steps, oldest first (see Pill). |
+| `attempt` | `number` | Retry counter for the latest action. Repeats count only for build and test commands, or for any step after it failed. `1` (or `0` before any action) means "no retry"; viewers show `↻ n` only for `n ≥ 2`. |
 | `file` | `string \| null` | Last file path a main-agent tool touched. |
 
 ## Pill
 
 | Field | Type | Meaning |
 |---|---|---|
-| `label` | `string` | Short action label: `Build`, `Test`, `Edit <file>`, `Read`, or the tool name. A failed action ends in ` failed`. |
-| `kind` | `'ok' \| 'warn' \| 'active' \| 'info'` | `active`: in progress. `ok`: succeeded. `warn`: failed. `info`: finished, outcome unknown. |
+| `label` | `string` | Human-readable description of the step, at most 60 characters (longer ones end in `…`). Viewers show it verbatim. |
+| `kind` | `'ok' \| 'warn' \| 'active' \| 'info'` | `active`: in progress. `ok`: succeeded. `warn`: failed. `info`: finished, outcome unknown, or a marker such as the milestone being started. |
+
+Labels prefer the agent's own words, so they are in the agent's language:
+
+- Shell commands: the call's `description` (e.g. `Run the test suite`), else
+  `Running tests` / `Building`, else ``Running `git status` ``. Generic
+  descriptions (`Run command`) count as missing, and a build or test command
+  shows `Building` / `Running tests` unless its description says more.
+- Agent dispatches: `Dispatched agent: <description>`, else the humanized type
+  (`Dispatched code reviewer agent`).
+- Plan: `Planned N steps`; a task set in progress shows its active form
+  (`Writing the README`) when that differs from its title; a finished task
+  shows its title as `ok`.
+- Files: `Editing LoginView.swift`, `Writing README.md`, `Reading api.js`,
+  `Searching for '<pattern>'`.
+- Others: `Using skill: <name>`, `Searching the web: <query>`, `Reading <host>`,
+  `<Server>: <tool words>` for MCP tools, or the tool name split into words.
+  Raw tool ids are never shown. Bookkeeping tools (tool search, task listing)
+  are not steps.
+
+Steps of the same kind in a row collapse into one pill: `Reading 5 files`,
+`Editing 3 files`, `Dispatched 2 agents`; repeats of the same step show once.
+A failed step is never merged into and stays visible: `Build failed`,
+`Tests failed`, `Search failed`, `Agent dispatch failed`, otherwise
+`<label> failed`.
 
 ## Agent
 
@@ -140,9 +167,9 @@ was seen for it. Ids with an `agent_type` are always listed.
 | Field | Type | Meaning |
 |---|---|---|
 | `id` | `string` | The agent id the hooks report. |
-| `name` | `string` | Agent type or name (`Explore`, `worker`, …); `'agent'` when unknown. |
+| `name` | `string` | Display name: the description the main agent gave when it dispatched the agent (`Review the popover UI`), else its humanized type (`General-purpose agent`, `Code reviewer agent`); `'agent'` when unknown. Exact links: the Claude Agent call's response, and the background tasks a Claude stop lists. Until then (and for Codex) the only open dispatch of the agent's type in the job is assumed; with several differently named ones, the type name shows. |
 | `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: it never reported back. Either it was still running when its job finished or the session ended, or a Claude main-agent stop no longer listed it among the running background tasks. |
-| `activity` | `string` | One line: its latest action. |
+| `activity` | `string` | One line: its latest step, with the same human labels and collapsing as pills (`Reading 3 files`). |
 | `job` | `number \| null` | `seq` of the job it started in; `null` if it started before any job. |
 | `updatedAt` | `string` | Last event from this agent. |
 | `endedAt` | `string \| null` | When it stopped or was marked `stale`; `null` while running. |
@@ -150,5 +177,6 @@ was seen for it. Ids with an `agent_type` are always listed.
 ## Internal fields (ignore)
 
 Listed only so readers know they are expected: `Session._pendingPrompt`,
-`Job._prevEndedAt`, `Job._mainStopped`, `Job._summaryFromPlan`, `Now._counts`, `Now._open`,
-`Now._retryBase`, `Pill._id`.
+`Session._dispatch`, `Job._prevEndedAt`, `Job._mainStopped`, `Job._summaryFromPlan`,
+`Milestone._activeForm`, `Now._counts`, `Now._open`, `Now._retryBase`, `Pill._run`
+(older files: `Pill._id`), `Agent._type`, `Agent._run`.
