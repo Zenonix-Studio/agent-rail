@@ -5,7 +5,7 @@ import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSe
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce } from '../core/reduce.mjs';
-import { MARKER_INSTRUCTION, extractMeta, findMarkerInTranscript } from '../core/flow.mjs';
+import { railInstruction, extractMeta, findMarkerInTranscript } from '../core/flow.mjs';
 
 const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
 
@@ -63,7 +63,7 @@ async function main() {
   // The only stdout output: ask the agent to write the title/summary marker (spike Q5 shape, both tools).
   if (event.event?.type === 'prompt' && !event.agentId) {
     process.stdout.write(JSON.stringify({
-      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: MARKER_INSTRUCTION },
+      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: railInstruction(source) },
     }));
   }
 }

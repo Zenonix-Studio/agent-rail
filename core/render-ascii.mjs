@@ -58,6 +58,9 @@ export function renderJobSegments(job, width, nowMs = Date.now()) {
     if (!isDone && now && typeof now === 'object') {
       const flow = flowLine(now, w);
       if (flow.length) lines.push(flow);
+    } else if (isDone && now && typeof now === 'object') {
+      const recent = recentLine(now, w);
+      if (recent.length) lines.push(recent);
     }
     return lines.map((l) => fit(l.filter(nonEmpty), w));
   }
@@ -184,6 +187,19 @@ function flowLine(now, w) {
   });
   if (attempt) line.push(seg(attempt, 'warn'));
   return line;
+}
+
+/**
+ * Neutral recap of a done, planless job: last 3 pill labels, all dim.
+ * @param {import('./state.mjs').Now} now
+ * @param {number} w
+ * @returns {Line}
+ */
+function recentLine(now, w) {
+  const pills = Array.isArray(now.pills) ? now.pills : [];
+  const labels = pills.map((p) => str(p?.label)).filter(Boolean).slice(-3);
+  if (!labels.length) return [];
+  return [seg('  ', 'plain'), seg(clip(labels.join(' → '), w - 2), 'dim')];
 }
 
 /** @param {{label?: string, kind?: string}} p */

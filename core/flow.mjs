@@ -92,6 +92,20 @@ export function extractMeta(text) {
 export const MARKER_INSTRUCTION =
   'When you start a new task, begin your first reply with one line: "rail: <title, max 6 words> — <summary, max 2 sentences>". Do this once per task.';
 
+const PLAN_NUDGE = {
+  claude: ' For work with more than two steps, create a task list (3–7 steps) with your task tool before starting, and keep each step\'s status updated as you go.',
+  codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.',
+};
+
+/**
+ * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge.
+ * @param {string|undefined} source 'claude' | 'codex'
+ * @returns {string}
+ */
+export function railInstruction(source) {
+  return MARKER_INSTRUCTION + (PLAN_NUDGE[/** @type {'claude'|'codex'} */ (source)] ?? '');
+}
+
 const TRANSCRIPT_TAIL_LINES = 200;
 const TRANSCRIPT_TAIL_BYTES = 2 * 1024 * 1024;
 
