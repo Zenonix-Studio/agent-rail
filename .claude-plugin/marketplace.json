@@ -1,0 +1,14 @@
+{
+  "name": "agent-rail",
+  "description": "Local marketplace for the agent-rail plugin",
+  "owner": {
+    "name": "agent-rail"
+  },
+  "plugins": [
+    {
+      "name": "agent-rail",
+      "source": "./",
+      "description": "Per-session progress rail for Claude Code, written to ~/.agent-rail/sessions/"
+    }
+  ]
+}

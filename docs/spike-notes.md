@@ -100,3 +100,14 @@ Checked 2026-10-18 on Claude Code 2.1.302 with a throwaway mod loaded by `claude
 - An interactive `--plugin-dir` session writes `.claude-plugin/types/` (self-ignored) and a root `tsconfig.json` that extends it.
 
 Desktop app: **pending** (Task 7 step 4 not run; the controller will ask the user). Expected per the mod docs: `ui.render` hooks also draw for the `desktop` surface, but the mod has only been seen on the terminal.
+
+## Install
+
+The repo is its own local marketplace (`.claude-plugin/marketplace.json`, name `agent-rail`), so the same plugin installs in the terminal and the desktop app:
+
+```
+/plugin marketplace add ~/Projects/agent-rail
+/plugin install agent-rail@agent-rail
+```
+
+The first command registers the marketplace and the second installs the plugin from it. Run `/reload-plugins` or restart the session to load it.
