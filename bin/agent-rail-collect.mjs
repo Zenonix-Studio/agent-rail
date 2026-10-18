@@ -5,6 +5,7 @@ import { stateRoot, sessionPath, readSession, writeSession, withSessionLock } fr
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce } from '../core/reduce.mjs';
+import { MARKER_INSTRUCTION, extractMeta, findMarkerInTranscript } from '../core/flow.mjs';
 
 const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
 
@@ -44,10 +45,21 @@ async function main() {
   const input = JSON.parse(raw);
   const event = normalizer(input);
   if (!event) return;
+  // Stop's last message is the end of the turn; the marker is in the first reply, so read the transcript.
+  if (event.event?.type === 'stop' && !extractMeta(event.event.lastMessage)) {
+    const found = findMarkerInTranscript(input.transcript_path);
+    if (found) event.event = { ...event.event, lastMessage: found };
+  }
   const path = sessionPath(source, event.sessionId);
   withSessionLock(path, () => {
     writeSession(path, reduce(readSession(path), { source, ...event }, new Date()));
   }, logError);
+  // The only stdout output: ask the agent to write the title/summary marker (spike Q5 shape, both tools).
+  if (event.event?.type === 'prompt' && !event.agentId) {
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: MARKER_INSTRUCTION },
+    }));
+  }
 }
 
 try { await main(); } catch (err) { logError(err); }

@@ -1,3 +1,4 @@
+import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import { basename } from 'node:path';
 
 const TEST = /xcodebuild test|swift test|npm test|pytest|vitest|jest|cargo test|go test/;
@@ -37,8 +38,9 @@ function patchFile(patch) {
 
 // Marker line asked for by the injected context (Task 6), e.g.
 // "rail: Fix login crash — Guard the nil token. Add a retry."
-// Tolerates markdown emphasis/quote prefixes and an en dash or "-" separator.
-const META = /^[\s>*_`]*rail:\s*(.+?)\s+(?:—|–|--|-)\s+(.+?)[\s*_`]*$/im;
+// Tolerates markdown emphasis/quote prefixes. Separator: em dash, en dash or "--"
+// (a lone hyphen is not accepted: it appears inside titles such as "Bump deps - again").
+const META = /^[\s>*_`]*rail:\s*(.+?)\s+(?:—|–|--)\s+(.+?)[\s*_`]*$/im;
 
 /**
  * Parses the agent-written `rail: <title> — <summary>` marker line.
@@ -52,4 +54,69 @@ export function extractMeta(text) {
   const title = m[1].trim();
   const summary = m[2].trim();
   return title && summary ? { title, summary } : null;
+}
+
+/** The exact instruction injected on UserPromptSubmit (Task 6). */
+export const MARKER_INSTRUCTION =
+  'When you start a new task, begin your first reply with one line: "rail: <title, max 6 words> — <summary, max 2 sentences>". Do this once per task.';
+
+const TRANSCRIPT_TAIL_LINES = 200;
+const TRANSCRIPT_TAIL_BYTES = 2 * 1024 * 1024;
+
+/**
+ * Finds the agent's `rail:` marker line in the tail of a transcript JSONL (Claude
+ * or Codex rollout). Scans backwards over the last 200 lines and stops at the
+ * latest user prompt, so a marker from an earlier turn is never picked up.
+ * @param {string|null|undefined} path transcript_path from the hook payload
+ * @returns {string|null} the assistant text containing the marker, or null
+ */
+export function findMarkerInTranscript(path) {
+  if (typeof path !== 'string' || path === '') return null;
+  try {
+    const size = statSync(path).size;
+    const start = Math.max(0, size - TRANSCRIPT_TAIL_BYTES);
+    const fd = openSync(path, 'r');
+    let text;
+    try {
+      const buf = Buffer.alloc(size - start);
+      readSync(fd, buf, 0, buf.length, start);
+      text = buf.toString('utf8');
+    } finally { closeSync(fd); }
+    const lines = text.split('\n').filter(Boolean).slice(-TRANSCRIPT_TAIL_LINES);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      let o;
+      try { o = JSON.parse(lines[i]); } catch { continue; }
+      const { role, texts } = transcriptLine(o);
+      if (role === 'user') return null;
+      if (role !== 'assistant') continue;
+      const hit = texts.find((t) => extractMeta(t));
+      if (hit) return hit;
+    }
+  } catch { /* the transcript is a best-effort source */ }
+  return null;
+}
+
+/** @returns {{role: 'user'|'assistant'|null, texts: string[]}} */
+function transcriptLine(o) {
+  if (!o || typeof o !== 'object') return { role: null, texts: [] };
+  const parts = (c) => (typeof c === 'string' ? [c] : Array.isArray(c) ? c.filter((x) => x && typeof x.text === 'string').map((x) => x.text) : []);
+  // Claude: {type:'assistant'|'user', message:{content}}
+  if (o.type === 'assistant' && o.message) return { role: 'assistant', texts: parts(o.message.content) };
+  if (o.type === 'user' && o.message) {
+    const c = o.message.content;
+    const isPrompt = typeof c === 'string' || (Array.isArray(c) && c.some((x) => x?.type === 'text'));
+    return { role: isPrompt ? 'user' : null, texts: [] };
+  }
+  // Codex rollout: {type:'response_item', payload:{type:'message', role, content}} / {type:'event_msg', payload:{type:'agent_message'|'user_message'}}
+  const p = o.payload;
+  if (p && typeof p === 'object') {
+    if (p.type === 'message' && (p.role === 'assistant' || p.role === 'user')) {
+      // Codex also records injected context as role=user messages; only real prompts have no leading "<".
+      const t = parts(p.content);
+      if (p.role === 'user') return { role: t.some((x) => !x.trimStart().startsWith('<')) ? 'user' : null, texts: [] };
+      return { role: 'assistant', texts: t };
+    }
+    if (p.type === 'agent_message' && typeof p.message === 'string') return { role: 'assistant', texts: [p.message] };
+  }
+  return { role: null, texts: [] };
 }

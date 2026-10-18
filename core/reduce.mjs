@@ -147,6 +147,13 @@ function onMilestones(s, e, at) {
     s.pendingPrompt = null;
   }
 
+  // R3: a Codex plan explanation / the first Claude task description is a stand-in summary.
+  const hint = e.type === 'plan' ? str(e.explanation) : e.type === 'task-create' && job.milestones.length === 0 ? str(e.description) : null;
+  if (hint && job.summary === '') {
+    job.summary = hint;
+    job._summaryFromPlan = true;
+  }
+
   const changed = changeMilestones(job, e);
   if (changed || e.type === 'plan') {
     // Done jobs are only reopened by a prompt; a stray late update must not.
@@ -271,7 +278,9 @@ function finish(s, lastMessage, at) {
   const meta = extractMeta(lastMessage);
   if (meta) {
     if (job.title === fallbackTitle(job.prompt)) job.title = meta.title;
-    if (job.summary === '') job.summary = meta.summary;
+    // The agent's own marker wins over a plan-derived stand-in summary.
+    if (job.summary === '' || job._summaryFromPlan) job.summary = meta.summary;
+    delete job._summaryFromPlan;
   }
   job.updatedAt = at;
 }
