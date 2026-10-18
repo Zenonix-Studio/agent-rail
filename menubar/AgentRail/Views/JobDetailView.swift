@@ -31,6 +31,7 @@ struct JobDetailView: View {
             .padding(.trailing, 10)
             .padding(.bottom, 8)
         }
+        .opacity(isStale(item, now: now) ? 0.55 : 1)
         .modifier(JobCard())
     }
 

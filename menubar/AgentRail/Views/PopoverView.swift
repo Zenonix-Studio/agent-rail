@@ -46,14 +46,16 @@ struct PopoverView: View {
         .background(Theme.surface)
     }
 
+    /// Counts what the cards show (stale included); the menu bar icon keeps its live counts.
     private var header: some View {
-        let s = store.summary
+        let items = store.items
+        let agentCount = items.reduce(0) { $0 + 1 + agents(of: $1).count }
         return HStack(alignment: .firstTextBaseline) {
             Text("Jobs")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.text)
             Spacer()
-            Text("^[\(s.jobs) job](inflect: true) · ^[\(s.agents) agent](inflect: true)")
+            Text("^[\(items.count) job](inflect: true) · ^[\(agentCount) agent](inflect: true)")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.muted)
         }

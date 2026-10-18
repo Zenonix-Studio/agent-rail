@@ -28,19 +28,22 @@ struct JobHeaderView: View {
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                HStack(spacing: 6) {
-                    // The badge leads the subtitle so it never squeezes the title.
-                    if item.job.status == .waiting {
-                        Text("● waiting for you")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Theme.warn)
-                            .fixedSize()
-                    }
-                    Text(expanded ? detailSubtitle : rowSubtitle(p))
+                Text(expanded ? detailSubtitle : rowSubtitle(p))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                // Status gets its own short line so the subtitle keeps its full content.
+                if item.job.status == .waiting {
+                    Text("● waiting for you")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.warn)
+                        .lineLimit(1)
+                } else if expanded, let staleText {
+                    Text(verbatim: staleText)
                         .font(.system(size: 11))
                         .foregroundStyle(Theme.muted)
                         .lineLimit(1)
-                        .truncationMode(.tail)
                 }
                 if !expanded {
                     ProgressBar(fraction: p.pct.map { Double($0) / 100 } ?? 0)
@@ -74,18 +77,15 @@ struct JobHeaderView: View {
     private func rowSubtitle(_ p: (done: Int, total: Int, pct: Int?)) -> String {
         if let staleText { return staleText }
         guard p.total > 0 else { return String(localized: "Planning · 0/?") }
-        let milestones = item.job.milestones
-        let current = activeMilestoneKey(item.job).flatMap { key in milestones.first { $0.key == key } }
-            ?? milestones.first { $0.status != .done }
-        guard let current else { return "\(p.done)/\(p.total)" }
+        // Name the milestone only when the rail marks one active, so the row and the rail agree.
+        guard let key = activeMilestoneKey(item.job),
+              let current = item.job.milestones.first(where: { $0.key == key })
+        else { return "\(p.done)/\(p.total)" }
         return "▸ \(current.title) · \(p.done)/\(p.total)"
     }
 
     private var detailSubtitle: String {
-        // A stale job's elapsed time is meaningless; say how long it has been quiet instead
-        // (alone, since the project name plus that text does not fit the header).
-        if let staleText { return staleText }
-        return "\(item.session.project) · \(formatElapsed(from: item.job.startedAt, to: now))"
+        "\(item.session.project) · \(formatElapsed(from: item.job.startedAt, to: now))"
     }
 }
 
