@@ -1,0 +1,24 @@
+{
+  "session_id": "session-0101",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0101-2",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/work/repo/src/store.js",
+    "old_string": "a",
+    "new_string": "b",
+    "replace_all": false
+  },
+  "tool_response": {
+    "filePath": "/work/repo/src/store.js",
+    "type": "update"
+  },
+  "tool_use_id": "toolu-pair-3",
+  "duration_ms": 3
+}

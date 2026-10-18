@@ -1,0 +1,20 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUseFailure",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "npm run build",
+    "description": "Run command"
+  },
+  "tool_use_id": "toolu-pair-10",
+  "error": "Exit code 1\nerror: build failed",
+  "is_interrupt": false,
+  "duration_ms": 254
+}

@@ -1,0 +1,25 @@
+{
+  "session_id": "session-0101",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0101-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskCreate",
+  "tool_input": {
+    "subject": "Add toggle to settings view",
+    "description": "Render a switch in the settings view.",
+    "activeForm": "Add toggle to settings view"
+  },
+  "tool_response": {
+    "task": {
+      "id": "1",
+      "subject": "Add toggle to settings view"
+    }
+  },
+  "tool_use_id": "toolu-0101-01",
+  "duration_ms": 76
+}

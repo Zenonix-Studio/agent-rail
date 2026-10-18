@@ -1,0 +1,17 @@
+{
+  "session_id": "session-0301",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0301-1",
+  "permission_mode": "default",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PermissionRequest",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "npm run build",
+    "description": "Run command"
+  },
+  "permission_suggestions": []
+}

@@ -1,0 +1,25 @@
+{
+  "session_id": "session-0201",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0201-2",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskCreate",
+  "tool_input": {
+    "subject": "Wire export to the API",
+    "description": "Call the export endpoint.",
+    "activeForm": "Wire export to the API"
+  },
+  "tool_response": {
+    "task": {
+      "id": "3",
+      "subject": "Wire export to the API"
+    }
+  },
+  "tool_use_id": "toolu-0201-05",
+  "duration_ms": 76
+}

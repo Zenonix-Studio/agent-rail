@@ -1,0 +1,15 @@
+{
+  "session_id": "session-0101",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0101-2",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "Done, the toggle now follows the system setting by default.",
+  "background_tasks": [],
+  "session_crons": []
+}

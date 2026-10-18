@@ -1,0 +1,25 @@
+{
+  "session_id": "session-0101",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0101-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskCreate",
+  "tool_input": {
+    "subject": "Persist the setting",
+    "description": "Store the toggle value.",
+    "activeForm": "Persist the setting"
+  },
+  "tool_response": {
+    "task": {
+      "id": "2",
+      "subject": "Persist the setting"
+    }
+  },
+  "tool_use_id": "toolu-0101-02",
+  "duration_ms": 76
+}

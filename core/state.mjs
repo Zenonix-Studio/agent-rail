@@ -71,11 +71,12 @@ export function writeSession(path, session) {
 }
 
 /**
- * @param {Job} job
+ * @param {Job} job A job without a `milestones` array counts as 0/0.
  * @returns {{done: number, total: number, pct: number|null}}
  */
 export function progress(job) {
-  const total = job.milestones.length;
-  const done = job.milestones.filter((m) => m.status === 'done').length;
+  const milestones = Array.isArray(job?.milestones) ? job.milestones : [];
+  const total = milestones.length;
+  const done = milestones.filter((m) => m?.status === 'done').length;
   return { done, total, pct: total === 0 ? null : Math.round((100 * done) / total) };
 }
