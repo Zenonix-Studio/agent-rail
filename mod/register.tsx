@@ -33,9 +33,14 @@ async function tick($: EngineInterface): Promise<void> {
     $.env.get('AGENT_RAIL_HOME'),
     $.env.get('HOME'),
   ])
-  const dir = typeof root === 'string' && root !== '' ? root : `${home}/.agent-rail`
-  const path = `${dir}/sessions/claude-${sessionId.replace(/[^A-Za-z0-9._-]/g, '_')}.json`
-  const text = await $.fs.read(path).catch(() => '')
+  const dir =
+    typeof root === 'string' && root !== '' ? root
+    : typeof home === 'string' && home !== '' ? `${home}/.agent-rail`
+    : null
+  // No state root to read (HOME unset): draw "No job yet" rather than read `undefined/...`.
+  const text = dir === null
+    ? ''
+    : await $.fs.read(`${dir}/sessions/claude-${sessionId.replace(/[^A-Za-z0-9._-]/g, '_')}.json`).catch(() => '')
   let job: RailJob | null = null
   try {
     const jobs = text ? JSON.parse(text)?.jobs : undefined

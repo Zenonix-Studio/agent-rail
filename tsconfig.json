@@ -1,4 +1,19 @@
 {
-  "extends": "./.claude-plugin/types/tsconfig.json",
-  "compilerOptions": { "allowJs": true }
+  "//": "Type-checks the Claude Code mod (tsc -p .). Self-contained: the engine writes its types to the gitignored .claude-plugin/types/ on the first session that loads the plugin.",
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "types": [],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowJs": true,
+    "jsx": "react",
+    "jsxFactory": "h",
+    "jsxFragmentFactory": "Fragment"
+  },
+  "include": [".claude-plugin/types", "mod"]
 }
