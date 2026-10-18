@@ -1,8 +1,12 @@
 import { closeSync, openSync, readSync, statSync } from 'node:fs';
 import { basename } from 'node:path';
 
-const TEST = /xcodebuild test|swift test|npm test|pytest|vitest|jest|cargo test|go test/;
-const BUILD = /xcodebuild|swift build|npm run build|pnpm build|yarn build|make\b|gradle|cargo build|tsc\b/;
+// Commands count only at the start of the command line or after a separator
+// (`;`, `&`, `|`, newline, `(`), so `git commit -m "make it work"` or `cmake`
+// is not a Build. `cd x && make` matches through the `&&`.
+const LEAD = String.raw`(?:^|[;&|\n(])\s*(?:npx\s+)?`;
+const TEST = new RegExp(`${LEAD}(?:xcodebuild test|swift test|npm test|pytest|vitest|jest|cargo test|go test)\\b`);
+const BUILD = new RegExp(`${LEAD}(?:xcodebuild|swift build|npm run build|pnpm build|yarn build|make|gradle|cargo build|tsc)\\b`);
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'apply_patch']);
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob']);
 
