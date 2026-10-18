@@ -10,7 +10,7 @@ import { runningAgents } from './progress.mjs';
 /** @typedef {import('./state.mjs').Pill} Pill */
 /** @typedef {import('./normalize-claude.mjs').Event} Event */
 /**
- * @typedef {{source:'claude'|'codex', sessionId:string, cwd:string, agentId:string|null, event:Event}} ReduceInput
+ * @typedef {{source:'claude'|'codex', sessionId:string, cwd:string, agentId:string|null, agentType?:string|null, event:Event}} ReduceInput
  */
 
 const SOURCES = new Set(['claude', 'codex']);
@@ -69,6 +69,10 @@ function apply(s, input, at) {
   const e = input.event;
   if (!isObj(e)) return;
   const agentId = str(input.agentId);
+  // R20: Claude Code's own helper agents (prompt suggestion, internal forks) send an
+  // agent_id with no agent_type and never a SubagentStart. A SubagentStart, or a typed
+  // event, makes an id a subagent; untyped events from ids never seen are skipped.
+  if (agentId && input.source === 'claude' && !str(input.agentType) && e.type !== 'agent-start' && !isObj(s.agents[agentId])) return;
   switch (e.type) {
     case 'prompt':
       if (!agentId) onPrompt(s, typeof e.text === 'string' ? e.text : '', at);
@@ -101,15 +105,15 @@ function apply(s, input, at) {
       break;
     case 'waiting': {
       const job = current(s);
-      // R19: once its turn ended, the main agent's idle notice adds nothing; a subagent's request still counts.
-      if (job && job.status !== 'done' && !(job._mainStopped && !agentId)) {
+      // R19: once its turn ended, the main agent idling adds nothing; any real request still counts.
+      if (job && job.status !== 'done' && !(e.idle === true && job._mainStopped)) {
         job.status = 'waiting';
         job.updatedAt = at;
       }
       break;
     }
     case 'stop':
-      if (!agentId) finish(s, e.lastMessage, at, false);
+      if (!agentId) finish(s, e.lastMessage, at, false, Array.isArray(e.background) ? e.background : null);
       break;
     case 'session-end':
       if (!agentId) finish(s, null, at, true);
@@ -249,6 +253,8 @@ function onTool(s, agentId, e, at) {
   }
 
   const job = ensureJob(s, at);
+  // The main agent works again (e.g. a turn after a hand-back): its next Stop decides anew.
+  delete job._mainStopped;
   // R17: main-agent tool activity means the job runs, plan or not.
   if (job.status === 'waiting' || job.status === 'planning') job.status = 'running';
   const key = activeKey(job);
@@ -294,11 +300,14 @@ function onTool(s, agentId, e, at) {
  * R19: a main-agent Stop while subagents of the job still run keeps it
  * 'running': the main agent waits on them, and its next Stop decides.
  * @param {boolean} final true on session end
+ * @param {string[]|null} [background] ids Claude's Stop lists as still running; null when unknown
  */
-function finish(s, lastMessage, at, final) {
+function finish(s, lastMessage, at, final, background = null) {
   s._pendingPrompt = null;
   const job = current(s);
   if (job && job.status !== 'done') {
+    // R19: the Stop's own list is authoritative; a "running" agent missing from it never reported back.
+    if (!final && background) closeAgents(s, at, job.seq, new Set(background));
     const busy = !final && runningAgents(s, job.seq) > 0;
     if (busy || (!final && job.milestones.some((m) => m.status !== 'done'))) {
       job.status = busy ? 'running' : 'waiting';
@@ -312,7 +321,8 @@ function finish(s, lastMessage, at, final) {
     }
   }
   // I5: subagents still marked running when the job or session ends never reported back.
-  if (final || job?.status === 'done') closeAgents(s, at);
+  if (final) closeAgents(s, at, null);
+  else if (job?.status === 'done') closeAgents(s, at, job.seq);
   if (!job) return;
   const meta = extractMeta(lastMessage);
   if (meta) {
@@ -324,10 +334,15 @@ function finish(s, lastMessage, at, final) {
   job.updatedAt = at;
 }
 
-/** @param {Session} s @param {string} at */
-function closeAgents(s, at) {
+/**
+ * Marks running agents `stale`.
+ * @param {Session} s @param {string} at
+ * @param {number|null} seq only agents of this job; null for all
+ * @param {Set<string>} [keep] ids to leave running
+ */
+function closeAgents(s, at, seq, keep) {
   for (const a of Object.values(s.agents)) {
-    if (a.status !== 'running') continue;
+    if (a.status !== 'running' || (seq !== null && a.job !== seq) || keep?.has(a.id)) continue;
     a.status = 'stale';
     a.endedAt = at;
     a.updatedAt = at;

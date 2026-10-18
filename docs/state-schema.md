@@ -75,9 +75,13 @@ With no milestones there is no %: viewers show "Planning · 0/?".
 - `running`: the main agent is working, or its turn ended while subagents of
   this job (`Agent.job == seq`) are still `running`: it waits on them. The job
   stays `running` with `endedAt: null` until a later main-agent stop finds no
-  running subagent of the job.
+  running subagent of the job. When Claude's stop lists its running background
+  tasks, a subagent of the job missing from that list is marked `stale` first.
+  A main-agent tool call (e.g. in the short turn after a hand-back) means the
+  main agent works again; its next stop decides anew.
 - `waiting`: waiting for the user. Either the agent or a subagent asked for a
-  permission, the agent sent a notification during its turn, or its turn ended
+  permission or sent a notification (Claude's idle notice after a stop that
+  left subagents running does not count), or its turn ended
   while milestones were still unfinished and no subagent of the job was running
   (it asked a question or paused). A tool call from a subagent of the job after
   such a stop sets it back to `running`. The next prompt continues the same job,
@@ -129,14 +133,15 @@ milestone changes.
 
 A subagent of the main agent. Subagents never change milestones or %.
 Claude Code's own helper agents (prompt suggestions, internal forks) report an
-`agent_id` with an empty or missing `agent_type` and never start as subagents;
-they are not listed.
+`agent_id` with an empty or missing `agent_type` and never start as subagents:
+an id whose events carry no `agent_type` is listed only once a subagent start
+was seen for it. Ids with an `agent_type` are always listed.
 
 | Field | Type | Meaning |
 |---|---|---|
 | `id` | `string` | The agent id the hooks report. |
 | `name` | `string` | Agent type or name (`Explore`, `worker`, …); `'agent'` when unknown. |
-| `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: still running when its job finished or the session ended, and it never reported back. |
+| `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: it never reported back. Either it was still running when its job finished or the session ended, or a Claude main-agent stop no longer listed it among the running background tasks. |
 | `activity` | `string` | One line: its latest action. |
 | `job` | `number \| null` | `seq` of the job it started in; `null` if it started before any job. |
 | `updatedAt` | `string` | Last event from this agent. |

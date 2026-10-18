@@ -88,11 +88,16 @@ Captured with Claude Code 2.1.302, once headless (`claude -p`) and once interact
     (the prompt-suggestion agent).
   - `PreToolUse` (`tool_name: "Bash"`) with the `agent_type` key absent, a fresh `tool_use_id`, the same command
     as a running subagent's call, and no `PostToolUse` (an internal fork).
-  These produced the phantom `agent` entries (activity `Bash`, later `stale`); the normalizer drops them.
+  These produced the phantom `agent` entries (activity `Bash`, later `stale`). The normalizer passes `agentType`
+  through, and the reducer skips untyped events from ids it never saw in a `SubagentStart`.
 - A finished background agent is handed back to the main agent as a `UserPromptSubmit` whose `prompt` starts with
-  `<task-notification>`. In a real interactive session whose subagents ended with the `SubagentHandback` tool, the
-  transcript also showed a hand-back prompt starting `Another Claude session sent a message:` (seen in the transcript,
-  not in a capture). The main agent then runs a short turn and sends another `Stop`.
+  `<task-notification>`, which the normalizer drops. In a real interactive session whose subagents ended with the
+  `SubagentHandback` tool, the transcript also showed a hand-back prompt starting `Another Claude session sent a
+  message:`. That prefix is not filtered, because no capture confirms it as a hook `prompt`. The main agent then runs
+  a short turn and sends another `Stop`.
+- Brief `Done` window: the last `SubagentStop` is followed by a main `Stop` (`background_tasks: []`) that finishes the
+  job, then the hand-back prompt starts the main agent's final report turn. The pane shows `Done` during that report
+  turn, typically a few seconds.
 - Interactive only: `Notification` with `notification_type: "idle_prompt"` (`message: "Claude is waiting for your
   input"`) once the main agent idles; this closes open item 1 for that type.
 
