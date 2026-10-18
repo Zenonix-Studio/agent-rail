@@ -30,9 +30,36 @@ for (const ev of EVENTS) {
 saveHooks(j);
 console.log(`hooks.json: ${added} agent-rail entries added (${EVENTS.length - added} already present)`);
 
+/**
+ * How config.toml already defines the `tools` table, if it does. Appending a
+ * `[tools.update_plan]` header next to any of these can make the file invalid
+ * (e.g. after an inline `tools = {...}`), so the installer then only advises.
+ * @param {string} toml
+ * @returns {'inline'|'dotted'|'table'|'subtable'|null}
+ */
+function toolsForm(toml) {
+  const lines = toml.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== '' && !l.startsWith('#'));
+  const key = String.raw`(?:tools|"tools"|'tools')`;
+  if (lines.some((l) => new RegExp(`^${key}\\s*=`).test(l))) return 'inline';
+  if (lines.some((l) => new RegExp(`^${key}\\s*\\.`).test(l))) return 'dotted';
+  if (lines.some((l) => new RegExp(`^\\[\\[?\\s*${key}\\s*\\]`).test(l))) return 'table';
+  if (lines.some((l) => new RegExp(`^\\[\\[?\\s*${key}\\s*\\.`).test(l))) return 'subtable';
+  return null;
+}
+
+const MANUAL = {
+  inline: 'add `update_plan = { enabled = true }` inside your existing `tools = { ... }` inline table',
+  dotted: 'add the line `tools.update_plan.enabled = true` next to your other top-level `tools.*` keys',
+  table: 'add the line `update_plan = { enabled = true }` under your existing `[tools]` table',
+  subtable: 'add a `[tools.update_plan]` table with the line `enabled = true` next to your other `[tools.*]` tables',
+};
+
 const toml = existsSync(configPath()) ? readFileSync(configPath(), 'utf8') : '';
+const form = toolsForm(toml);
 if (/^\s*\[tools\.update_plan\]/m.test(toml) || /update_plan/.test(toml)) {
   console.log('config.toml: update_plan already configured, left untouched');
+} else if (form) {
+  console.log(`config.toml: already defines \`tools\`, left untouched. To enable milestones, edit ${configPath()} by hand: ${MANUAL[form]}.`);
 } else if (await askPlan()) {
   appendFileSync(configPath(), `${toml && !toml.endsWith('\n') ? '\n' : ''}\n[tools.update_plan]\nenabled = true\n`);
   console.log('config.toml: enabled [tools.update_plan]');
