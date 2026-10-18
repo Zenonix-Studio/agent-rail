@@ -1,5 +1,5 @@
 import { basename } from 'node:path';
-import { clipText, extractMeta, groupLabel, LABEL_MAX } from './flow.mjs';
+import { agentTypeName, clipText, extractMeta, groupLabel, LABEL_MAX } from './flow.mjs';
 import { SCHEMA_VERSION } from './state.mjs';
 import { runningAgents } from './progress.mjs';
 
@@ -71,6 +71,8 @@ function apply(s, input, at) {
   const e = input.event;
   if (!isObj(e)) return;
   const agentId = str(input.agentId);
+  // Claude's Stop / SubagentStop list background agents with their dispatch description: exact names.
+  if (Array.isArray(e.names)) applyNames(s, e.names);
   // R20: Claude Code's own helper agents (prompt suggestion, internal forks) send an
   // agent_id with no agent_type and never a SubagentStart. A SubagentStart, or a typed
   // event, makes an id a subagent; untyped events from ids never seen are skipped.
@@ -96,8 +98,8 @@ function apply(s, input, at) {
       if (agentId) {
         const a = agent(s, agentId, at);
         a._type = str(e.name) ?? a._type ?? null;
-        // The dispatch's own description names it; else its agent type.
-        a.name = claimDispatch(s, agentId, a._type)?.name ?? a._type ?? a.name;
+        // The dispatch's own description names it; else its agent type, humanized.
+        a.name = claimDispatch(s, agentId, a._type)?.name ?? agentTypeName(a._type) ?? a.name;
         a.status = 'running';
         a.job = current(s)?.seq ?? null;
         a.endedAt = null;
@@ -133,6 +135,8 @@ function apply(s, input, at) {
 /** Rule 1: start a job, reopen a done or paused one (pending split decision), or ignore. */
 function onPrompt(s, text, at) {
   const job = current(s);
+  // Dispatches of earlier jobs, or never claimed by an agent in the last turn, cannot name anything new.
+  s._dispatch = s._dispatch.filter((d) => d.job === (job?.seq ?? null) && (d.claimed || d.agent));
   if (!job) {
     s.jobs.push(newJob(s, 1, text, 'planning', at));
     return;
@@ -194,16 +198,24 @@ function onMilestones(s, e, at) {
     job.updatedAt = at;
   }
   const key = activeKey(job);
-  // Steps before the first active milestone lead into it; later milestones start a fresh flow.
-  if (job.now && job.now.milestone !== key) job.now = job.now.milestone === '' ? { ...job.now, milestone: key } : emptyNow(key);
+  if (job.now && job.now.milestone !== key) {
+    // The story reads across milestones: pills carry over, the retry bookkeeping starts fresh,
+    // and a finished milestone becomes a step of its own ("Plan the change ✓").
+    const left = job.milestones.find((m) => m.key === job.now?.milestone);
+    // Its own start pill ("Planning the change") is superseded by the ✓.
+    const startOf = `@${left?.key}`;
+    job.now = { ...emptyNow(key), pills: job.now.pills.filter((p) => !(left?.status === 'done' && p._run?.g === startOf)) };
+    if (left?.status === 'done') pushPill(job, key, newPill({ label: clipText(left.title, LABEL_MAX), group: null, item: null }, 'ok', null));
+  }
   if (!changed) return;
   // The plan itself is a step of the story: "Planned 4 steps", then the step being worked on.
   if (isNewTask) planPill(job, key, 1);
   else if (e.type === 'plan' && known === 0 && job.milestones.length > 0) planPill(job, key, job.milestones.length);
   if (key !== '' && key !== prevKey) {
+    // The task's own "-ing" form ("Writing the README") only when it says more than the title above.
     const m = job.milestones.find((x) => x.key === key);
-    const label = (e.type === 'task-update' && str(e.activeForm)) || str(m?._activeForm) || str(m?.title) || key;
-    pushPill(job, key, newPill({ label: clipText(label, LABEL_MAX), group: null, item: null }, 'info', null));
+    const label = (e.type === 'task-update' && str(e.activeForm)) || str(m?._activeForm);
+    if (label && label !== m?.title) pushPill(job, key, newPill({ label: clipText(label, LABEL_MAX), group: `@${key}`, item: null }, 'info', null));
   }
 }
 
@@ -430,18 +442,24 @@ function failPill(step) {
 /**
  * Remembers a main-agent Agent call so the agent it starts can be shown under
  * its description. Claude's PostToolUse names the agent (`spawned`): that link
- * is exact and corrects an earlier guess.
+ * is exact and corrects an earlier guess. A failed or denied call starts nothing.
  * @param {Session} s @param {Record<string, any>} e @param {string|null} id
  */
 function noteDispatch(s, e, id) {
   if (!id) return;
-  const list = s._dispatch;
-  let d = list.find((x) => x.id === id);
-  if (!d) {
-    d = { id, name: str(e.agentName), type: str(e.agentType), agent: null, claimed: null };
-    list.push(d);
-    s._dispatch = list.slice(-MAX_DISPATCH);
+  let d = s._dispatch.find((x) => x.id === id);
+  if (e.phase === 'post' && e.ok === false) {
+    if (!d) return;
+    s._dispatch = s._dispatch.filter((x) => x !== d);
+    const took = d.claimed ? s.agents[d.claimed] : null;
+    if (isObj(took)) took.name = agentTypeName(took._type) ?? 'agent';
+    return;
   }
+  if (!d) {
+    d = { id, name: str(e.agentName), type: str(e.agentType), agent: null, claimed: null, job: current(s)?.seq ?? null };
+    s._dispatch = [...s._dispatch, d].slice(-MAX_DISPATCH);
+  }
+  d.name ??= str(e.agentName);
   const spawned = str(e.spawned);
   if (!spawned || d.agent === spawned) return;
   d.agent = spawned;
@@ -456,12 +474,14 @@ function noteDispatch(s, e, id) {
   }
   // Another agent took this call's name by guess: it guesses again.
   const wrong = guessed ? s.agents[guessed] : null;
-  if (isObj(wrong)) wrong.name = claimDispatch(s, wrong.id, wrong._type)?.name ?? wrong._type ?? 'agent';
+  if (isObj(wrong)) wrong.name = claimDispatch(s, wrong.id, wrong._type)?.name ?? agentTypeName(wrong._type) ?? 'agent';
 }
 
 /**
- * The dispatch an agent belongs to: the one whose response named it, else (by
- * guess) the oldest unclaimed call of a matching type. Untyped agents never guess.
+ * The dispatch an agent belongs to: the one whose response named it, else the
+ * open call of its type in this job when that is unambiguous. Two or more open
+ * calls of the type with different names: no guess (the type name shows until
+ * an exact link arrives). Untyped agents never guess.
  * @param {Session} s @param {string} agentId @param {string|null} type
  * @returns {{name: string|null}|null}
  */
@@ -469,12 +489,25 @@ function claimDispatch(s, agentId, type) {
   const list = s._dispatch;
   let d = list.find((x) => x.agent === agentId) ?? list.find((x) => x.claimed === agentId);
   if (!d && type) {
-    const open = list.filter((x) => !x.claimed && !x.agent);
-    d = open.find((x) => !x.type || x.type === type) ?? open[0];
+    const seq = current(s)?.seq ?? null;
+    const open = list.filter((x) => !x.claimed && !x.agent && x.job === seq && (!x.type || x.type === type));
+    if (new Set(open.map((x) => x.name)).size === 1) d = open[0];
   }
   if (!d) return null;
   d.claimed = agentId;
   return d.name ? d : null;
+}
+
+/**
+ * Names agents from a Stop's `background_tasks`: the description each was dispatched with.
+ * @param {Session} s @param {unknown[]} names
+ */
+function applyNames(s, names) {
+  for (const n of names) {
+    if (!isObj(n) || !str(n.id) || !str(n.description)) continue;
+    const a = s.agents[n.id];
+    if (isObj(a)) a.name = clipText(n.description.replace(/\s+/g, ' ').trim(), 40);
+  }
 }
 
 /**
@@ -613,7 +646,7 @@ function sanitize(prev, input, at) {
     _dispatch: Array.isArray(p._dispatch)
       ? p._dispatch
         .filter((d) => isObj(d) && str(d.id))
-        .map((d) => ({ id: d.id, name: str(d.name), type: str(d.type), agent: str(d.agent), claimed: str(d.claimed) }))
+        .map((d) => ({ id: d.id, name: str(d.name), type: str(d.type), agent: str(d.agent), claimed: str(d.claimed), job: Number.isInteger(d.job) ? d.job : null }))
         .slice(-MAX_DISPATCH)
       : [],
   };

@@ -7,11 +7,13 @@
   "effort": {
     "level": "medium"
   },
+  "agent_id": "agent-0410",
+  "agent_type": "general-purpose",
   "hook_event_name": "PreToolUse",
   "tool_name": "Bash",
   "tool_input": {
-    "command": "cd menubar && xcodebuild -scheme AgentRail -configuration Debug build 2>&1 | tail -20",
-    "description": "Run the build"
+    "command": "swift scripts/snapshot.swift --light --dark",
+    "description": "Snapshot the popover in light and dark mode"
   },
-  "tool_use_id": "toolu-0422"
+  "tool_use_id": "toolu-0415"
 }

@@ -8,18 +8,19 @@
     "level": "medium"
   },
   "hook_event_name": "PostToolUse",
-  "tool_name": "Agent",
+  "tool_name": "Read",
   "tool_input": {
-    "description": "Review the popover UI",
-    "prompt": "<placeholder prompt>",
-    "subagent_type": "general-purpose",
-    "run_in_background": true
+    "file_path": "/work/repo/menubar/AgentRail/Views/PopoverView.swift"
   },
   "tool_use_id": "toolu-0406",
   "tool_response": {
-    "isAsync": true,
-    "status": "async_launched",
-    "agentId": "agent-0410",
-    "description": "Review the popover UI"
+    "type": "text",
+    "file": {
+      "filePath": "/work/repo/menubar/AgentRail/Views/PopoverView.swift",
+      "content": "<file content>",
+      "numLines": 80,
+      "startLine": 1,
+      "totalLines": 80
+    }
   }
 }

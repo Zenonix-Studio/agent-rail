@@ -8,12 +8,12 @@
     "level": "medium"
   },
   "hook_event_name": "PreToolUse",
-  "tool_name": "Edit",
+  "tool_name": "Agent",
   "tool_input": {
-    "file_path": "/work/repo/menubar/AgentRail/Views/PopoverView.swift",
-    "old_string": "rowInset",
-    "new_string": "Theme.rowInset",
-    "replace_all": false
+    "description": "Review the popover UI",
+    "prompt": "<placeholder prompt>",
+    "subagent_type": "general-purpose",
+    "run_in_background": true
   },
-  "tool_use_id": "toolu-0421"
+  "tool_use_id": "toolu-0410"
 }

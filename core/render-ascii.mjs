@@ -114,7 +114,11 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
     if (col >= 0) lines.push([seg(' '.repeat(col), 'plain'), seg('↓', 'active')]);
     lines.push(...flowLines(now, w));
     const file = str(now.file);
-    if (file) lines.push([seg('  ', 'plain'), seg(clip(file, w - 2), 'dim')]);
+    // The path adds nothing when the latest step already names the file ("Editing app.js").
+    const pills = Array.isArray(now.pills) ? now.pills : [];
+    const base = file.split('/').pop() ?? '';
+    const named = base !== '' && str(pills[pills.length - 1]?.label).includes(base);
+    if (file && !named) lines.push([seg('  ', 'plain'), seg(clip(file, w - 2), 'dim')]);
   }
   lines.push(...block);
 

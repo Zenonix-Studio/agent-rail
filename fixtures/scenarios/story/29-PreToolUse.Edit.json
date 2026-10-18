@@ -7,7 +7,7 @@
   "effort": {
     "level": "medium"
   },
-  "hook_event_name": "PostToolUse",
+  "hook_event_name": "PreToolUse",
   "tool_name": "Edit",
   "tool_input": {
     "file_path": "/work/repo/menubar/AgentRail/Views/PopoverView.swift",
@@ -15,12 +15,5 @@
     "new_string": "Theme.rowInset",
     "replace_all": false
   },
-  "tool_use_id": "toolu-0421",
-  "tool_response": {
-    "filePath": "/work/repo/menubar/AgentRail/Views/PopoverView.swift",
-    "oldString": "rowInset",
-    "newString": "Theme.rowInset",
-    "replaceAll": false,
-    "userModified": false
-  }
+  "tool_use_id": "toolu-0419"
 }

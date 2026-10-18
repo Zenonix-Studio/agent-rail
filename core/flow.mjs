@@ -21,7 +21,14 @@ const FIXED = {
   collaborationwait_agent: 'Waiting for agents',
   collaborationclose_agent: 'Closing an agent',
   collaborationsend_input: 'Messaging an agent',
+  write_stdin: 'Checking command output',
 };
+
+/** Shell descriptions that say nothing about the work ("Run command"): treated as missing. */
+const GENERIC_DESC = /^(?:run|execute)(?: a| the)?(?: shell| bash)? (?:command|script|it)$/i;
+
+/** Agent types with a natural name of their own. */
+const AGENT_TYPES = { 'general-purpose': 'General-purpose agent', fork: 'Forked agent' };
 
 /** Longest step label, in characters; longer ones end in "…". */
 export const LABEL_MAX = 60;
@@ -49,9 +56,10 @@ const AGENT_NAME_MAX = 40;
  * @returns {Step|null} null for bookkeeping tools that are not steps (ToolSearch, TaskList, …).
  */
 export function describeTool(name, input) {
-  const tool = typeof name === 'string' && name !== '' ? name : 'tool';
+  const tool = typeof name === 'string' ? name.trim() : '';
   const args = input && typeof input === 'object' ? /** @type {any} */ (input) : {};
   if (SKIP_TOOLS.has(tool)) return null;
+  if (tool === '') return step('Working');
 
   if (tool === 'Edit' || tool === 'MultiEdit' || tool === 'NotebookEdit') {
     return fileStep('Editing', 'edit', args.file_path ?? args.notebook_path, 'Editing a file');
@@ -65,16 +73,16 @@ export function describeTool(name, input) {
   if (tool === 'Read') return fileStep('Reading', 'read', args.file_path, 'Reading a file');
   if (tool === 'Grep' || tool === 'Glob') {
     const pat = text(args.pattern);
-    return step(pat ? `Searching for '${clipText(pat, 32)}'` : 'Searching the code', { group: 'search', item: pat });
+    return step(pat ? `Searching for '${clipText(pat, 32)}'` : 'Searching the code', { group: 'search', item: pat, fail: 'Search failed' });
   }
   if (SHELL_TOOLS.has(tool)) return shellStep(args);
   if (DISPATCH_TOOLS.has(tool)) {
     const desc = text(args.description);
     const type = text(args.subagent_type);
-    const label = desc
-      ? type && type !== 'general-purpose' ? `${type}: ${desc}` : `Dispatched agent: ${desc}`
-      : type ? `Dispatched ${type} agent` : 'Dispatched an agent';
-    return step(label, { group: 'dispatch', item: desc ?? type, agentName: clipText(desc ?? type ?? '', AGENT_NAME_MAX) || null, agentType: type });
+    const typeName = type ? agentTypeName(type) : null;
+    const label = desc ? `Dispatched agent: ${desc}`
+      : typeName ? `Dispatched ${lowerFirst(typeName)}` : 'Dispatched an agent';
+    return step(label, { group: 'dispatch', item: desc ?? typeName, fail: 'Agent dispatch failed', agentName: desc ? clipText(desc, AGENT_NAME_MAX) : typeName, agentType: type });
   }
   if (tool === 'collaborationspawn_agent' || tool === 'spawn_agent') {
     const task = text(args.task_name) ?? text(args.name);
@@ -83,7 +91,8 @@ export function describeTool(name, input) {
   }
   if (tool === 'Skill') {
     const skill = text(args.skill) ?? text(args.name);
-    return step(skill ? `Using skill ${skill}` : 'Using a skill');
+    const last = skill ? sentence(words(lastSegment(skill))) : '';
+    return step(last ? `Using skill: ${last}` : 'Using a skill');
   }
   if (tool === 'WebSearch' || tool === 'web_search') {
     const q = text(args.query);
@@ -96,8 +105,39 @@ export function describeTool(name, input) {
   }
   if (FIXED[tool]) return step(FIXED[tool]);
   const mcp = /^mcp__(.+?)__(.+)$/.exec(tool);
-  if (mcp) return step(mcpLabel(mcp[1], mcp[2]));
+  if (mcp) {
+    const label = mcpLabel(mcp[1], mcp[2]);
+    return step(label, { fail: `${label} failed` });
+  }
+  if (/^mcp__/.test(tool)) return step('Working');
   return step(sentence(words(tool)) || 'Working');
+}
+
+/**
+ * Display name for an agent type: "octo:personas:code-reviewer" → "Code reviewer agent",
+ * "general-purpose" → "General-purpose agent", "fork" → "Forked agent".
+ * @param {unknown} type
+ * @returns {string|null} null when there is no type.
+ */
+export function agentTypeName(type) {
+  const t = text(type);
+  if (!t) return null;
+  const last = lastSegment(t);
+  const known = AGENT_TYPES[/** @type {keyof typeof AGENT_TYPES} */ (last.toLowerCase())];
+  if (known) return known;
+  const name = sentence(words(last)) || 'Agent';
+  return clipText(/\bagent$/i.test(name) ? name : `${name} agent`, AGENT_NAME_MAX);
+}
+
+/** `plugin:group:name` or `a/b` → the last segment. @param {string} id */
+function lastSegment(id) {
+  return id.split(/[:/]/).filter(Boolean).pop() ?? id;
+}
+
+/** "Code reviewer agent" → "code reviewer agent", keeping acronyms. @param {string} t */
+function lowerFirst(t) {
+  const first = t.split(' ')[0];
+  return isAcronym(first) ? t : t.charAt(0).toLowerCase() + t.slice(1);
 }
 
 /**
@@ -128,12 +168,14 @@ export function groupLabel(group, items, n, single) {
 function shellStep(args) {
   const cmd = shellCommand(args.command ?? args.cmd);
   const kind = cmd === null ? null : TEST.test(cmd) ? 'Test' : BUILD.test(cmd) ? 'Build' : null;
-  const desc = text(args.description);
+  const raw = text(args.description);
+  const desc = raw && !GENERIC_DESC.test(raw) ? raw : null;
   const fallback = kind === 'Test' ? 'Running tests' : kind === 'Build' ? 'Building' : cmd ? `Running \`${commandHead(cmd)}\`` : 'Running a command';
-  const label = desc ?? fallback;
+  // A build/test reads best as "Building"; a description wins only when it says more (4+ words).
+  const label = desc && (!kind || desc.split(' ').length >= 4) ? desc : fallback;
   const fail = kind === 'Test' ? 'Tests failed'
     : kind === 'Build' ? 'Build failed'
-    : desc ? `Failed: ${desc}`
+    : desc ? `${desc} failed`
     : cmd ? `\`${commandHead(cmd)}\` failed` : 'Command failed';
   return step(label, { key: kind ?? undefined, fail });
 }
@@ -212,7 +254,7 @@ function step(label, o = {}) {
   /** @type {Step} */
   const s = {
     label: l,
-    fail: clipText(o.fail ?? `Failed: ${l}`, LABEL_MAX),
+    fail: clipText(o.fail ?? `${l} failed`, LABEL_MAX),
     key: o.key ?? l,
     // No family: exact repeats of the same label still collapse.
     group: o.group ?? `=${l}`,

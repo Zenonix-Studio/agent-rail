@@ -1,0 +1,25 @@
+{
+  "session_id": "session-0401",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0401-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Review the popover UI",
+    "prompt": "<placeholder prompt>",
+    "subagent_type": "general-purpose",
+    "run_in_background": true
+  },
+  "tool_use_id": "toolu-0410",
+  "tool_response": {
+    "isAsync": true,
+    "status": "async_launched",
+    "agentId": "agent-0410",
+    "description": "Review the popover UI"
+  }
+}

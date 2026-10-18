@@ -1,0 +1,15 @@
+{
+  "session_id": "session-0401",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0401-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "rail: Popover UI review \u2014 Reviewed the popover with a subagent and fixed the build break it found.",
+  "background_tasks": [],
+  "session_crons": []
+}

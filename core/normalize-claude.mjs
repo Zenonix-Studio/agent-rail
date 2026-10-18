@@ -6,11 +6,12 @@ import { describeTool } from './flow.mjs';
  *  |{type:'task-create', key:string, title:string, description:string|null, activeForm:string|null}
  *  |{type:'task-update', key:string, status:'pending'|'active'|'done'|'deleted', activeForm:string|null}
  *  |({type:'tool', phase:'pre'|'post', name:string, file:string|null, ok:boolean|null, id:string|null, spawned?:string|null} & import('./flow.mjs').Step)
- *  |{type:'agent-start', name:string}|{type:'agent-stop', ok:boolean}
- *  |{type:'waiting', idle?:boolean}|{type:'stop', lastMessage:string|null, background?:string[]|null}|{type:'session-end'}} Event
+ *  |{type:'agent-start', name:string}|{type:'agent-stop', ok:boolean, names?:{id:string, description:string}[]}
+ *  |{type:'waiting', idle?:boolean}|{type:'stop', lastMessage:string|null, background?:string[]|null, names?:{id:string, description:string}[]}|{type:'session-end'}} Event
  *  A tool event carries its human step (`label`, `fail`, `key`, `group`, `item`, see core/flow.mjs);
  *  `spawned`: the agent id a Claude Agent call's response names.
  *  `idle`: Claude's idle_prompt notice. `background`: ids of the background tasks a Claude Stop lists as running; null when absent.
+ *  `names`: background agents with the description they were dispatched with (exact names).
  * @typedef {{sessionId:string, cwd:string, agentId:string|null, agentType?:string|null, event:Event}} Normalized
  *  `agentType`: Claude's agent_type, null when empty or missing (the reducer uses it to skip helper agents).
  */
@@ -71,9 +72,9 @@ function toEvent(p) {
     case 'SubagentStart':
       return { type: 'agent-start', name: str(p.agent_type) ?? 'agent' };
     case 'SubagentStop':
-      return { type: 'agent-stop', ok: true };
+      return { type: 'agent-stop', ok: true, names: taskNames(p.background_tasks) };
     case 'Stop':
-      return { type: 'stop', lastMessage: str(p.last_assistant_message), background: runningTasks(p.background_tasks) };
+      return { type: 'stop', lastMessage: str(p.last_assistant_message), background: runningTasks(p.background_tasks), names: taskNames(p.background_tasks) };
     case 'SessionEnd':
       return { type: 'session-end' };
     default:
@@ -122,6 +123,17 @@ function toolEvent(p, phase, ok) {
 function runningTasks(tasks) {
   if (!Array.isArray(tasks)) return null;
   return tasks.filter((t) => t && t.status === 'running' && str(t.id)).map((t) => t.id);
+}
+
+/**
+ * @param {unknown} tasks `background_tasks` of a Stop / SubagentStop
+ * @returns {{id: string, description: string}[]} agent ids with the description they were dispatched with
+ */
+function taskNames(tasks) {
+  if (!Array.isArray(tasks)) return [];
+  return tasks
+    .filter((t) => t && (t.type === undefined || t.type === 'subagent') && str(t.id) && str(t.description))
+    .map((t) => ({ id: t.id, description: t.description }));
 }
 
 /** @param {any} p @param {any} input @returns {Event|null} */

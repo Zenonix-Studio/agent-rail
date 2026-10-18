@@ -10,19 +10,15 @@
   "agent_id": "agent-0410",
   "agent_type": "general-purpose",
   "hook_event_name": "PostToolUse",
-  "tool_name": "Read",
+  "tool_name": "Bash",
   "tool_input": {
-    "file_path": "/work/repo/menubar/AgentRail/Views/NowBlockView.swift"
+    "command": "swift scripts/snapshot.swift --light --dark",
+    "description": "Snapshot the popover in light and dark mode"
   },
-  "tool_use_id": "toolu-0411",
+  "tool_use_id": "toolu-0415",
   "tool_response": {
-    "type": "text",
-    "file": {
-      "filePath": "/work/repo/menubar/AgentRail/Views/NowBlockView.swift",
-      "content": "<file content>",
-      "numLines": 80,
-      "startLine": 1,
-      "totalLines": 80
-    }
+    "stdout": "2 snapshots written",
+    "stderr": "",
+    "interrupted": false
   }
 }

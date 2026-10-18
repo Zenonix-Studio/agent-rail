@@ -7,18 +7,14 @@
   "effort": {
     "level": "medium"
   },
-  "hook_event_name": "PostToolUse",
+  "hook_event_name": "PostToolUseFailure",
   "tool_name": "Bash",
   "tool_input": {
     "command": "cd menubar && xcodebuild -scheme AgentRail -configuration Debug build 2>&1 | tail -20",
     "description": "Run the build"
   },
-  "tool_use_id": "toolu-0422",
-  "tool_response": {
-    "stdout": "** BUILD SUCCEEDED **",
-    "stderr": "",
-    "interrupted": false,
-    "isImage": false,
-    "noOutputExpected": false
-  }
+  "tool_use_id": "toolu-0418",
+  "error": "Exit code 65\nPopoverView.swift:42:17: error: cannot find 'rowInset' in scope\n** BUILD FAILED **",
+  "is_interrupt": false,
+  "duration_ms": 18234
 }
