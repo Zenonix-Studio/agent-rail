@@ -12,9 +12,7 @@ struct AgentRailApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            Text("agent-rail")
-            Divider()
-            Button("Quit") { NSApplication.shared.terminate(nil) }
+            PopoverView(store: store)
         } label: {
             MenuBarLabel(store: store)
         }

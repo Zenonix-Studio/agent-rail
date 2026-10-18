@@ -11,6 +11,8 @@ final class SessionStore {
     var summary: (jobs: Int, agents: Int, avgPct: Int?, attention: Bool) { menubarSummary(items, now: now) }
     var doneTodayCount: Int { doneToday(sessions, now: now) }
 
+    /// The state root (`$AGENT_RAIL_HOME` or `~/.agent-rail`); the popover opens it in Finder.
+    @ObservationIgnored let root: URL
     @ObservationIgnored private let sessionsDir: URL
     @ObservationIgnored private var loader: SessionLoader
     @ObservationIgnored private var watcher: (any DispatchSourceFileSystemObject)?
@@ -21,6 +23,7 @@ final class SessionStore {
     private static let tick: TimeInterval = 2
 
     init(root: URL = StateRoot.url()) {
+        self.root = root
         sessionsDir = root.appendingPathComponent("sessions", isDirectory: true)
         loader = SessionLoader(directory: sessionsDir)
         reload()
