@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { stateRoot, sessionPath, readSession, writeSession, withSessionLock } from '../core/state.mjs';
+import { ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock } from '../core/state.mjs';
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce } from '../core/reduce.mjs';
@@ -12,8 +12,8 @@ const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
 function logError(err) {
   try {
     const root = stateRoot();
-    mkdirSync(root, { recursive: true });
-    appendFileSync(join(root, 'collector.log'), `${new Date().toISOString()} ${err?.stack ?? err}\n`);
+    ensureDir(root);
+    appendFileSync(join(root, 'collector.log'), `${new Date().toISOString()} ${err?.stack ?? err}\n`, { mode: 0o600 });
   } catch { /* logging must never fail a hook */ }
 }
 
@@ -36,8 +36,8 @@ async function main() {
     let stdin;
     try { stdin = JSON.parse(raw); } catch { stdin = { _raw: raw }; }
     const dir = join(stateRoot(), 'capture');
-    mkdirSync(dir, { recursive: true });
-    appendFileSync(join(dir, `${source ?? 'unknown'}.jsonl`), JSON.stringify({ argv, stdin }) + '\n');
+    ensureDir(dir);
+    appendFileSync(join(dir, `${source ?? 'unknown'}.jsonl`), JSON.stringify({ argv, stdin }) + '\n', { mode: 0o600 });
     return;
   }
   const normalizer = normalizers[source];

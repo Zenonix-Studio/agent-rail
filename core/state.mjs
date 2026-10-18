@@ -1,4 +1,4 @@
-import { closeSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, closeSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -39,6 +39,21 @@ export function sessionPath(source, sessionId) {
   return join(stateRoot(), 'sessions', `${source}-${safeId}.json`);
 }
 
+let rootLocked = false;
+
+/**
+ * Creates `dir` (and parents) owner-only, and once per process tightens the
+ * state root to 0700 in case an older build created it world-readable.
+ * @param {string} dir
+ * @returns {void}
+ */
+export function ensureDir(dir) {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  if (rootLocked) return;
+  rootLocked = true;
+  try { chmodSync(stateRoot(), 0o700); } catch { /* root may sit elsewhere; best effort */ }
+}
+
 /**
  * @param {string} path
  * @returns {Session|null} null when the file is missing or not valid JSON.
@@ -59,10 +74,10 @@ export function readSession(path) {
  * @returns {void}
  */
 export function writeSession(path, session) {
-  mkdirSync(dirname(path), { recursive: true });
+  ensureDir(dirname(path));
   const tmp = `${path}.${process.pid}.tmp`;
   try {
-    writeFileSync(tmp, JSON.stringify(session, null, 2) + '\n');
+    writeFileSync(tmp, JSON.stringify(session, null, 2) + '\n', { mode: 0o600 });
     renameSync(tmp, path);
   } catch (err) {
     try { unlinkSync(tmp); } catch { /* temp may not exist */ }
@@ -87,13 +102,13 @@ const LOCK_POLL_MS = 5;
  */
 export function withSessionLock(path, fn, warn) {
   const lock = `${path}.lock`;
-  mkdirSync(dirname(path), { recursive: true });
+  ensureDir(dirname(path));
   const sleeper = new Int32Array(new SharedArrayBuffer(4));
   const deadline = Date.now() + LOCK_WAIT_MS;
   let fd = null;
   while (fd === null) {
     try {
-      fd = openSync(lock, 'wx');
+      fd = openSync(lock, 'wx', 0o600);
     } catch (err) {
       if (err?.code !== 'EEXIST') break;
       try {
