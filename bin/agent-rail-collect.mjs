@@ -1,7 +1,20 @@
 #!/usr/bin/env node
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { stateRoot } from '../core/state.mjs';
+import { stateRoot, sessionPath, readSession, writeSession } from '../core/state.mjs';
+import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
+import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
+import { reduce } from '../core/reduce.mjs';
+
+const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
+
+function logError(err) {
+  try {
+    const root = stateRoot();
+    mkdirSync(root, { recursive: true });
+    appendFileSync(join(root, 'collector.log'), `${new Date().toISOString()} ${err?.stack ?? err}\n`);
+  } catch { /* logging must never fail a hook */ }
+}
 
 const argv = process.argv.slice(2);
 const flag = (name) => {
@@ -24,8 +37,17 @@ async function main() {
     const dir = join(stateRoot(), 'capture');
     mkdirSync(dir, { recursive: true });
     appendFileSync(join(dir, `${source ?? 'unknown'}.jsonl`), JSON.stringify({ argv, stdin }) + '\n');
+    return;
   }
+  const normalizer = normalizers[source];
+  if (!normalizer) throw new Error(`unknown --source: ${source}`);
+  const input = JSON.parse(raw);
+  const event = normalizer(input);
+  if (!event) return;
+  const path = sessionPath(source, event.sessionId);
+  const session = reduce(readSession(path), { source, ...event }, new Date());
+  writeSession(path, session);
 }
 
-try { await main(); } catch { /* never fail a hook */ }
+try { await main(); } catch (err) { logError(err); }
 process.exit(0);

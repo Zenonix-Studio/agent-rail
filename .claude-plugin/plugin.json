@@ -1,0 +1,5 @@
+{
+  "name": "agent-rail",
+  "version": "0.1.0",
+  "description": "Per-session progress state for Claude Code, written to ~/.agent-rail/sessions/"
+}
