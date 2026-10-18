@@ -23,6 +23,8 @@ struct SessionLoader {
 
     let directory: URL
     private var cache: [String: (mtime: Date, session: Session?)] = [:]
+    /// File names and mtimes of the last load's inputs; equal signatures mean the same data.
+    private(set) var signature: [String: Date] = [:]
 
     init(directory: URL) { self.directory = directory }
 
@@ -45,6 +47,7 @@ struct SessionLoader {
             if let session = entry.session { loaded.append((key, session)) }
         }
         cache = fresh
+        signature = fresh.mapValues(\.mtime)
         return loaded.sorted { $0.name < $1.name }.map(\.session)
     }
 }

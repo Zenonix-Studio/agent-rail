@@ -14,19 +14,29 @@ final class SessionStore {
     /// The state root (`$AGENT_RAIL_HOME` or `~/.agent-rail`); the popover opens it in Finder.
     @ObservationIgnored let root: URL
     @ObservationIgnored private let sessionsDir: URL
-    @ObservationIgnored private var loader: SessionLoader
+    @ObservationIgnored private let worker: LoadWorker
+    @ObservationIgnored private var signature: [String: Date]
+    @ObservationIgnored private var loading = false
+    @ObservationIgnored private var reloadPending = false
     @ObservationIgnored private var watcher: (any DispatchSourceFileSystemObject)?
     @ObservationIgnored private var debounce: Task<Void, Never>?
     @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var lastReload = Date()
 
     private static let debounceDelay: Duration = .milliseconds(150)
-    private static let tick: TimeInterval = 2
+    /// Elapsed time shows in minutes and staleness starts at 10 min, so `now` needs no finer tick.
+    private static let tick: TimeInterval = 30
+    /// Safety net for a missed watcher event and for files aging out of the 24 h window.
+    private static let safetyReload: TimeInterval = 60
 
     init(root: URL = StateRoot.url()) {
         self.root = root
         sessionsDir = root.appendingPathComponent("sessions", isDirectory: true)
-        loader = SessionLoader(directory: sessionsDir)
-        reload()
+        // The first load is synchronous so the first frame (and `--dump-after`) has data.
+        var loader = SessionLoader(directory: sessionsDir)
+        sessions = loader.load(now: Date())
+        signature = loader.signature
+        worker = LoadWorker(loader: loader)
         openWatcher()
         let timer = Timer(timeInterval: Self.tick, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
@@ -39,9 +49,9 @@ final class SessionStore {
 
     private func tick() {
         // The directory may not exist yet (no session has ever written); retry until it does.
-        if watcher == nil { openWatcher() }
-        // Cheap thanks to the mtime cache; covers in-place edits and any missed watcher event.
-        reload()
+        let reopened = watcher == nil && openWatcher()
+        now = Date()
+        if reopened || now.timeIntervalSince(lastReload) >= Self.safetyReload { reload() }
     }
 
     // MARK: Watcher
@@ -85,9 +95,46 @@ final class SessionStore {
 
     // MARK: Loading
 
+    /// Scans on a background actor and publishes on the main actor; overlapping requests coalesce.
     private func reload() {
-        let date = Date()
-        sessions = loader.load(now: date)
-        now = date
+        guard !loading else { reloadPending = true; return }
+        loading = true
+        lastReload = Date()
+        Task { [weak self, worker] in
+            let date = Date()
+            let result = await worker.load(now: date)
+            self?.publish(result, at: date)
+        }
+    }
+
+    private func publish(_ result: LoadResult, at date: Date) {
+        loading = false
+        // Assign only on a real change so observers (the menubar label) do not redraw for nothing.
+        if result.signature != signature {
+            signature = result.signature
+            sessions = result.sessions
+            now = date
+        }
+        if reloadPending {
+            reloadPending = false
+            reload()
+        }
+    }
+}
+
+struct LoadResult: Sendable {
+    let sessions: [Session]
+    let signature: [String: Date]
+}
+
+/// Owns the loader and its decode cache; runs the directory scan off the main actor.
+actor LoadWorker {
+    private var loader: SessionLoader
+
+    init(loader: SessionLoader) { self.loader = loader }
+
+    func load(now: Date) -> LoadResult {
+        let sessions = loader.load(now: now)
+        return LoadResult(sessions: sessions, signature: loader.signature)
     }
 }
