@@ -1,0 +1,28 @@
+{
+  "session_id": "session-0001",
+  "turn_id": "turn-0002",
+  "transcript_path": "/home/user/.codex/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "PostToolUse",
+  "model": "gpt-5.6-sol",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "update_plan",
+  "tool_input": {
+    "plan": [
+      {
+        "step": "Run the requested failing shell command",
+        "status": "in_progress"
+      },
+      {
+        "step": "Create hello.txt containing hi with apply_patch",
+        "status": "pending"
+      },
+      {
+        "step": "Spawn a subagent to read hello.txt and report",
+        "status": "pending"
+      }
+    ]
+  },
+  "tool_response": "Plan updated",
+  "tool_use_id": "toolu-0004"
+}

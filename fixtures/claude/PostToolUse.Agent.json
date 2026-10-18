@@ -1,0 +1,83 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0002",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Read hello.txt",
+    "prompt": "<user prompt>",
+    "subagent_type": "general-purpose",
+    "run_in_background": false
+  },
+  "tool_response": {
+    "status": "completed",
+    "prompt": "<user prompt>",
+    "agentId": "a2bb9a6392733e5db",
+    "agentType": "general-purpose",
+    "harnessNoteCount": 0,
+    "harnessTailCount": 0,
+    "harnessSectionHash": "50213d6ace849f0b",
+    "content": [
+      {
+        "type": "text",
+        "text": "The file `/work/repo/hello.txt` contains the single line `hi`, followed by a trailing newline."
+      }
+    ],
+    "resolvedModel": "claude-opus-5-5",
+    "totalDurationMs": 4477,
+    "totalTokens": 32395,
+    "totalToolUseCount": 1,
+    "usage": {
+      "output_tokens_details": {
+        "thinking_tokens": 35
+      },
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 8019,
+      "cache_read_input_tokens": 24281,
+      "output_tokens": 93,
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 8019
+      },
+      "inference_geo": "global",
+      "iterations": [
+        {
+          "input_tokens": 2,
+          "output_tokens": 93,
+          "cache_read_input_tokens": 24281,
+          "cache_creation_input_tokens": 8019,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 8019,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "type": "message"
+        }
+      ],
+      "speed": "standard",
+      "fallback_credit": null
+    },
+    "toolStats": {
+      "readCount": 1,
+      "searchCount": 0,
+      "bashCount": 0,
+      "editFileCount": 0,
+      "linesAdded": 0,
+      "linesRemoved": 0,
+      "otherToolCount": 0
+    },
+    "canContinueAgent": true
+  },
+  "tool_use_id": "toolu-0009",
+  "duration_ms": 4477
+}

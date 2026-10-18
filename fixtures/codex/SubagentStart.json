@@ -1,0 +1,11 @@
+{
+  "session_id": "session-0001",
+  "turn_id": "turn-0008",
+  "transcript_path": "/home/user/.codex/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "SubagentStart",
+  "model": "gpt-5.6-sol",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "agent-0009",
+  "agent_type": "default"
+}

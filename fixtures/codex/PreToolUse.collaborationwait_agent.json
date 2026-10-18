@@ -1,0 +1,14 @@
+{
+  "session_id": "session-0001",
+  "turn_id": "turn-0002",
+  "transcript_path": "/home/user/.codex/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.6-sol",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "collaborationwait_agent",
+  "tool_input": {
+    "timeout_ms": 120000
+  },
+  "tool_use_id": "toolu-0007"
+}

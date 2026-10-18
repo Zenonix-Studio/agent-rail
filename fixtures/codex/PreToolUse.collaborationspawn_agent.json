@@ -1,0 +1,16 @@
+{
+  "session_id": "session-0001",
+  "turn_id": "turn-0002",
+  "transcript_path": "/home/user/.codex/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.6-sol",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "collaborationspawn_agent",
+  "tool_input": {
+    "task_name": "read_hello",
+    "fork_turns": "all",
+    "message": "<redacted>"
+  },
+  "tool_use_id": "toolu-0006"
+}

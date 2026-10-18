@@ -1,0 +1,44 @@
+{
+  "session_id": "session-0017",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0018",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/work/repo/tasks/todo.md",
+    "old_string": "- [ ] 1.",
+    "new_string": "- [x] 1.",
+    "replace_all": false
+  },
+  "tool_response": {
+    "filePath": "/work/repo/tasks/todo.md",
+    "oldString": "- [ ] 1.",
+    "newString": "- [x] 1.",
+    "originalFile": "# Plan\n\n- [ ] 1. Run `ls nonexistent_dir_xyz` (expected to fail)\n- [ ] 2. Create hello.txt containing 'hi'\n- [ ] 3. Spawn subagent to read hello.txt and report its content\n",
+    "structuredPatch": [
+      {
+        "oldStart": 1,
+        "oldLines": 5,
+        "newStart": 1,
+        "newLines": 5,
+        "lines": [
+          " # Plan",
+          " ",
+          "-- [ ] 1. Run `ls nonexistent_dir_xyz` (expected to fail)",
+          "+- [x] 1. Run `ls nonexistent_dir_xyz` (expected to fail)",
+          " - [ ] 2. Create hello.txt containing 'hi'",
+          " - [ ] 3. Spawn subagent to read hello.txt and report its content"
+        ]
+      }
+    ],
+    "userModified": false,
+    "replaceAll": false
+  },
+  "tool_use_id": "toolu-0019",
+  "duration_ms": 3
+}

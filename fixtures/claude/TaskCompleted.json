@@ -1,0 +1,10 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0002",
+  "hook_event_name": "TaskCompleted",
+  "task_id": "1",
+  "task_subject": "Run failing command ls nonexistent_dir_xyz",
+  "task_description": "Run 'ls nonexistent_dir_xyz' and observe the failure."
+}
