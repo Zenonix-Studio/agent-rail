@@ -159,6 +159,26 @@
         }
       }
     },
+    "expanded": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "genişletilmiş"
+          }
+        }
+      }
+    },
+    "Untitled job": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adsız iş"
+          }
+        }
+      }
+    },
     "No agents running": {
       "localizations": {
         "tr": {

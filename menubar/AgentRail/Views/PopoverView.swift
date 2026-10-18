@@ -71,9 +71,10 @@ struct PopoverView: View {
                 if item.id == expandedID {
                     JobDetailView(item: item, now: store.now) { toggle(item.id, current: expandedID) }
                 } else {
-                    JobRowView(item: item, now: store.now)
-                        .onTapGesture { toggle(item.id, current: expandedID) }
-                        .accessibilityAddTraits(.isButton)
+                    Button { toggle(item.id, current: expandedID) } label: {
+                        JobRowView(item: item, now: store.now)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }

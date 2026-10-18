@@ -15,8 +15,8 @@ struct JobRowView: View {
     }
 
     /// "<source>, <title>, <done> of <total> milestones, <pct> percent, <status>"
-    private static func accessibilityLabel(item: JobItem, p: (done: Int, total: Int, pct: Int?), stale: Bool) -> String {
-        let title = item.job.title.isEmpty ? item.job.prompt : item.job.title
+    static func accessibilityLabel(item: JobItem, p: (done: Int, total: Int, pct: Int?), stale: Bool) -> String {
+        let title = displayTitle(item)
         let milestones = String(localized: "\(p.done) of \(p.total) milestones")
         let percent = p.pct.map { String(localized: "\($0) percent") } ?? String(localized: "no progress yet")
         let status = stale ? String(localized: "no activity") : L10n.jobStatus(item.job.status)
@@ -35,7 +35,7 @@ struct JobHeaderView: View {
         HStack(spacing: 10) {
             SourceTag(source: item.session.source)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.job.title.isEmpty ? item.job.prompt : item.job.title)
+                Text(verbatim: displayTitle(item))
                     .font(.system(size: 13, weight: expanded ? .semibold : .medium))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
@@ -116,7 +116,7 @@ private struct SourceTag: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .frame(minWidth: 58)
-            .background(color.opacity(0.2), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
             .fixedSize()
     }
 }

@@ -8,10 +8,15 @@ struct JobDetailView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            JobHeaderView(item: item, now: now, expanded: true)
-                .background(Theme.raised)
-                .onTapGesture(perform: onHeaderTap)
-                .accessibilityAddTraits(.isButton)
+            Button(action: onHeaderTap) {
+                JobHeaderView(item: item, now: now, expanded: true)
+                    .background(Theme.raised)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(JobRowView.accessibilityLabel(
+                        item: item, p: progress(item.job), stale: isStale(item, now: now)))
+                    .accessibilityValue(Text("expanded"))
+            }
+            .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 0) {
                 if !item.job.summary.isEmpty {
                     Text(verbatim: item.job.summary)

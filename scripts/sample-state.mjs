@@ -94,6 +94,15 @@ write('claude-done.json', session('claude', 'done', {
   })],
 }));
 
+// A collector that joined mid-session: no title and no prompt, so the row falls back to the project.
+write('claude-untitled.json', session('claude', 'untitled', {
+  project: 'late-joiner', updatedAt: t(2),
+  jobs: [job('claude', 'untitled', 1, {
+    milestones: [ms('1', 'Read', 'done'), ms('2', 'Edit', 'active')], updatedAt: t(2),
+    now: { milestone: '2', pills: [pill('Edit Late.swift', 'active')], attempt: 1, file: 'Late.swift' },
+  })],
+}));
+
 write('broken.json', '{"sch');
 
 write('claude-future.json', { ...session('claude', 'future', { project: 'future', jobs: [] }), schema: 2 });
@@ -106,4 +115,4 @@ write('claude-exploded.json', session('claude', 'exploded', {
   })],
 }));
 
-console.log(`wrote 9 sample files to ${dir}`);
+console.log(`wrote 10 sample files to ${dir}`);
