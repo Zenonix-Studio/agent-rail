@@ -1,7 +1,8 @@
 /**
  * ASCII rendering of one job for fixed-width terminals: title + %, block
- * progress bar, metro line of milestones, and a mini flow under the active
- * milestone. No Node built-ins: the Claude Code mod imports this file.
+ * progress bar, metro line of milestones, the flow of human-readable steps
+ * under the active milestone, and one line per subagent of the job. No Node
+ * built-ins: the Claude Code mod imports this file.
  *
  * `renderJobSegments` returns each line as toned segments so a caller can
  * color them; `renderJob` returns the same lines as plain strings.
@@ -13,6 +14,9 @@ import { progress } from './progress.mjs';
  * @typedef {{ text: string, tone: Tone }} Segment
  * @typedef {Segment[]} Line
  * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'>} RenderableJob
+ * @typedef {Pick<import('./state.mjs').Agent, 'name'|'status'|'activity'> & {updatedAt?: string}} RenderableAgent
+ * @typedef {number|RenderableAgent[]} AgentsArg Running count only (title hint), or the job's
+ *   subagents (`jobAgents` in core/progress.mjs): the hint plus an "Agents" block in the wide layout.
  */
 
 /** Below this width the metro line is dropped for a one-line summary. */
@@ -21,12 +25,13 @@ const BAR_MAX = 30;
 const BAR_MIN = 6;
 const STEP_MIN = 6;
 const STEP_MAX = 14;
+const AGENTS_SHOWN = 4;
 
 /**
  * @param {RenderableJob} job
  * @param {number} width Columns available.
  * @param {number} [nowMs] Clock for the elapsed time of an unfinished job.
- * @param {number} [agents] Subagents of this job still running (`runningAgents` in core/progress.mjs).
+ * @param {AgentsArg} [agents]
  * @returns {string[]} Plain lines, none longer than `width`.
  */
 export function renderJob(job, width, nowMs = Date.now(), agents = 0) {
@@ -37,18 +42,21 @@ export function renderJob(job, width, nowMs = Date.now(), agents = 0) {
  * @param {RenderableJob} job
  * @param {number} width
  * @param {number} [nowMs]
- * @param {number} [agents] Subagents of this job still running.
+ * @param {AgentsArg} [agents]
  * @returns {Line[]}
  */
 export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
   const w = Math.max(10, Math.floor(width) || 0);
+  const list = Array.isArray(agents) ? agents.filter((a) => a && typeof a === 'object') : [];
+  const running = Array.isArray(agents) ? list.filter((a) => a.status === 'running').length : agents;
   const title = str(job?.title) || 'Untitled job';
   const milestones = Array.isArray(job?.milestones) ? job.milestones : [];
   const status = job?.status;
   const isDone = status === 'done';
   const { done, total, pct } = progress(job);
   const tail = statusTail(status);
-  const hint = agentsHint(agents, w < COMPACT_WIDTH);
+  const hint = agentsHint(running, w < COMPACT_WIDTH);
+  const block = w < COMPACT_WIDTH ? [] : agentLines(list, w);
   const hintLen = tailLen(hint);
 
   if (total === 0) {
@@ -60,12 +68,12 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
     // Spec §7 fallback: a planless job still shows what the agent is doing.
     const now = job?.now;
     if (!isDone && now && typeof now === 'object') {
-      const flow = flowLine(now, w);
-      if (flow.length) lines.push(flow);
+      lines.push(...flowLines(now, w));
     } else if (isDone && now && typeof now === 'object') {
       const recent = recentLine(now, w);
       if (recent.length) lines.push(recent);
     }
+    lines.push(...block);
     return lines.map((l) => fit(l.filter(nonEmpty), w));
   }
 
@@ -104,11 +112,11 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
     const anchor = byKey >= 0 ? byKey : milestones.findIndex((m) => m?.status === 'active');
     const col = anchor >= 0 ? metro.nodeCols[anchor] ?? -1 : -1;
     if (col >= 0) lines.push([seg(' '.repeat(col), 'plain'), seg('↓', 'active')]);
-    const flow = flowLine(now, w);
-    if (flow.length) lines.push(flow);
+    lines.push(...flowLines(now, w));
     const file = str(now.file);
     if (file) lines.push([seg('  ', 'plain'), seg(clip(file, w - 2), 'dim')]);
   }
+  lines.push(...block);
 
   return lines.map((l) => fit(l.filter(nonEmpty), w));
 }
@@ -163,35 +171,95 @@ function metroLines(milestones, w, isDone) {
 }
 
 /**
+ * The story of the latest steps: `A ✓ → B → C ▶`, on up to FLOW_ROWS lines.
+ * Most recent pills that fit are kept, oldest dropped first; an arrow travels
+ * with the pill after it, so a line never ends on "→".
  * @param {import('./state.mjs').Now} now
  * @param {number} w
- * @returns {Line} Most recent pills that fit, oldest dropped first.
+ * @returns {Line[]}
  */
-function flowLine(now, w) {
+function flowLines(now, w) {
   const pills = Array.isArray(now.pills) ? now.pills : [];
   const attempt = Number.isFinite(now.attempt) && now.attempt >= 2 ? `  ↻ ${now.attempt}` : '';
-  const room = w - 2 - attempt.length;
+  const room = w - 2;
   /** @type {Segment[]} */
   const kept = [];
-  let used = 0;
+  // Newest first: each older pill is kept only if the whole set still lays out.
   for (let i = pills.length - 1; i >= 0; i--) {
-    const p = pills[i];
-    const text = pillText(p);
+    const text = pillText(pills[i], room - 2 - attempt.length);
     if (!text) continue;
-    const cost = text.length + (kept.length ? 3 : 0);
-    if (used + cost > room) break;
-    kept.unshift(seg(text, pillTone(p?.kind)));
+    const next = [seg(text, pillTone(pills[i]?.kind)), ...kept];
+    if (layout(next, room, attempt.length) === null) break;
+    kept.unshift(next[0]);
+  }
+  if (!kept.length) return attempt ? [[seg('  ', 'plain'), seg(attempt.trim(), 'warn')]] : [];
+  const rows = /** @type {Segment[][]} */ (layout(kept, room, attempt.length));
+  const lines = rows.map((row, r) => [seg(r === 0 ? '  ' : '    ', 'plain'), ...row]);
+  if (attempt) lines[lines.length - 1].push(seg(attempt, 'warn'));
+  return lines;
+}
+
+const FLOW_ROWS = 2;
+
+/**
+ * Wraps pills into rows; continuation rows are indented 2 more columns.
+ * @param {Segment[]} pills @param {number} room @param {number} tail columns kept free on the last row
+ * @returns {Segment[][]|null} null when they need more than FLOW_ROWS rows.
+ */
+function layout(pills, room, tail) {
+  /** @type {Segment[][]} */
+  const rows = [[]];
+  let used = 0;
+  for (const p of pills) {
+    const row = rows[rows.length - 1];
+    const width = room - (rows.length > 1 ? 2 : 0);
+    const cost = p.text.length + (row.length ? 3 : 0);
+    if (row.length && used + cost > width) {
+      if (rows.length === FLOW_ROWS) return null;
+      rows.push([seg('→ ', 'dim'), p]);
+      used = p.text.length + 2;
+      continue;
+    }
+    if (!row.length && cost > width) return null;
+    if (row.length) row.push(seg(' → ', 'dim'));
+    row.push(p);
     used += cost;
   }
-  if (!kept.length) return attempt ? [seg('  ', 'plain'), seg(attempt.trim(), 'warn')] : [];
-  /** @type {Line} */
-  const line = [seg('  ', 'plain')];
-  kept.forEach((s, i) => {
-    if (i) line.push(seg(' → ', 'dim'));
-    line.push(s);
-  });
-  if (attempt) line.push(seg(attempt, 'warn'));
-  return line;
+  const lastWidth = room - (rows.length > 1 ? 2 : 0);
+  return used + tail <= lastWidth ? rows : null;
+}
+
+const AGENT_GLYPH = { running: ['●', 'active'], done: ['✓', 'done'], stale: ['○', 'dim'], error: ['✗', 'error'] };
+
+/**
+ * "Agents" block: one line per subagent, `● <name> — <latest activity>`, running ones first.
+ * @param {RenderableAgent[]} agents
+ * @param {number} w
+ * @returns {Line[]} none when there are no agents.
+ */
+function agentLines(agents, w) {
+  if (!agents.length) return [];
+  const rank = (a) => (a.status === 'running' ? 0 : 1);
+  const recent = (a) => Date.parse(a.updatedAt ?? '') || 0;
+  // Running first (in start order); finished ones most recent first.
+  const sorted = agents
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => rank(x.a) - rank(y.a) || (rank(x.a) === 0 ? x.i - y.i : recent(y.a) - recent(x.a)))
+    .map((x) => x.a);
+  const shown = sorted.slice(0, AGENTS_SHOWN);
+  /** @type {Line[]} */
+  const lines = [[seg('  Agents', 'dim')]];
+  for (const a of shown) {
+    const [glyph, tone] = AGENT_GLYPH[/** @type {keyof typeof AGENT_GLYPH} */ (a.status)] ?? ['·', 'dim'];
+    const activity = str(a.activity) || (a.status === 'running' ? 'starting…' : '');
+    const nameRoom = activity ? Math.max(8, Math.floor((w - 6) * 0.45)) : w - 6;
+    const name = clip(str(a.name) || 'agent', nameRoom);
+    const line = [seg('  ', 'plain'), seg(glyph, /** @type {Tone} */ (tone)), seg(' ', 'plain'), seg(name, a.status === 'running' ? 'plain' : 'dim')];
+    if (activity) line.push(seg(' — ', 'dim'), seg(clip(activity, w - 4 - name.length - 3), 'dim'));
+    lines.push(line);
+  }
+  if (shown.length < sorted.length) lines.push([seg(`    +${sorted.length - shown.length} more`, 'dim')]);
+  return lines;
 }
 
 /**
@@ -207,13 +275,12 @@ function recentLine(now, w) {
   return [seg('  ', 'plain'), seg(clip(labels.join(' → '), w - 2), 'dim')];
 }
 
-/** @param {{label?: string, kind?: string}} p */
-function pillText(p) {
+/** @param {{label?: string, kind?: string}} p @param {number} room @returns {string} label plus its status mark, clipped to `room` */
+function pillText(p, room) {
   const label = str(p?.label);
   if (!label) return '';
-  if (p.kind === 'ok') return `${label} ✓`;
-  if (p.kind === 'active') return `${label} ▶`;
-  return label;
+  const mark = p.kind === 'ok' ? ' ✓' : p.kind === 'active' ? ' ▶' : '';
+  return clip(label, room - mark.length) + mark;
 }
 
 /** @param {string|undefined} kind @returns {Tone} */

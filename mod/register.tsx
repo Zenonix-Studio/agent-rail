@@ -4,15 +4,15 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { runningAgents } from '../core/progress.mjs'
+import { jobAgents } from '../core/progress.mjs'
 import { renderJobSegments } from '../core/render-ascii.mjs'
-import type { RailJob, RailView } from './types'
+import type { RailAgent, RailJob, RailView } from './types'
 
 const PANE = 'agent-rail'
 const TITLE = 'Agent rail'
 const POLL_MS = 1000
 
-const view = atom({ plugin: 'agent-rail', key: 'view' } as const, { job: null, at: 0, agents: 0 } as RailView)
+const view = atom({ plugin: 'agent-rail', key: 'view' } as const, { job: null, at: 0, agents: [] } as RailView)
 const isPaneShown = atom({ plugin: 'agent-rail', key: 'isPaneShown' } as const, false)
 
 const TONE: Record<string, { color?: string; dimColor?: boolean; weight?: 'bold' }> = {
@@ -43,12 +43,12 @@ async function tick($: EngineInterface): Promise<void> {
     ? ''
     : await $.fs.read(`${dir}/sessions/claude-${sessionId.replace(/[^A-Za-z0-9._-]/g, '_')}.json`).catch(() => '')
   let job: RailJob | null = null
-  let agents = 0
+  let agents: RailAgent[] = []
   try {
     const session = text ? JSON.parse(text) : undefined
     const jobs = session?.jobs
     job = Array.isArray(jobs) && jobs.length ? jobs[jobs.length - 1] : null
-    agents = job === null ? 0 : runningAgents(session, job.seq)
+    agents = job === null ? [] : jobAgents(session, job.seq)
   } catch {
     return // a half-written or corrupt file: keep drawing the last good view
   }
