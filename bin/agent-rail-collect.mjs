@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { appendFileSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { stateRoot } from '../core/state.mjs';
 
 const argv = process.argv.slice(2);
 const flag = (name) => {
@@ -21,7 +21,7 @@ async function main() {
   if (argv.includes('--capture')) {
     let stdin;
     try { stdin = JSON.parse(raw); } catch { stdin = { _raw: raw }; }
-    const dir = join(homedir(), '.agent-rail', 'capture');
+    const dir = join(stateRoot(), 'capture');
     mkdirSync(dir, { recursive: true });
     appendFileSync(join(dir, `${source ?? 'unknown'}.jsonl`), JSON.stringify({ argv, stdin }) + '\n');
   }
