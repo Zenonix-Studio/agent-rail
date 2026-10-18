@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { stateRoot, sessionPath, readSession, writeSession } from '../core/state.mjs';
+import { stateRoot, sessionPath, readSession, writeSession, withSessionLock } from '../core/state.mjs';
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce } from '../core/reduce.mjs';
@@ -45,8 +45,9 @@ async function main() {
   const event = normalizer(input);
   if (!event) return;
   const path = sessionPath(source, event.sessionId);
-  const session = reduce(readSession(path), { source, ...event }, new Date());
-  writeSession(path, session);
+  withSessionLock(path, () => {
+    writeSession(path, reduce(readSession(path), { source, ...event }, new Date()));
+  }, logError);
 }
 
 try { await main(); } catch (err) { logError(err); }

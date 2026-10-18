@@ -8,7 +8,9 @@ let removed = 0;
 for (const ev of Object.keys(j.hooks)) {
   if (!Array.isArray(j.hooks[ev])) continue;
   const kept = j.hooks[ev].filter((g) => !isOurs(g));
-  removed += j.hooks[ev].length - kept.length;
+  const n = j.hooks[ev].length - kept.length;
+  if (!n) continue;
+  removed += n;
   if (kept.length) j.hooks[ev] = kept; else delete j.hooks[ev];
 }
 saveHooks(j);

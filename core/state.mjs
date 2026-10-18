@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -79,4 +79,46 @@ export function progress(job) {
   const total = milestones.length;
   const done = milestones.filter((m) => m?.status === 'done').length;
   return { done, total, pct: total === 0 ? null : Math.round((100 * done) / total) };
+}
+
+const LOCK_WAIT_MS = 400;
+const LOCK_STALE_MS = 2000;
+const LOCK_POLL_MS = 5;
+
+/**
+ * Runs `fn` while holding `<path>.lock` (exclusive create). Waits up to ~400 ms,
+ * steals locks older than ~2 s, and after the deadline runs `fn` unlocked.
+ * @template T
+ * @param {string} path Session file path.
+ * @param {() => T} fn
+ * @param {(msg: string) => void} [warn] Called once if the lock could not be taken.
+ * @returns {T}
+ */
+export function withSessionLock(path, fn, warn) {
+  const lock = `${path}.lock`;
+  mkdirSync(dirname(path), { recursive: true });
+  const sleeper = new Int32Array(new SharedArrayBuffer(4));
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  let fd = null;
+  while (fd === null) {
+    try {
+      fd = openSync(lock, 'wx');
+    } catch (err) {
+      if (err?.code !== 'EEXIST') break;
+      try {
+        if (Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS) { unlinkSync(lock); continue; }
+      } catch { continue; /* lock vanished; retry */ }
+      if (Date.now() >= deadline) break;
+      Atomics.wait(sleeper, 0, 0, LOCK_POLL_MS);
+    }
+  }
+  if (fd === null) warn?.(`could not acquire ${lock}; proceeding unlocked`);
+  try {
+    return fn();
+  } finally {
+    if (fd !== null) {
+      try { closeSync(fd); } catch { /* ignore */ }
+      try { unlinkSync(lock); } catch { /* ignore */ }
+    }
+  }
 }
