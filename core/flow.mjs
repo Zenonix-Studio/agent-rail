@@ -40,7 +40,30 @@ function patchFile(patch) {
 // "rail: Fix login crash — Guard the nil token. Add a retry."
 // Tolerates markdown emphasis/quote prefixes. Separator: em dash, en dash or "--"
 // (a lone hyphen is not accepted: it appears inside titles such as "Bump deps - again").
-const META = /^[\s>*_`]*rail:\s*(.+?)\s+(?:—|–|--)\s+(.+?)[\s*_`]*$/im;
+// Checked one line at a time (no newline-spanning whitespace), only on lines
+// containing "rail:", within the first META_SCAN_CHARS of the text. Title and
+// summary are split by hand: a single regex for the whole line backtracks
+// cubically on crafted lines.
+const META_HEAD = /^[ \t>*_`]*rail:/i;
+const META_SEP = /[ \t](?:—|–|--)[ \t]/g;
+const META_SCAN_CHARS = 4096;
+
+/** @param {string} line @returns {[string, string]|null} raw [title, summary] */
+function splitMarker(line) {
+  const head = META_HEAD.exec(line);
+  if (!head) return null;
+  const rest = line.slice(head[0].length);
+  META_SEP.lastIndex = 0;
+  for (let m; (m = META_SEP.exec(rest));) {
+    const title = rest.slice(0, m.index).trim();
+    let end = rest.length;
+    while (end > 0 && ' \t*_`'.includes(rest[end - 1])) end--;
+    const summary = rest.slice(m.index + m[0].length, Math.max(end, m.index + m[0].length)).trim();
+    if (title && summary) return [title, summary];
+    META_SEP.lastIndex = m.index + 1;
+  }
+  return null;
+}
 
 /**
  * Parses the agent-written `rail: <title> — <summary>` marker line.
@@ -49,11 +72,15 @@ const META = /^[\s>*_`]*rail:\s*(.+?)\s+(?:—|–|--)\s+(.+?)[\s*_`]*$/im;
  */
 export function extractMeta(text) {
   if (typeof text !== 'string') return null;
-  const m = META.exec(text);
+  const head = text.slice(0, META_SCAN_CHARS);
+  let m = null;
+  for (const line of head.split('\n')) {
+    if (/rail:/i.test(line) && (m = splitMarker(line.replace(/\r$/, '')))) break;
+  }
   if (!m) return null;
-  const title = m[1].trim().split(/\s+/).slice(0, 6).join(' ');
+  const title = m[0].split(/\s+/).slice(0, 6).join(' ');
   // At most two sentences: split after . ! or ? followed by whitespace.
-  const summary = m[2].trim().split(/(?<=[.!?])\s+/).slice(0, 2).join(' ');
+  const summary = m[1].split(/(?<=[.!?])\s+/).slice(0, 2).join(' ');
   return title && summary ? { title, summary } : null;
 }
 
