@@ -5,7 +5,7 @@ import { classifyTool } from './flow.mjs';
  *  |{type:'plan', items:{key:string,title:string,status:'pending'|'active'|'done'}[], explanation:string|null}
  *  |{type:'task-create', key:string, title:string, description:string|null}
  *  |{type:'task-update', key:string, status:'pending'|'active'|'done'|'deleted'}
- *  |{type:'tool', phase:'pre'|'post', name:string, label:string, file:string|null, ok:boolean|null}
+ *  |{type:'tool', phase:'pre'|'post', name:string, label:string, file:string|null, ok:boolean|null, id:string|null}
  *  |{type:'agent-start', name:string}|{type:'agent-stop', ok:boolean}
  *  |{type:'waiting'}|{type:'stop', lastMessage:string|null}|{type:'session-end'}} Event
  * @typedef {{sessionId:string, cwd:string, agentId:string|null, event:Event}} Normalized
@@ -95,6 +95,7 @@ function toolEvent(p, phase, ok) {
     label: classifyTool(name, input),
     file: str(input.file_path) ?? str(input.notebook_path),
     ok,
+    id: str(p.tool_use_id), // pairs pre/post of parallel calls
   };
 }
 

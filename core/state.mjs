@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 /**
  * @typedef {'ok'|'warn'|'active'|'info'} PillKind
- * @typedef {{ label: string, kind: PillKind }} Pill
+ * @typedef {{ label: string, kind: PillKind, id?: string }} Pill `id` is set only on active pills, to pair the post.
  * @typedef {{ milestone: string, pills: Pill[], attempt: number, file: string|null }} Now
  * @typedef {{ key: string, title: string, status: 'pending'|'active'|'done' }} Milestone
  * @typedef {{

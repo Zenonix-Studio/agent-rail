@@ -77,7 +77,7 @@ function toolEvent(p, phase, agentId) {
       if (m) ok = Number(m[1]) === 0;
     }
   }
-  return { type: 'tool', phase, name, label: classifyTool(name, input), file, ok };
+  return { type: 'tool', phase, name, label: classifyTool(name, input), file, ok, id: str(p.tool_use_id) };
 }
 
 /** @param {any} input @returns {Event|null} */

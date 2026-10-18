@@ -17,6 +17,7 @@ const MILESTONE_STATUS = new Set(['pending', 'active', 'done']);
 const AGENT_STATUS = new Set(['running', 'done', 'error']);
 const PILL_KINDS = new Set(['ok', 'warn', 'active', 'info']);
 const MAX_PILLS = 3;
+const MAX_OPEN = 20; // open call ids kept for pre/post pairing
 const TITLE_MAX = 48;
 
 /** @param {unknown} v @returns {v is Record<string, any>} */
@@ -71,7 +72,9 @@ function apply(s, input, at) {
     case 'plan':
     case 'task-create':
     case 'task-update':
-      onMilestones(s, e, at);
+      // Only the main agent's plan drives milestones and %.
+      if (agentId) agent(s, agentId, at).activity = 'Planning';
+      else onMilestones(s, e, at);
       break;
     case 'tool':
       onTool(s, agentId, e, at);
@@ -98,7 +101,7 @@ function apply(s, input, at) {
       if (!agentId) finish(s, e.lastMessage, at);
       break;
     case 'session-end':
-      finish(s, null, at);
+      if (!agentId) finish(s, null, at);
       break;
     default:
       break;
@@ -226,21 +229,28 @@ function onTool(s, agentId, e, at) {
   if (!job.now || job.now.milestone !== key) job.now = emptyNow(key);
   const now = job.now;
   const counts = now._counts;
+  const id = str(e.id);
 
   if (e.phase === 'pre') {
-    now.pills.push({ label, kind: 'active' });
+    now.pills.push(id ? { label, kind: 'active', id } : { label, kind: 'active' });
     counts[label] = (counts[label] ?? 0) + 1;
+    if (id) now._open = [...now._open, id].slice(-MAX_OPEN);
   } else {
     const kind = e.ok === true ? 'ok' : e.ok === false ? 'warn' : 'info';
     const pill = { label: e.ok === false ? `${label} failed` : label, kind };
-    const last = now.pills[now.pills.length - 1];
-    if (last && last.kind === 'active' && last.label === label) {
-      now.pills[now.pills.length - 1] = pill;
-    } else {
-      // Post without a matching pre still counts as one occurrence.
-      now.pills.push(pill);
-      counts[label] = (counts[label] ?? 0) + 1;
+    // Parallel calls: pair by call id first, else by the latest active pill with this label.
+    const opened = id !== null && now._open.includes(id);
+    if (opened) now._open = now._open.filter((x) => x !== id);
+    let i = -1;
+    for (let k = now.pills.length - 1; k >= 0; k--) {
+      const p = now.pills[k];
+      if (p.kind !== 'active') continue;
+      if (id !== null ? p.id === id : p.label === label) { i = k; break; }
     }
+    if (i >= 0) now.pills[i] = pill;
+    else now.pills.push(pill);
+    // A post whose pre was never seen still counts as one occurrence.
+    if (i < 0 && !opened) counts[label] = (counts[label] ?? 0) + 1;
   }
   now.pills = now.pills.slice(-MAX_PILLS);
   now.attempt = counts[label];
@@ -311,9 +321,13 @@ function activeKey(job) {
   return job.milestones.find((m) => m.status === 'active')?.key ?? '';
 }
 
-/** @param {string} milestone @returns {Now} `_counts` tracks label occurrences for `attempt`. */
+/**
+ * @param {string} milestone
+ * @returns {Now} `_counts` tracks label occurrences for `attempt`; `_open` holds
+ *   call ids whose pre was counted but whose post has not arrived yet.
+ */
 function emptyNow(milestone) {
-  return { milestone, pills: [], attempt: 0, file: null, _counts: {} };
+  return { milestone, pills: [], attempt: 0, file: null, _counts: {}, _open: [] };
 }
 
 // --- Defensive copy of stored state -------------------------------------
@@ -381,11 +395,12 @@ function fixNow(n) {
     pills: Array.isArray(n.pills)
       ? n.pills
         .filter((x) => isObj(x) && typeof x.label === 'string' && PILL_KINDS.has(x.kind))
-        .map((x) => ({ label: x.label, kind: x.kind }))
+        .map((x) => (str(x.id) ? { label: x.label, kind: x.kind, id: x.id } : { label: x.label, kind: x.kind }))
       : [],
     attempt: Number.isFinite(n.attempt) ? n.attempt : 0,
     file: str(n.file),
     _counts: counts,
+    _open: Array.isArray(n._open) ? n._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
   };
 }
 
