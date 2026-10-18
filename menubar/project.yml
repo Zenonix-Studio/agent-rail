@@ -1,0 +1,31 @@
+name: AgentRail
+options:
+  bundleIdPrefix: dev.agentrail
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+targets:
+  AgentRail:
+    type: application
+    platform: macOS
+    sources:
+      - AgentRail
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.agentrail.menubar
+        INFOPLIST_KEY_LSUIElement: YES
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_IDENTITY: "-"
+        # ponytail: the app sandbox is off because the app reads ~/.agent-rail.
+        # Sandboxing would need a user-chosen folder; if this ships on the App
+        # Store, the upgrade path is a security-scoped bookmark.
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: YES
+schemes:
+  AgentRail:
+    build:
+      targets:
+        AgentRail: all

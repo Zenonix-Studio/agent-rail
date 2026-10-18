@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "source": "claude",
+  "sessionId": "done",
+  "cwd": "/work/shipped",
+  "updatedAt": "2026-10-18T20:42:27.497Z",
+  "jobs": [
+    {
+      "id": "claude:done:1",
+      "seq": 1,
+      "title": "Ship release notes",
+      "summary": "",
+      "prompt": "Ship release notes",
+      "status": "done",
+      "milestones": [
+        {
+          "key": "1",
+          "title": "Write",
+          "status": "done"
+        }
+      ],
+      "startedAt": "2026-10-18T20:27:27.497Z",
+      "updatedAt": "2026-10-18T20:42:27.497Z",
+      "endedAt": "2026-10-18T20:42:27.497Z",
+      "now": null
+    }
+  ],
+  "agents": {},
+  "project": "shipped"
+}

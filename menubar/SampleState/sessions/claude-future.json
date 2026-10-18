@@ -1,0 +1,10 @@
+{
+  "schema": 2,
+  "source": "claude",
+  "sessionId": "future",
+  "cwd": "/work/future",
+  "updatedAt": "2026-10-18T20:46:27.497Z",
+  "jobs": [],
+  "agents": {},
+  "project": "future"
+}

@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "source": "codex",
+  "sessionId": "run",
+  "cwd": "/work/api-server",
+  "updatedAt": "2026-10-18T20:44:27.497Z",
+  "jobs": [
+    {
+      "id": "codex:run:1",
+      "seq": 1,
+      "title": "Add rate limiting",
+      "summary": "",
+      "prompt": "Add rate limiting",
+      "status": "running",
+      "milestones": [
+        {
+          "key": "a",
+          "title": "Design",
+          "status": "done"
+        },
+        {
+          "key": "b",
+          "title": "Middleware",
+          "status": "done"
+        },
+        {
+          "key": "c",
+          "title": "Config",
+          "status": "active"
+        },
+        {
+          "key": "d",
+          "title": "Docs",
+          "status": "pending"
+        },
+        {
+          "key": "e",
+          "title": "Tests",
+          "status": "pending"
+        },
+        {
+          "key": "f",
+          "title": "Cleanup",
+          "status": "pending"
+        }
+      ],
+      "startedAt": "2026-10-18T20:17:27.497Z",
+      "updatedAt": "2026-10-18T20:44:27.497Z",
+      "endedAt": null,
+      "now": {
+        "milestone": "c",
+        "pills": [
+          {
+            "label": "Read",
+            "kind": "info"
+          }
+        ],
+        "attempt": 1,
+        "file": null
+      }
+    }
+  ],
+  "agents": {},
+  "project": "api-server"
+}
