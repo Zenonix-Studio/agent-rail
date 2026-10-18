@@ -1,12 +1,24 @@
 import Foundation
 
 enum DebugCommands {
-    /// Handles debug flags. `--dump` prints the visible jobs and exits; returns false when no flag is present.
-    @discardableResult
+    /// Handles debug flags and exits; returns false when no flag is present.
+    /// `--dump` does a one-shot load. `--dump-after <seconds>` runs the live `SessionStore`
+    /// (watcher, debounce, timer) on the main run loop for that long, then prints the same lines.
+    @MainActor @discardableResult
     static func run(arguments: [String]) -> Bool {
+        if let i = arguments.firstIndex(of: "--dump-after") {
+            let seconds = arguments.dropFirst(i + 1).first.flatMap(Double.init) ?? 3
+            let store = SessionStore()
+            RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+            printDump(sessions: store.sessions, now: Date())
+            exit(0)
+        }
         guard arguments.contains("--dump") else { return false }
-        let now = Date()
-        let sessions = StateRoot.loadSessions()
+        printDump(sessions: StateRoot.loadSessions(), now: Date())
+        exit(0)
+    }
+
+    private static func printDump(sessions: [Session], now: Date) {
         let items = visibleJobs(sessions, now: now)
         for item in items {
             let p = progress(item.job)
@@ -20,6 +32,5 @@ enum DebugCommands {
         let avg = s.avgPct.map { "\($0)%" } ?? "—"
         print("jobs=\(s.jobs) agents=\(s.agents) avg=\(avg) attention=\(s.attention) doneToday=\(doneToday(sessions, now: now))")
         fflush(stdout)
-        exit(0)
     }
 }

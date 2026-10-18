@@ -28,7 +28,8 @@ func visibleJobs(_ sessions: [Session], now: Date) -> [JobItem] {
     return items.sorted { a, b in
         let (ra, rb) = (rank(a), rank(b))
         if ra != rb { return ra < rb }
-        return a.job.updatedAt > b.job.updatedAt
+        if a.job.updatedAt != b.job.updatedAt { return a.job.updatedAt > b.job.updatedAt }
+        return a.job.id < b.job.id
     }
 }
 

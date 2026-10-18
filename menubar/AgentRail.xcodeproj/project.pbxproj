@@ -8,14 +8,18 @@
 
 /* Begin PBXBuildFile section */
 		173451016198E1370E657742 /* StateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 794CEAA74D22171BD23873F4 /* StateModels.swift */; };
+		2C30776D78114D16A3C38A89 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222015DD39B97F91F71F2C3A /* SessionStore.swift */; };
 		3F38090D20C94C55808AB90C /* DebugCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02E650C8994758EEDED5A2E /* DebugCommands.swift */; };
 		4C1FE95B724D53C927F8CC70 /* StateRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845804CA23A1A0D141769DC7 /* StateRoot.swift */; };
 		79CABB374A54BAF54427657F /* Derivations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85410834CAD890C2E50AF983 /* Derivations.swift */; };
 		F544AA596082778876E4323B /* AgentRailApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3CC6A464E89A6139C0BFC50 /* AgentRailApp.swift */; };
+		F80CA3AB452F06BC8E81D150 /* RingIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D5BB0D6E0D3FB459C3AD51 /* RingIcon.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		0E59A1DA6A86F891F04E676B /* AgentRail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentRail.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		222015DD39B97F91F71F2C3A /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		49D5BB0D6E0D3FB459C3AD51 /* RingIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingIcon.swift; sourceTree = "<group>"; };
 		794CEAA74D22171BD23873F4 /* StateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateModels.swift; sourceTree = "<group>"; };
 		845804CA23A1A0D141769DC7 /* StateRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateRoot.swift; sourceTree = "<group>"; };
 		85410834CAD890C2E50AF983 /* Derivations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Derivations.swift; sourceTree = "<group>"; };
@@ -28,10 +32,19 @@
 			isa = PBXGroup;
 			children = (
 				85410834CAD890C2E50AF983 /* Derivations.swift */,
+				222015DD39B97F91F71F2C3A /* SessionStore.swift */,
 				794CEAA74D22171BD23873F4 /* StateModels.swift */,
 				845804CA23A1A0D141769DC7 /* StateRoot.swift */,
 			);
 			path = Model;
+			sourceTree = "<group>";
+		};
+		38E2D2C19F8A6D0C3323F0FC /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				49D5BB0D6E0D3FB459C3AD51 /* RingIcon.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 		9113AA9118C952BC883D7668 /* Products */ = {
@@ -56,6 +69,7 @@
 				F3CC6A464E89A6139C0BFC50 /* AgentRailApp.swift */,
 				FFD079E1736F46BEE2500B5E /* Debug */,
 				04A599DEC358607EAE062A2B /* Model */,
+				38E2D2C19F8A6D0C3323F0FC /* Views */,
 			);
 			path = AgentRail;
 			sourceTree = "<group>";
@@ -129,6 +143,8 @@
 				F544AA596082778876E4323B /* AgentRailApp.swift in Sources */,
 				3F38090D20C94C55808AB90C /* DebugCommands.swift in Sources */,
 				79CABB374A54BAF54427657F /* Derivations.swift in Sources */,
+				F80CA3AB452F06BC8E81D150 /* RingIcon.swift in Sources */,
+				2C30776D78114D16A3C38A89 /* SessionStore.swift in Sources */,
 				173451016198E1370E657742 /* StateModels.swift in Sources */,
 				4C1FE95B724D53C927F8CC70 /* StateRoot.swift in Sources */,
 			);
