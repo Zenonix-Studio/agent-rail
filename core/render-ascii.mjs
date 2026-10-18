@@ -48,9 +48,18 @@ export function renderJobSegments(job, width, nowMs = Date.now()) {
   const tail = statusTail(status);
 
   if (total === 0) {
+    // "Planning · 0/?" comes from the missing plan, whatever the status says.
     const label = isDone ? `Done · ${elapsed(job, nowMs)}` : 'Planning · 0/?';
     const lead = `${clip(title, w - label.length - 2 - tailLen(tail))}  `;
-    return [[seg(lead, 'bold'), seg(label, isDone ? 'done' : 'dim'), ...tail].filter(nonEmpty)].map((l) => fit(l, w));
+    /** @type {Line[]} */
+    const lines = [[seg(lead, 'bold'), seg(label, isDone ? 'done' : 'dim'), ...tail]];
+    // Spec §7 fallback: a planless job still shows what the agent is doing.
+    const now = job?.now;
+    if (!isDone && now && typeof now === 'object') {
+      const flow = flowLine(now, w);
+      if (flow.length) lines.push(flow);
+    }
+    return lines.map((l) => fit(l.filter(nonEmpty), w));
   }
 
   const pctText = `${pct}%`;
