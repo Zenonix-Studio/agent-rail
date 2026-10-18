@@ -11,6 +11,9 @@ import { classifyTool } from './flow.mjs';
  * @typedef {{sessionId:string, cwd:string, agentId:string|null, event:Event}} Normalized
  */
 
+/** Claude's task tools: only TaskCreate / TaskUpdate change milestones; the rest are not shown as pills. */
+const TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskStop']);
+
 /** @type {Record<string, 'pending'|'active'|'done'|'deleted'>} */
 const STATUS = { pending: 'pending', in_progress: 'active', completed: 'done', deleted: 'deleted' };
 
@@ -81,7 +84,7 @@ function toolEvent(p, phase, ok) {
   const input = p.tool_input && typeof p.tool_input === 'object' ? p.tool_input : {};
 
   if (name === 'TodoWrite') return phase === 'post' && ok ? todoPlan(input) : null;
-  if (name.startsWith('Task')) {
+  if (TASK_TOOLS.has(name)) {
     if (phase !== 'post' || !ok) return null;
     if (name === 'TaskCreate') return taskCreate(p, input);
     if (name === 'TaskUpdate') return taskUpdate(p, input);

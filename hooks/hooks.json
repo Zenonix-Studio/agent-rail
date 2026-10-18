@@ -40,6 +40,16 @@
         ]
       }
     ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/agent-rail-collect.mjs\" --source claude"
+          }
+        ]
+      }
+    ],
     "PermissionRequest": [
       {
         "hooks": [
