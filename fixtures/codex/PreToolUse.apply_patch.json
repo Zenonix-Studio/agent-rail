@@ -1,0 +1,14 @@
+{
+  "session_id": "session-0001",
+  "turn_id": "turn-0002",
+  "transcript_path": "/home/user/.codex/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-5.6-sol",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "apply_patch",
+  "tool_input": {
+    "command": "*** Begin Patch\n*** Add File: hello.txt\n+hi\n*** End Patch"
+  },
+  "tool_use_id": "toolu-0005"
+}

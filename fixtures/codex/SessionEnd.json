@@ -1,0 +1,7 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "/home/user/.codex/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "SessionEnd",
+  "reason": "other"
+}

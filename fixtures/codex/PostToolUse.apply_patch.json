@@ -1,0 +1,15 @@
+{
+  "session_id": "session-0001",
+  "turn_id": "turn-0002",
+  "transcript_path": "/home/user/.codex/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "PostToolUse",
+  "model": "gpt-5.6-sol",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "apply_patch",
+  "tool_input": {
+    "command": "*** Begin Patch\n*** Add File: hello.txt\n+hi\n*** End Patch"
+  },
+  "tool_response": "Exit code: 0\nWall time: 0 seconds\nOutput:\nSuccess. Updated the following files:\nA hello.txt\n",
+  "tool_use_id": "toolu-0005"
+}

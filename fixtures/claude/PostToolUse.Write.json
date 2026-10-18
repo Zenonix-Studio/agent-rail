@@ -1,0 +1,26 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0002",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "/work/repo/hello.txt",
+    "content": "hi\n"
+  },
+  "tool_response": {
+    "type": "create",
+    "filePath": "/work/repo/hello.txt",
+    "content": "hi\n",
+    "structuredPatch": [],
+    "originalFile": null,
+    "userModified": false
+  },
+  "tool_use_id": "toolu-0008",
+  "duration_ms": 3
+}

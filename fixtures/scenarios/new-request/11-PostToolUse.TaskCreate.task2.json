@@ -1,0 +1,25 @@
+{
+  "session_id": "session-0201",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0201-2",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskCreate",
+  "tool_input": {
+    "subject": "Add CSV export button",
+    "description": "Button on the reports page.",
+    "activeForm": "Add CSV export button"
+  },
+  "tool_response": {
+    "task": {
+      "id": "2",
+      "subject": "Add CSV export button"
+    }
+  },
+  "tool_use_id": "toolu-0201-04",
+  "duration_ms": 76
+}

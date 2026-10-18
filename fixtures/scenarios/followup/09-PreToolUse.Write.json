@@ -1,0 +1,17 @@
+{
+  "session_id": "session-0101",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0101-1",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Write",
+  "tool_input": {
+    "file_path": "/work/repo/src/store.js",
+    "content": "x\n"
+  },
+  "tool_use_id": "toolu-pair-2"
+}

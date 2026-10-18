@@ -1,0 +1,37 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "prompt_id": "prompt-0002",
+  "permission_mode": "acceptEdits",
+  "effort": {
+    "level": "medium"
+  },
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskList",
+  "tool_input": {},
+  "tool_response": {
+    "tasks": [
+      {
+        "id": "1",
+        "subject": "Run failing command ls nonexistent_dir_xyz",
+        "status": "completed",
+        "blockedBy": []
+      },
+      {
+        "id": "2",
+        "subject": "Create hello.txt with hi",
+        "status": "completed",
+        "blockedBy": []
+      },
+      {
+        "id": "3",
+        "subject": "Spawn subagent to read hello.txt",
+        "status": "in_progress",
+        "blockedBy": []
+      }
+    ]
+  },
+  "tool_use_id": "toolu-0012",
+  "duration_ms": 1
+}

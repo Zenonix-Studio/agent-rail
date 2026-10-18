@@ -1,0 +1,17 @@
+{
+  "session_id": "session-0001",
+  "turn_id": "turn-0008",
+  "agent_id": "agent-0009",
+  "agent_type": "default",
+  "transcript_path": "/home/user/.codex/transcripts/<id>.jsonl",
+  "cwd": "/work/repo",
+  "hook_event_name": "PostToolUse",
+  "model": "gpt-5.6-sol",
+  "permission_mode": "bypassPermissions",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "od -An -tx1c hello.txt"
+  },
+  "tool_response": "           68  69  0a                                                    \n           h   i  \\n                                                    \n\n",
+  "tool_use_id": "toolu-0010"
+}
