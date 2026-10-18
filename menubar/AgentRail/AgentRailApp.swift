@@ -32,6 +32,6 @@ private struct MenuBarLabel: View {
             if s.jobs > 0 { Text("\(s.jobs)") }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(s.jobs) jobs, \(s.agents) agents, \(s.avgPct ?? 0) percent")
+        .accessibilityLabel("\(s.jobs) jobs, \(s.agents) agents, \(s.avgPct.map { "\($0) percent" } ?? "no progress yet")")
     }
 }

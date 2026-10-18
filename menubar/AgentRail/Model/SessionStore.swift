@@ -12,17 +12,17 @@ final class SessionStore {
     var doneTodayCount: Int { doneToday(sessions, now: now) }
 
     @ObservationIgnored private let sessionsDir: URL
-    @ObservationIgnored private var cache: [String: (mtime: Date, session: Session?)] = [:]
+    @ObservationIgnored private var loader: SessionLoader
     @ObservationIgnored private var watcher: (any DispatchSourceFileSystemObject)?
     @ObservationIgnored private var debounce: Task<Void, Never>?
     @ObservationIgnored private var timer: Timer?
 
-    private static let maxAge: TimeInterval = 24 * 60 * 60
     private static let debounceDelay: Duration = .milliseconds(150)
     private static let tick: TimeInterval = 2
 
     init(root: URL = StateRoot.url()) {
         sessionsDir = root.appendingPathComponent("sessions", isDirectory: true)
+        loader = SessionLoader(directory: sessionsDir)
         reload()
         openWatcher()
         let timer = Timer(timeInterval: Self.tick, repeats: true) { [weak self] _ in
@@ -35,9 +35,10 @@ final class SessionStore {
     // MARK: Timer
 
     private func tick() {
-        now = Date()
         // The directory may not exist yet (no session has ever written); retry until it does.
-        if watcher == nil, openWatcher() { reload() }
+        if watcher == nil { openWatcher() }
+        // Cheap thanks to the mtime cache; covers in-place edits and any missed watcher event.
+        reload()
     }
 
     // MARK: Watcher
@@ -83,25 +84,7 @@ final class SessionStore {
 
     private func reload() {
         let date = Date()
-        let files = (try? FileManager.default.contentsOfDirectory(
-            at: sessionsDir, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
-        var fresh: [String: (mtime: Date, session: Session?)] = [:]
-        var loaded: [(name: String, session: Session)] = []
-        for url in files where url.pathExtension == "json" {
-            guard let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
-                  date.timeIntervalSince(mtime) <= Self.maxAge else { continue }
-            let key = url.lastPathComponent
-            let entry: (mtime: Date, session: Session?)
-            if let cached = cache[key], cached.mtime == mtime {
-                entry = cached
-            } else {
-                entry = (mtime, (try? Data(contentsOf: url)).flatMap(SessionDecoder.decode))
-            }
-            fresh[key] = entry
-            if let session = entry.session { loaded.append((key, session)) }
-        }
-        cache = fresh
-        sessions = loaded.sorted { $0.name < $1.name }.map(\.session)
+        sessions = loader.load(now: date)
         now = date
     }
 }
