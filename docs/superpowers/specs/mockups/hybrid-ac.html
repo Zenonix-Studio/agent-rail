@@ -1,0 +1,76 @@
+<style>
+  .pnl{font-family:-apple-system,system-ui,sans-serif;font-size:13px;line-height:1.4}
+  .sum{background:rgba(127,127,127,.08);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+  .sum b{display:block;font-size:14px;margin-bottom:2px}
+  .muted{opacity:.6;font-size:12px}
+  .bar{height:8px;border-radius:4px;background:rgba(127,127,127,.2);overflow:hidden;margin:6px 0 2px}
+  .bar>i{display:block;height:100%;width:60%;background:#4f8cff}
+  .steps{display:flex;align-items:flex-start;margin:14px 0 4px}
+  .st{flex:1;text-align:center;position:relative;font-size:11px}
+  .st .dot{width:22px;height:22px;border-radius:50%;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid rgba(127,127,127,.4)}
+  .st.done .dot{background:#2ea043;border-color:#2ea043;color:#fff}
+  .st.now .dot{border-color:#4f8cff;color:#4f8cff;box-shadow:0 0 0 4px rgba(79,140,255,.25);animation:p 1.4s infinite}
+  .st.now{color:#4f8cff;font-weight:600}
+  .st:not(:last-child)::after{content:"";position:absolute;top:11px;left:calc(50% + 14px);right:calc(-50% + 14px);height:2px;background:rgba(127,127,127,.3)}
+  .st.done:not(:last-child)::after{background:#2ea043}
+  @keyframes p{50%{box-shadow:0 0 0 7px rgba(79,140,255,.08)}}
+  .zoom{border:1.5px solid rgba(79,140,255,.5);border-radius:8px;padding:8px 10px;margin-top:6px;position:relative}
+  .zoom::before{content:"";position:absolute;top:-8px;left:calc(70% - 6px);border:7px solid transparent;border-top:0;border-bottom-color:rgba(79,140,255,.5)}
+  .zoom .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;opacity:.6;margin-bottom:4px}
+  svg text{font-family:-apple-system,system-ui,sans-serif}
+  .term{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:#111;color:#ddd;border-radius:8px;padding:10px 12px;white-space:pre;line-height:1.5;overflow-x:auto}
+  .g{color:#3fb950}.b{color:#58a6ff}.d{color:#777}
+</style>
+
+<h2>A + C karışımı</h2>
+<p class="subtitle">Üstte A'nın metro hattı (büyük resim: milestone'lar + %). Altında, şu anki milestone'un içini C gibi akış diyagramıyla açan bir "zoom" kutusu.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Desktop app — sağ panel</div>
+    <div class="mockup-body"><div class="pnl">
+      <div class="sum"><b>Login ekranını SwiftUI'a taşıyor</b><span class="muted">LoginViewController'ı SwiftUI view + @Observable model'e çeviriyor, sonra eski ekranı siliyor.</span></div>
+      <div style="display:flex;justify-content:space-between"><span>3 / 5 milestone · ~4 dk</span><b>%60</b></div>
+      <div class="bar"><i></i></div>
+      <div class="steps">
+        <div class="st done"><div class="dot">✓</div>Analiz</div>
+        <div class="st done"><div class="dot">✓</div>Model</div>
+        <div class="st done"><div class="dot">✓</div>View</div>
+        <div class="st now"><div class="dot">4</div>Build</div>
+        <div class="st"><div class="dot">5</div>Temizlik</div>
+      </div>
+      <div class="zoom">
+        <div class="lbl">Milestone 4 · Build — içeride</div>
+        <svg viewBox="0 0 300 92" width="100%">
+          <defs><marker id="ah" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#888"/></marker>
+          <marker id="ahb" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4f8cff"/></marker></defs>
+          <g font-size="10" text-anchor="middle">
+            <rect x="5" y="8" width="72" height="26" rx="6" fill="#2ea043"/><text x="41" y="25" fill="#fff">xcodebuild ✓</text>
+            <rect x="113" y="8" width="72" height="26" rx="6" fill="#d29922"/><text x="149" y="25" fill="#fff">3 hata ⚠</text>
+            <rect x="221" y="8" width="74" height="26" rx="6" fill="none" stroke="#4f8cff" stroke-width="2.5"/><text x="258" y="25" fill="#4f8cff" font-weight="700">Fix ▶</text>
+            <text x="149" y="80" fill="#4f8cff" font-size="9.5">tekrar build (2. tur)</text>
+          </g>
+          <g stroke="#888" stroke-width="1.5" fill="none" marker-end="url(#ah)">
+            <path d="M77,21 H111"/><path d="M185,21 H219"/>
+          </g>
+          <path d="M258,34 C258,66 149,66 149,38" stroke="#4f8cff" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#ahb)"/>
+        </svg>
+        <div class="muted">Şu an: LoginView.swift:42 type mismatch düzeltiliyor</div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Terminal — sabit pane (prompt'un üstünde)</div>
+    <div class="mockup-body"><div class="term">Login ekranını SwiftUI'a taşıyor            <span class="b">%60</span>
+<span class="b">██████████████████</span><span class="d">░░░░░░░░░░░░</span>  3/5 · ~4dk
+
+<span class="g">●━━━━━●━━━━━●━━━━━</span><span class="b">◉</span><span class="d">┄┄┄┄┄○</span>
+<span class="g">Analiz Model  View </span> <span class="b">Build</span><span class="d"> Temizlik</span>
+                      <span class="b">│</span>
+  <span class="g">build ✓</span> → <span class="d">3 hata</span> → <span class="b">fix ▶</span> ⟲ 2. tur
+  <span class="d">LoginView.swift:42 type mismatch</span></div>
+    <p class="muted" style="margin-top:8px">Aynı yapı, karakterlerle: üst satır metro hattı, altında aktif milestone'un mini akışı.</p>
+    </div>
+  </div>
+</div>
