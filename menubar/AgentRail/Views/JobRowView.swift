@@ -6,9 +6,21 @@ struct JobRowView: View {
     let now: Date
 
     var body: some View {
+        let p = progress(item.job)
         JobHeaderView(item: item, now: now, expanded: false)
             .opacity(isStale(item, now: now) ? 0.55 : 1)
             .modifier(JobCard())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Self.accessibilityLabel(item: item, p: p, stale: isStale(item, now: now)))
+    }
+
+    /// "<source>, <title>, <done> of <total> milestones, <pct> percent, <status>"
+    private static func accessibilityLabel(item: JobItem, p: (done: Int, total: Int, pct: Int?), stale: Bool) -> String {
+        let title = item.job.title.isEmpty ? item.job.prompt : item.job.title
+        let milestones = String(localized: "\(p.done) of \(p.total) milestones")
+        let percent = p.pct.map { String(localized: "\($0) percent") } ?? String(localized: "no progress yet")
+        let status = stale ? String(localized: "no activity") : L10n.jobStatus(item.job.status)
+        return [L10n.sourceName(item.session.source), title, milestones, percent, status].joined(separator: ", ")
     }
 }
 
@@ -28,7 +40,7 @@ struct JobHeaderView: View {
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Text(expanded ? detailSubtitle : rowSubtitle(p))
+                Text(verbatim: expanded ? detailSubtitle : rowSubtitle(p))
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.muted)
                     .lineLimit(1)
@@ -51,14 +63,14 @@ struct JobHeaderView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text("^[\(1 + agents(of: item).count) agent](inflect: true)")
+            Text(verbatim: L10n.agents(1 + agents(of: item).count))
                 .font(.system(size: 10))
                 .foregroundStyle(Theme.muted)
                 .padding(.horizontal, 7)
                 .padding(.vertical, 1.5)
                 .overlay(Capsule().strokeBorder(Theme.line, lineWidth: 1))
                 .fixedSize()
-            Text(p.pct.map { "\($0)%" } ?? "—")
+            Text(verbatim: p.pct.map(L10n.percent) ?? "—")
                 .font(.system(size: 12, weight: expanded ? .semibold : .regular).monospacedDigit())
                 .foregroundStyle(expanded ? Theme.text : Theme.muted)
                 .frame(minWidth: 30, alignment: .trailing)
@@ -81,11 +93,11 @@ struct JobHeaderView: View {
         guard let key = activeMilestoneKey(item.job),
               let current = item.job.milestones.first(where: { $0.key == key })
         else { return "\(p.done)/\(p.total)" }
-        return "▸ \(current.title) · \(p.done)/\(p.total)"
+        return String(localized: "▸ \(current.title) · \(p.done)/\(p.total)")
     }
 
     private var detailSubtitle: String {
-        "\(item.session.project) · \(formatElapsed(from: item.job.startedAt, to: now))"
+        String(localized: "\(item.session.project) · \(formatElapsed(from: item.job.startedAt, to: now))")
     }
 }
 

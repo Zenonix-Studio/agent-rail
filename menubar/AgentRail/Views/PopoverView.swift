@@ -55,7 +55,7 @@ struct PopoverView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.text)
             Spacer()
-            Text("^[\(items.count) job](inflect: true) · ^[\(agentCount) agent](inflect: true)")
+            Text(verbatim: "\(L10n.jobs(items.count)) · \(L10n.agents(agentCount))")
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.muted)
         }

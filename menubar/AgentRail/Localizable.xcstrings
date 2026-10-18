@@ -1,0 +1,424 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "%lld jobs": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld job"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld jobs"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld iş"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld agents": {
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld agent"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld agents"
+                }
+              }
+            }
+          }
+        },
+        "tr": {
+          "variations": {
+            "plural": {
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld agent"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Jobs": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İşler"
+          }
+        }
+      }
+    },
+    "Agents in this job": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu işteki agent'lar"
+          }
+        }
+      }
+    },
+    "Done today: %lld": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugün biten: %lld"
+          }
+        }
+      }
+    },
+    "● waiting for you": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "● seni bekliyor"
+          }
+        }
+      }
+    },
+    "Planning · 0/?": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planlıyor · 0/?"
+          }
+        }
+      }
+    },
+    "Planning": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Planlıyor"
+          }
+        }
+      }
+    },
+    "No activity for %lld min": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etkinlik yok: %lld dk"
+          }
+        }
+      }
+    },
+    "Open folder": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klasörü aç"
+          }
+        }
+      }
+    },
+    "Quit": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çık"
+          }
+        }
+      }
+    },
+    "No agents running": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çalışan agent yok"
+          }
+        }
+      }
+    },
+    "Install the Claude plugin or run scripts/install-codex.mjs": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude eklentisini kur veya scripts/install-codex.mjs çalıştır"
+          }
+        }
+      }
+    },
+    "Main agent": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ana agent"
+          }
+        }
+      }
+    },
+    "↻ attempt %lld": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "↻ deneme %lld"
+          }
+        }
+      }
+    },
+    "%lld min": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld dk"
+          }
+        }
+      }
+    },
+    "%lld h": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sa"
+          }
+        }
+      }
+    },
+    "%lld h %lld min": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld sa %lld dk"
+          }
+        }
+      }
+    },
+    "▸ %@ · %lld/%lld": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "▸ %@ · %lld/%lld"
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ · %@"
+          }
+        }
+      }
+    },
+    "Claude": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude"
+          }
+        }
+      }
+    },
+    "Codex": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Codex"
+          }
+        }
+      }
+    },
+    "Agent": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agent"
+          }
+        }
+      }
+    },
+    "planning": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "planlıyor"
+          }
+        }
+      }
+    },
+    "running": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "çalışıyor"
+          }
+        }
+      }
+    },
+    "waiting for you": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "seni bekliyor"
+          }
+        }
+      }
+    },
+    "done": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bitti"
+          }
+        }
+      }
+    },
+    "error": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "hata"
+          }
+        }
+      }
+    },
+    "unknown": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bilinmiyor"
+          }
+        }
+      }
+    },
+    "active": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "aktif"
+          }
+        }
+      }
+    },
+    "pending": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "bekliyor"
+          }
+        }
+      }
+    },
+    "needs attention": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "dikkat gerekiyor"
+          }
+        }
+      }
+    },
+    "no activity": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "etkinlik yok"
+          }
+        }
+      }
+    },
+    "no progress yet": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "henüz ilerleme yok"
+          }
+        }
+      }
+    },
+    "%lld of %lld milestones": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld/%lld kilometre taşı"
+          }
+        }
+      }
+    },
+    "%lld percent": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "yüzde %lld"
+          }
+        }
+      }
+    },
+    "%@, %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, %@"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

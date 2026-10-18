@@ -1,6 +1,8 @@
 name: AgentRail
 options:
   bundleIdPrefix: dev.agentrail
+  developmentLanguage: en
+  knownRegions: [en, tr]
   deploymentTarget:
     macOS: "14.0"
 settings:

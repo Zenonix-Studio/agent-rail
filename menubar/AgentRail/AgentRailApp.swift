@@ -30,6 +30,8 @@ private struct MenuBarLabel: View {
             if s.jobs > 0 { Text("\(s.jobs)") }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(s.jobs) jobs, \(s.agents) agents, \(s.avgPct.map { "\($0) percent" } ?? "no progress yet")")
+        .accessibilityLabel([L10n.jobs(s.jobs), L10n.agents(s.agents),
+                             s.avgPct.map { String(localized: "\($0) percent") } ?? String(localized: "no progress yet")]
+                .joined(separator: ", "))
     }
 }

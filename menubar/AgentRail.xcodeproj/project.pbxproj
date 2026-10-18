@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04FAADE5F23FF3127A8CBE74 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 315DE324D9BB4179F07BF367 /* L10n.swift */; };
 		1127DD41CAD5A1A25AA546E2 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5E71B443668F1BCBA97F02F /* Theme.swift */; };
 		173451016198E1370E657742 /* StateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 794CEAA74D22171BD23873F4 /* StateModels.swift */; };
 		25BB4E371AA8845C3E2486C3 /* NowBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1971ACA87B097057541204 /* NowBlockView.swift */; };
@@ -14,6 +15,7 @@
 		3F38090D20C94C55808AB90C /* DebugCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02E650C8994758EEDED5A2E /* DebugCommands.swift */; };
 		4C1FE95B724D53C927F8CC70 /* StateRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845804CA23A1A0D141769DC7 /* StateRoot.swift */; };
 		79CABB374A54BAF54427657F /* Derivations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85410834CAD890C2E50AF983 /* Derivations.swift */; };
+		8141938B7EAB0DC32D7C6C34 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 93D4BE17BA97288D99D927AC /* Localizable.xcstrings */; };
 		AD1DCCBB3E7448E39FDD7B7B /* AgentListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4059D7FAAF5DAFCFD4260AE5 /* AgentListView.swift */; };
 		ADF1B75160B3023A7B129455 /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 057A4D9D2852B9AB7625241F /* PopoverView.swift */; };
 		C4FA198CFB35C1474000D135 /* JobDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CBCD95C88FF44D6989C3846 /* JobDetailView.swift */; };
@@ -28,12 +30,14 @@
 		0E59A1DA6A86F891F04E676B /* AgentRail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentRail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		222015DD39B97F91F71F2C3A /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
 		2D1971ACA87B097057541204 /* NowBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowBlockView.swift; sourceTree = "<group>"; };
+		315DE324D9BB4179F07BF367 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		4059D7FAAF5DAFCFD4260AE5 /* AgentListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentListView.swift; sourceTree = "<group>"; };
 		49D5BB0D6E0D3FB459C3AD51 /* RingIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingIcon.swift; sourceTree = "<group>"; };
 		794CEAA74D22171BD23873F4 /* StateModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateModels.swift; sourceTree = "<group>"; };
 		7CBCD95C88FF44D6989C3846 /* JobDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobDetailView.swift; sourceTree = "<group>"; };
 		845804CA23A1A0D141769DC7 /* StateRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateRoot.swift; sourceTree = "<group>"; };
 		85410834CAD890C2E50AF983 /* Derivations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Derivations.swift; sourceTree = "<group>"; };
+		93D4BE17BA97288D99D927AC /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		9B8D33CA83CF78EA4049A549 /* JobRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRowView.swift; sourceTree = "<group>"; };
 		B2D87377A9AEFC45DFC0806A /* RailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailView.swift; sourceTree = "<group>"; };
 		D5E71B443668F1BCBA97F02F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -59,6 +63,7 @@
 				4059D7FAAF5DAFCFD4260AE5 /* AgentListView.swift */,
 				7CBCD95C88FF44D6989C3846 /* JobDetailView.swift */,
 				9B8D33CA83CF78EA4049A549 /* JobRowView.swift */,
+				315DE324D9BB4179F07BF367 /* L10n.swift */,
 				2D1971ACA87B097057541204 /* NowBlockView.swift */,
 				057A4D9D2852B9AB7625241F /* PopoverView.swift */,
 				B2D87377A9AEFC45DFC0806A /* RailView.swift */,
@@ -88,6 +93,7 @@
 			isa = PBXGroup;
 			children = (
 				F3CC6A464E89A6139C0BFC50 /* AgentRailApp.swift */,
+				93D4BE17BA97288D99D927AC /* Localizable.xcstrings */,
 				FFD079E1736F46BEE2500B5E /* Debug */,
 				04A599DEC358607EAE062A2B /* Model */,
 				38E2D2C19F8A6D0C3323F0FC /* Views */,
@@ -111,6 +117,7 @@
 			buildConfigurationList = 6E2FA27123B2DDE2B9B18E67 /* Build configuration list for PBXNativeTarget "AgentRail" */;
 			buildPhases = (
 				FAC9C6288726DC1C9D982D4C /* Sources */,
+				7A5D338D10DE6DE5298D8293 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -144,6 +151,7 @@
 			knownRegions = (
 				Base,
 				en,
+				tr,
 			);
 			mainGroup = 9B85ADB4437A9A26351D74F8;
 			minimizedProjectReferenceProxies = 1;
@@ -156,6 +164,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		7A5D338D10DE6DE5298D8293 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8141938B7EAB0DC32D7C6C34 /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		FAC9C6288726DC1C9D982D4C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -167,6 +186,7 @@
 				79CABB374A54BAF54427657F /* Derivations.swift in Sources */,
 				C4FA198CFB35C1474000D135 /* JobDetailView.swift in Sources */,
 				E04B865F52B773F1D1956333 /* JobRowView.swift in Sources */,
+				04FAADE5F23FF3127A8CBE74 /* L10n.swift in Sources */,
 				25BB4E371AA8845C3E2486C3 /* NowBlockView.swift in Sources */,
 				ADF1B75160B3023A7B129455 /* PopoverView.swift in Sources */,
 				C7F9F9C8DD374D4A63C7140B /* RailView.swift in Sources */,

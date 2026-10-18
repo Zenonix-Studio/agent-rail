@@ -39,7 +39,8 @@ private struct RailRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(milestone.title)
+            Text(verbatim: milestone.title)
+                .accessibilityLabel(String(localized: "\(milestone.title), \(L10n.milestoneState(done: isDone, active: isActive))"))
                 .font(.system(size: 12.5, weight: isActive ? .semibold : .regular))
                 .foregroundStyle(isActive ? Theme.text : Theme.muted)
                 .lineLimit(1)
@@ -52,7 +53,7 @@ private struct RailRow: View {
         .padding(.leading, Self.indent)
         .padding(.bottom, 11)
         .background(alignment: .topLeading) { connector }
-        .overlay(alignment: .topLeading) { node.padding(.top, Self.nodeTop) }
+        .overlay(alignment: .topLeading) { node.padding(.top, Self.nodeTop).accessibilityHidden(true) }
     }
 
     /// Runs from under this node to the top of the next one; green below a done node.

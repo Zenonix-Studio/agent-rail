@@ -47,6 +47,8 @@ private struct AgentRow: View {
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(row.name), \(row.activity), \(L10n.agentStatus(row.status))")
         .font(.system(size: 12))
         .padding(.leading, 12)
         .padding(.vertical, 5)
