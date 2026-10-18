@@ -3,12 +3,15 @@ import SwiftUI
 
 /// Color and metric tokens from the approved mockups (menubar-v2 / desktop-v2), with light-mode equivalents.
 enum Theme {
-    // Dark values are the mockup tokens verbatim; light values keep the same hues at readable contrast.
-    static let done = dynamic(light: 0x2E9455, dark: 0x5CB87A)
-    static let accent = dynamic(light: 0xC8652F, dark: 0xE08A5C)
-    static let warn = dynamic(light: 0xA6761A, dark: 0xD6A64A)
-    static let codex = dynamic(light: 0x4A64D8, dark: 0x8FA8FF)
-    static let muted = dynamic(light: 0x6F6E66, dark: 0x9A998F)
+    // Dark values are the mockup tokens verbatim (muted slightly lifted); light values keep the hues
+    // darkened so 10-11 pt text reaches 4.5:1 (WCAG AA) on the popover surface and on the now block.
+    static let done = dynamic(light: 0x1F7A42, dark: 0x5CB87A)
+    static let accent = dynamic(light: 0x9A4519, dark: 0xE08A5C)
+    static let warn = dynamic(light: 0x7F5A0C, dark: 0xD6A64A)
+    static let codex = dynamic(light: 0x3550C8, dark: 0x8FA8FF)
+    static let muted = dynamic(light: 0x5E5D56, dark: 0xAAA99F)
+    /// Text on an `accent` fill (the active pill): white on the dark terracotta, dark on the light one.
+    static let onAccent = dynamic(light: 0xFFFFFF, dark: 0x1F1F1D)
     static let line = dynamic(light: 0xDAD9D2, dark: 0x3A3A35)
     static let text = dynamic(light: 0x1F1F1D, dark: 0xECEBE6)
     /// Popover background (`--pop`), also the fill inside pending rail nodes and pills.

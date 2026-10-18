@@ -9,11 +9,11 @@ enum DebugCommands {
     static func run(arguments: [String]) -> Bool {
         if let i = arguments.firstIndex(of: "--snapshot") {
             guard let out = arguments.dropFirst(i + 1).first else {
-                FileHandle.standardError.write(Data("usage: --snapshot <out.png> [--expand <jobId>]\n".utf8))
+                FileHandle.standardError.write(Data("usage: --snapshot <out.png> [--expand <jobId>] [--light]\n".utf8))
                 exit(2)
             }
             let expand = arguments.firstIndex(of: "--expand").flatMap { arguments.dropFirst($0 + 1).first }
-            exit(snapshot(to: URL(fileURLWithPath: out), expandedJobID: expand) ? 0 : 1)
+            exit(snapshot(to: URL(fileURLWithPath: out), expandedJobID: expand, light: arguments.contains("--light")) ? 0 : 1)
         }
         if let i = arguments.firstIndex(of: "--dump-after") {
             let seconds = arguments.dropFirst(i + 1).first.flatMap(Double.init) ?? 3
@@ -27,17 +27,17 @@ enum DebugCommands {
         exit(0)
     }
 
-    /// Renders the popover once (dark, 2x, 340 pt wide) from a store loaded from `StateRoot.url()`.
-    @MainActor private static func snapshot(to url: URL, expandedJobID: String?) -> Bool {
+    /// Renders the popover once (dark, or light with `--light`; 2x, 340 pt wide) from a store loaded from `StateRoot.url()`.
+    @MainActor private static func snapshot(to url: URL, expandedJobID: String?, light: Bool) -> Bool {
         let store = SessionStore()
         let view = PopoverView(store: store, scrollable: false, expandedJobID: expandedJobID)
-            .environment(\.colorScheme, .dark)
+            .environment(\.colorScheme, light ? .light : .dark)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2
         renderer.isOpaque = true
         // Theme colors are dynamic NSColors, which resolve against the drawing appearance.
         var image: CGImage?
-        NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance { image = renderer.cgImage }
+        NSAppearance(named: light ? .aqua : .darkAqua)!.performAsCurrentDrawingAppearance { image = renderer.cgImage }
         guard let image,
               let png = NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
         else {

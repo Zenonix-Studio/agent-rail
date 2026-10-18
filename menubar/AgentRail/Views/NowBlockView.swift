@@ -64,7 +64,7 @@ private struct PillView: View {
         switch pill.kind {
         case .ok: Theme.done
         case .warn: Theme.warn
-        case .active: .white
+        case .active: Theme.onAccent
         case .info, .unknown: Theme.text
         }
     }

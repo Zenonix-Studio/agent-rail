@@ -18,12 +18,12 @@ xcodebuild -project menubar/AgentRail.xcodeproj -scheme AgentRail \
   -destination 'platform=macOS' -derivedDataPath menubar/build build
 ```
 
-Run against the sample state:
+Run against the sample state (written to a temp dir, so the working tree stays clean; quit any running copy first, since `open -n` starts a second instance):
 
 ```sh
-node scripts/sample-state.mjs menubar/SampleState
-AGENT_RAIL_HOME=$PWD/menubar/SampleState \
-  open menubar/build/Build/Products/Debug/AgentRail.app
+node scripts/sample-state.mjs /tmp/agent-rail-sample
+open -n --env AGENT_RAIL_HOME=/tmp/agent-rail-sample \
+  menubar/build/Build/Products/Debug/AgentRail.app
 ```
 
 The Xcode project is generated from `menubar/project.yml`. After changing it, regenerate with:
