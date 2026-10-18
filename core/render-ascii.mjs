@@ -56,7 +56,7 @@ export function renderJobSegments(job, width, nowMs = Date.now()) {
   const pctText = `${pct}%`;
 
   if (w < COMPACT_WIDTH) {
-    const current = currentMilestone(milestones, isDone);
+    const current = currentMilestone(milestones, isDone, job?.now?.milestone);
     const info = ` · ${done}/${total} · ${pctText}`;
     const name = clip(current, w - 2 - info.length - tailLen(tail));
     return [
@@ -81,8 +81,12 @@ export function renderJobSegments(job, width, nowMs = Date.now()) {
   lines.push(...metro.lines);
 
   const now = job?.now;
-  if (!isDone && metro.activeCol >= 0 && now && typeof now === 'object') {
-    lines.push([seg(' '.repeat(metro.activeCol), 'plain'), seg('↓', 'active')]);
+  if (!isDone && now && typeof now === 'object') {
+    // Anchor the flow under now.milestone (a key); else the active-status node.
+    const byKey = milestones.findIndex((m) => str(m?.key) !== '' && m.key === now.milestone);
+    const anchor = byKey >= 0 ? byKey : milestones.findIndex((m) => m?.status === 'active');
+    const col = anchor >= 0 ? metro.nodeCols[anchor] ?? -1 : -1;
+    if (col >= 0) lines.push([seg(' '.repeat(col), 'plain'), seg('↓', 'active')]);
     const flow = flowLine(now, w);
     if (flow.length) lines.push(flow);
     const file = str(now.file);
@@ -98,7 +102,7 @@ export function renderJobSegments(job, width, nowMs = Date.now()) {
  * @param {import('./state.mjs').Milestone[]} milestones
  * @param {number} w
  * @param {boolean} isDone
- * @returns {{ lines: Line[], activeCol: number }}
+ * @returns {{ lines: Line[], nodeCols: number[] }} nodeCols[i] is node i's column, or -1 when not drawn.
  */
 function metroLines(milestones, w, isDone) {
   const n = milestones.length;
@@ -108,14 +112,15 @@ function metroLines(milestones, w, isDone) {
   const want = Math.min(STEP_MAX, Math.max(STEP_MIN, longest + 1));
   const step = n <= 1 ? w : Math.min(want, Math.floor((w - 1) / (n - 1)));
   if (step < 1) {
-    return { lines: [[seg(clip(`${n} milestones`, w), 'dim')]], activeCol: -1 };
+    return { lines: [[seg(clip(`${n} milestones`, w), 'dim')]], nodeCols: milestones.map(() => -1) };
   }
 
   /** @type {Line} */
   const track = [];
   /** @type {Line} */
   const labels = [];
-  let activeCol = -1;
+  /** @type {number[]} */
+  const nodeCols = [];
   let labelEnd = 0;
 
   milestones.forEach((m, i) => {
@@ -126,7 +131,7 @@ function metroLines(milestones, w, isDone) {
       track.push(seg((reached ? '━' : '┄').repeat(step - 1), reached ? 'done' : 'dim'));
     }
     track.push(seg(nodeGlyph(m?.status), tone));
-    if (tone === 'active') activeCol = col;
+    nodeCols.push(col);
 
     // Label starts at its node, clipped one column short of the next node.
     const room = (i === n - 1 ? w : col + step - 1) - col;
@@ -137,7 +142,7 @@ function metroLines(milestones, w, isDone) {
     }
   });
 
-  return { lines: [track, labels], activeCol };
+  return { lines: [track, labels], nodeCols };
 }
 
 /**
@@ -206,10 +211,12 @@ function nodeGlyph(status) {
 /**
  * @param {import('./state.mjs').Milestone[]} milestones
  * @param {boolean} isDone
- * @returns {string} Active milestone's title, else the next pending one, else "Done".
+ * @param {unknown} nowKey `job.now.milestone`, a milestone key.
+ * @returns {string} now.milestone's title, else the active one, else the next pending one, else "Done".
  */
-function currentMilestone(milestones, isDone) {
-  const active = isDone ? undefined : milestones.find((m) => m?.status === 'active');
+function currentMilestone(milestones, isDone, nowKey) {
+  const byKey = typeof nowKey === 'string' && nowKey !== '' ? milestones.find((m) => m?.key === nowKey) : undefined;
+  const active = isDone ? undefined : byKey ?? milestones.find((m) => m?.status === 'active');
   const next = active ?? milestones.find((m) => m?.status !== 'done');
   if (!next || isDone) return 'Done';
   return str(next.title) || str(next.key) || '?';
