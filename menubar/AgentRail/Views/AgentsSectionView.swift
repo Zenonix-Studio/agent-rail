@@ -31,11 +31,14 @@ struct AgentsSectionView: View {
     let expansion: AgentExpansion
 
     private static let maxShown = 6
+    private static let openAllMax = 3
 
     var body: some View {
         let running = agents.filter { $0.status == .running }.count
-        // By default the first running agent is open.
-        let defaultOpen = agents.first { $0.status == .running }?.id
+        // By default every agent's work is open when there are a few (the pane does the same);
+        // with more, only the first running one.
+        let firstRunning = agents.first { $0.status == .running }?.id
+        let openAll = agents.count <= Self.openAllMax
         let shown = agents.prefix(Self.maxShown)
         VStack(alignment: .leading, spacing: 6) {
             Text(verbatim: L10n.agentsRunning(running))
@@ -45,7 +48,7 @@ struct AgentsSectionView: View {
                 .foregroundStyle(Theme.muted)
                 .accessibilityAddTraits(.isHeader)
             ForEach(shown, id: \.id) { agent in
-                let open = agent.id == defaultOpen
+                let open = openAll || agent.id == firstRunning
                 AgentRowView(agent: agent, expanded: expansion.isExpanded(agent.id, byDefault: open)) {
                     withAnimation(.snappy(duration: 0.2)) { expansion.toggle(agent.id, byDefault: open) }
                 }

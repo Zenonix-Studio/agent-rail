@@ -32,6 +32,8 @@ const AGENTS_SHOWN = 4;
 /** Above this many milestones the rail folds: done ones into one line, at most RAIL_AHEAD from the current one. */
 const RAIL_MAX = 7;
 const RAIL_AHEAD = 4;
+/** Up to this many agents, every agent row is open by default (the menubar does the same). */
+const OPEN_ALL_MAX = 3;
 /** Cells of an agent row's mini progress bar. */
 const MINI_BAR = 6;
 const GUTTER = '│   ';
@@ -249,8 +251,8 @@ const AGENT_GLYPH = { running: ['●', 'active'], done: ['✓', 'done'], stale: 
 /**
  * "Agents · N running" block, laid out like the menubar's agent rows. One row
  * per subagent: `▸ ● <name>  <current step>` with, when it keeps its own plan,
- * a right-aligned mini bar and `done/total`. An open row (`▾`: the first
- * running agent, or every agent with `expandAll`) lists under it what the
+ * a right-aligned mini bar and `done/total`. An open row (`▾`: every agent
+ * when there are at most 3, else the first running one; all with `expandAll`) lists under it what the
  * agent was asked to do and its own steps, one per line with a status node.
  * @param {RenderableAgent[]} agents
  * @param {number} w
@@ -265,7 +267,8 @@ function agentLines(agents, w, expandAll) {
   /** @type {Line[]} */
   const lines = [[], [seg(running > 0 ? `Agents · ${running} running` : 'Agents', 'dim')]];
   shown.forEach((a, i) => {
-    const open = expandAll || (i === 0 && a.status === 'running');
+    // A few agents: every one shows its own work. Many: the first running one.
+    const open = expandAll || shown.length <= OPEN_ALL_MAX || (i === 0 && a.status === 'running');
     lines.push(agentRow(a, w, open));
     if (open) lines.push(...agentBody(a, w));
   });

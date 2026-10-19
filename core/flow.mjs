@@ -270,6 +270,7 @@ function step(label, o = {}) {
 }
 
 const TASK_MAX = 100;
+const ROLE_LINE = /^(?:you are|you're|your name is|act as|sen |siz |adın )/i;
 
 /**
  * The first sentence of a dispatch prompt, one line, at most 100 characters.
@@ -279,7 +280,9 @@ export function firstSentence(prompt) {
   const t = text(prompt);
   if (!t) return null;
   // A sentence ends at . ! or ? followed by whitespace and a capital: "v1.2 fix" or "e.g. this" do not split.
-  const first = t.split(/(?<=[.!?])\s+(?=\p{Lu})/u)[0] ?? t;
+  const sentences = t.split(/(?<=[.!?])\s+(?=\p{Lu})/u);
+  // A role line ("You are "Ajan-1".") says who the agent is, not what it was asked to do.
+  const first = sentences.find((x) => !ROLE_LINE.test(x)) ?? sentences[0] ?? t;
   return clipText(first.replace(/[.]$/, ''), TASK_MAX);
 }
 
