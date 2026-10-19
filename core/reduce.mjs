@@ -236,7 +236,7 @@ function onAgentMilestones(s, agentId, e, at) {
   const key = activeKey(a);
   if (key !== prevKey) startPill(story, e, a.milestones, key, MAX_AGENT_STEPS);
   a.steps = story.pills;
-  a.activity = a.steps[a.steps.length - 1]?.label ?? 'Planning';
+  a.activity = agentActivity(a);
 }
 
 /**
@@ -268,6 +268,17 @@ function startPill(story, e, milestones, started, max) {
 /** @param {import('./state.mjs').Milestone} m @returns {Pill} "<title> ✓" */
 function donePill(m) {
   return newPill({ label: clipText(m.title, LABEL_MAX), group: null, item: null }, 'ok', null);
+}
+
+/**
+ * An agent's current step, one line: with a plan, the active milestone's "-ing" form (else its
+ * title), else the next pending one; without a plan (or with every step done), its latest step.
+ * @param {Agent} a @returns {string}
+ */
+function agentActivity(a) {
+  const m = a.milestones.find((x) => x.status === 'active') ?? a.milestones.find((x) => x.status === 'pending');
+  if (m) return clipText(str(m._activeForm) ?? m.title, LABEL_MAX);
+  return a.steps[a.steps.length - 1]?.label ?? (a.milestones.length ? 'Planning' : a.activity);
 }
 
 /** @param {Job} job @param {string} key @returns {Now} */
@@ -447,7 +458,7 @@ function onAgentTool(s, agentId, e, step, id, at) {
   storyTool(story, e, step, id, MAX_AGENT_STEPS);
   a.steps = story.pills;
   a._open = story._open;
-  a.activity = a.steps[a.steps.length - 1]?.label ?? a.activity;
+  a.activity = agentActivity(a);
   // M3: only the main agent's activity clears a permission 'waiting'. R19: after a
   // main-agent Stop, a working subagent of the job means the job still runs.
   const job = current(s);
@@ -673,7 +684,7 @@ function agent(s, id, at) {
   if (!isObj(s.agents[id])) {
     s.agents[id] = {
       id, name: 'agent', status: 'running', activity: '', summary: '', milestones: [], steps: [],
-      job: current(s)?.seq ?? null, updatedAt: at, endedAt: null, _type: null, _open: [],
+      job: current(s)?.seq ?? null, startedAt: at, updatedAt: at, endedAt: null, _type: null, _open: [],
     };
   }
   s.agents[id].updatedAt = at;
@@ -812,6 +823,8 @@ function fixAgent(id, a, at) {
     status: AGENT_STATUS.has(a.status) ? a.status : 'running',
     activity: typeof a.activity === 'string' ? a.activity : '',
     job: Number.isInteger(a.job) ? a.job : null,
+    // Older files: the first event seen is the best guess at its start.
+    startedAt: str(a.startedAt) ?? str(a.updatedAt) ?? at,
     updatedAt: str(a.updatedAt) ?? at,
     endedAt: str(a.endedAt),
     summary: typeof a.summary === 'string' ? a.summary : '',

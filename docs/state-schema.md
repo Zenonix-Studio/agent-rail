@@ -171,11 +171,12 @@ was seen for it. Ids with an `agent_type` are always listed.
 | `id` | `string` | The agent id the hooks report. |
 | `name` | `string` | Display name: the description the main agent gave when it dispatched the agent (`Review the popover UI`), else its humanized type (`General-purpose agent`, `Code reviewer agent`); `'agent'` when unknown. Exact links: the Claude Agent call's response, and the background tasks a Claude stop lists. Until then (and for Codex) the only open dispatch of the agent's type in the job is assumed; with several differently named ones, the type name shows. |
 | `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: it never reported back. Either it was still running when its job finished or the session ended, or a Claude main-agent stop no longer listed it among the running background tasks. |
-| `activity` | `string` | One line: its latest step, the label of the last entry of `steps` (`Reading 3 files`). Kept for older readers. |
+| `activity` | `string` | One line: its current step. With its own plan, the active milestone's in-progress form (`Writing adim-3`, else its title), or the next pending one; without a plan, or once every milestone is done, its latest step (the last entry of `steps`, e.g. `Reading 3 files`). |
 | `summary` | `string` | What it was asked to do: the first sentence of the dispatch prompt (Claude Agent `prompt`, Codex spawn `message`), at most 100 characters; else the dispatch description. `''` when unknown. May equal `name`. |
 | `milestones` | `Milestone[]` | The agent's own plan, in plan order; empty when it made none. Its `done / total` is its own progress, never the job's. |
 | `steps` | `Pill[]` | The agent's own story: its last 6 steps, oldest first, with the same labels, collapsing and plan steps (`Planned 6 steps`, a finished task's title as `ok`) as `Now.pills`. |
 | `job` | `number \| null` | `seq` of the job it started in; `null` if it started before any job. |
+| `startedAt` | `string` | When the agent was first seen (its start, or its first event). Viewers list a job's agents running first, then in this order. Older files lack it: use `updatedAt`. |
 | `updatedAt` | `string` | Last event from this agent. |
 | `endedAt` | `string \| null` | When it stopped or was marked `stale`; `null` while running. |
 

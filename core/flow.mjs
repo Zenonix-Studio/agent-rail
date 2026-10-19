@@ -278,7 +278,8 @@ const TASK_MAX = 100;
 export function firstSentence(prompt) {
   const t = text(prompt);
   if (!t) return null;
-  const first = t.split(/(?<=[.!?])\s/)[0] ?? t;
+  // A sentence ends at . ! or ? followed by whitespace and a capital: "v1.2 fix" or "e.g. this" do not split.
+  const first = t.split(/(?<=[.!?])\s+(?=\p{Lu})/u)[0] ?? t;
   return clipText(first.replace(/[.]$/, ''), TASK_MAX);
 }
 

@@ -60,7 +60,8 @@ async function main() {
     }
     writeSession(path, reduce(prev, { source, ...event }, new Date()));
   }, logError);
-  // The only stdout output: ask the agent to write the title/summary marker (spike Q5 shape, both tools).
+  // Stdout carries hook context only, never anything else. UserPromptSubmit: ask the main agent
+  // for the title/summary marker and a plan (spike Q5 shape, both tools).
   if (event.event?.type === 'prompt' && !event.agentId) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: railInstruction(source) },

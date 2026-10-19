@@ -16,7 +16,7 @@ import { progress } from './progress.mjs';
  * @typedef {Segment[]} Line
  * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'>} RenderableJob
  * @typedef {Pick<import('./state.mjs').Agent, 'name'|'status'|'activity'> & {
- *   id?: string, updatedAt?: string, milestones?: import('./state.mjs').Milestone[], steps?: import('./state.mjs').Pill[]
+ *   id?: string, startedAt?: string, updatedAt?: string, milestones?: import('./state.mjs').Milestone[], steps?: import('./state.mjs').Pill[]
  * }} RenderableAgent `milestones` / `steps` are absent in files written before they existed.
  * @typedef {number|RenderableAgent[]} AgentsArg Running count only (title hint), or the job's
  *   subagents (`jobAgents` in core/progress.mjs): the hint plus an "Agents" block in the wide layout.
@@ -123,8 +123,10 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
 /**
  * Vertical rail: one milestone per line with its full title (`✓` done, `◉`
  * active, `○` pending), the now-flow under the anchored one behind a `│`
- * gutter. Past RAIL_MAX milestones, the done ones before the current one fold
- * into `✓ N done` and at most RAIL_AHEAD milestones show from it, then `+N more`.
+ * gutter. Past RAIL_MAX milestones, the done ones before the first unfinished
+ * one fold into `✓ N done`; from there RAIL_AHEAD milestones show (always
+ * through the anchored one), then `+N more`. Every milestone is either shown
+ * or counted.
  * A done job's leftover 'active' milestone is drawn neutral: nothing runs now.
  * @param {import('./state.mjs').Milestone[]} milestones
  * @param {number} w
@@ -141,11 +143,11 @@ function railLines(milestones, w, isDone, now) {
   /** @type {Line[]} */
   const lines = [];
   if (milestones.length > RAIL_MAX) {
-    const current = anchor >= 0 ? anchor : milestones.findIndex((m) => m?.status !== 'done');
-    from = current >= 0 ? current : milestones.length;
-    to = Math.min(milestones.length, from + RAIL_AHEAD);
-    const folded = milestones.slice(0, from).filter((m) => m?.status === 'done').length;
-    if (folded > 0) lines.push([seg('✓', 'done'), seg(` ${folded} done`, 'dim')]);
+    // Only done milestones fold: the window starts at the first unfinished one.
+    const open = milestones.findIndex((m) => m?.status !== 'done');
+    from = open >= 0 ? open : milestones.length;
+    to = Math.min(milestones.length, Math.max(from + RAIL_AHEAD, anchor + 1));
+    if (from > 0) lines.push([seg('✓', 'done'), seg(` ${from} done`, 'dim')]);
   }
   for (let i = from; i < to; i++) {
     const m = milestones[i];
@@ -254,13 +256,7 @@ const AGENT_GLYPH = { running: ['●', 'active'], done: ['✓', 'done'], stale: 
  */
 function agentLines(agents, w, expandAll) {
   if (!agents.length) return [];
-  const rank = (a) => (a.status === 'running' ? 0 : 1);
-  const recent = (a) => Date.parse(a.updatedAt ?? '') || 0;
-  // Running first (in start order); finished ones most recent first.
-  const sorted = agents
-    .map((a, i) => ({ a, i }))
-    .sort((x, y) => rank(x.a) - rank(y.a) || (rank(x.a) === 0 ? x.i - y.i : recent(y.a) - recent(x.a)))
-    .map((x) => x.a);
+  const sorted = sortAgents(agents);
   const shown = sorted.slice(0, AGENTS_SHOWN);
   /** @type {Line[]} */
   const lines = [[], [seg('Agents', 'dim')]];
@@ -271,7 +267,7 @@ function agentLines(agents, w, expandAll) {
     const ms = Array.isArray(a.milestones) ? a.milestones.filter((m) => m && typeof m === 'object') : [];
     const count = ms.length ? `  ${ms.filter((m) => m.status === 'done').length}/${ms.length}` : '';
     const story = open ? agentStory(a, ms, running, w - 4) : [];
-    const activity = str(a.activity) || (running ? 'starting…' : '');
+    const activity = currentStep(a, ms) || (running ? 'starting…' : '');
     // Collapsed, or open with nothing to show under it: the latest step stays on the row.
     const tail = !story.length && activity ? activity : '';
     const name = clip(str(a.name) || 'agent', tail ? Math.max(8, Math.floor((w - 4 - count.length) * 0.5)) : w - 4 - count.length);
@@ -284,6 +280,31 @@ function agentLines(agents, w, expandAll) {
   });
   if (shown.length < sorted.length) lines.push([seg(`  +${sorted.length - shown.length} more`, 'dim')]);
   return lines;
+}
+
+/**
+ * A job's agents in display order: running first, then by start (`startedAt`,
+ * else the order given). The menubar uses the same rule.
+ * @template {RenderableAgent} T @param {T[]} agents @returns {T[]}
+ */
+export function sortAgents(agents) {
+  const rank = (a) => (a.status === 'running' ? 0 : 1);
+  const start = (a) => Date.parse(a.startedAt ?? '') || Date.parse(a.updatedAt ?? '') || 0;
+  return agents
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => rank(x.a) - rank(y.a) || start(x.a) - start(y.a) || x.i - y.i)
+    .map((x) => x.a);
+}
+
+/**
+ * The step a collapsed agent row names: with a plan, its active milestone
+ * (else the next pending one); without one, or with every step done, its `activity`.
+ * @param {RenderableAgent} a @param {import('./state.mjs').Milestone[]} ms
+ * @returns {string}
+ */
+function currentStep(a, ms) {
+  const m = ms.find((x) => x.status === 'active') ?? ms.find((x) => x.status === 'pending');
+  return (m && (str(m.title) || str(m.key))) || str(a.activity);
 }
 
 /**
