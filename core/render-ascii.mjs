@@ -1,8 +1,9 @@
 /**
  * ASCII rendering of one job for fixed-width terminals: title + %, block
- * progress bar, metro line of milestones, the flow of human-readable steps
- * under the active milestone, and one line per subagent of the job. No Node
- * built-ins: the Claude Code mod imports this file.
+ * progress bar, a vertical rail of milestones (one per line, full title) with
+ * the flow of human-readable steps under the active one, and one row per
+ * subagent of the job (the first running one expanded to its own steps). No
+ * Node built-ins: the Claude Code mod imports this file.
  *
  * `renderJobSegments` returns each line as toned segments so a caller can
  * color them; `renderJob` returns the same lines as plain strings.
@@ -14,28 +15,37 @@ import { progress } from './progress.mjs';
  * @typedef {{ text: string, tone: Tone }} Segment
  * @typedef {Segment[]} Line
  * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'>} RenderableJob
- * @typedef {Pick<import('./state.mjs').Agent, 'name'|'status'|'activity'> & {updatedAt?: string}} RenderableAgent
+ * @typedef {Pick<import('./state.mjs').Agent, 'name'|'status'|'activity'> & {
+ *   id?: string, updatedAt?: string, milestones?: import('./state.mjs').Milestone[], steps?: import('./state.mjs').Pill[]
+ * }} RenderableAgent `milestones` / `steps` are absent in files written before they existed.
  * @typedef {number|RenderableAgent[]} AgentsArg Running count only (title hint), or the job's
  *   subagents (`jobAgents` in core/progress.mjs): the hint plus an "Agents" block in the wide layout.
+ * @typedef {{expandAll?: boolean}} RenderOptions `expandAll`: every agent row shows its steps,
+ *   not only the first running one.
  */
 
 /** Below this width the metro line is dropped for a one-line summary. */
 export const COMPACT_WIDTH = 40;
 const BAR_MAX = 30;
 const BAR_MIN = 6;
-const STEP_MIN = 6;
-const STEP_MAX = 14;
 const AGENTS_SHOWN = 4;
+/** Above this many milestones the rail folds: done ones into one line, at most RAIL_AHEAD from the current one. */
+const RAIL_MAX = 7;
+const RAIL_AHEAD = 4;
+/** Rows an expanded agent's story may wrap onto. */
+const AGENT_ROWS = 3;
+const GUTTER = '│   ';
 
 /**
  * @param {RenderableJob} job
  * @param {number} width Columns available.
  * @param {number} [nowMs] Clock for the elapsed time of an unfinished job.
  * @param {AgentsArg} [agents]
+ * @param {RenderOptions} [opts]
  * @returns {string[]} Plain lines, none longer than `width`.
  */
-export function renderJob(job, width, nowMs = Date.now(), agents = 0) {
-  return renderJobSegments(job, width, nowMs, agents).map((line) => line.map((s) => s.text).join(''));
+export function renderJob(job, width, nowMs = Date.now(), agents = 0, opts = {}) {
+  return renderJobSegments(job, width, nowMs, agents, opts).map((line) => line.map((s) => s.text).join(''));
 }
 
 /**
@@ -43,9 +53,10 @@ export function renderJob(job, width, nowMs = Date.now(), agents = 0) {
  * @param {number} width
  * @param {number} [nowMs]
  * @param {AgentsArg} [agents]
+ * @param {RenderOptions} [opts]
  * @returns {Line[]}
  */
-export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
+export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, opts = {}) {
   const w = Math.max(10, Math.floor(width) || 0);
   const list = Array.isArray(agents) ? agents.filter((a) => a && typeof a === 'object') : [];
   const running = Array.isArray(agents) ? list.filter((a) => a.status === 'running').length : agents;
@@ -56,7 +67,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
   const { done, total, pct } = progress(job);
   const tail = statusTail(status);
   const hint = agentsHint(running, w < COMPACT_WIDTH);
-  const block = w < COMPACT_WIDTH ? [] : agentLines(list, w);
+  const block = w < COMPACT_WIDTH ? [] : agentLines(list, w, opts?.expandAll === true);
   const hintLen = tailLen(hint);
 
   if (total === 0) {
@@ -68,7 +79,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
     // Spec §7 fallback: a planless job still shows what the agent is doing.
     const now = job?.now;
     if (!isDone && now && typeof now === 'object') {
-      lines.push(...flowLines(now, w));
+      lines.push(...flowLines(now, w, '  '));
     } else if (isDone && now && typeof now === 'object') {
       const recent = recentLine(now, w);
       if (recent.length) lines.push(recent);
@@ -102,76 +113,69 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0) {
   const filled = Math.round((barW * done) / total);
   lines.push([seg('█'.repeat(filled), 'done'), seg('░'.repeat(barW - filled), 'dim'), seg(counts, 'plain'), ...tail]);
 
-  const metro = metroLines(milestones, w, isDone);
-  lines.push(...metro.lines);
-
-  const now = job?.now;
-  if (!isDone && now && typeof now === 'object') {
-    // Anchor the flow under now.milestone (a key); else the active-status node.
-    const byKey = milestones.findIndex((m) => str(m?.key) !== '' && m.key === now.milestone);
-    const anchor = byKey >= 0 ? byKey : milestones.findIndex((m) => m?.status === 'active');
-    const col = anchor >= 0 ? metro.nodeCols[anchor] ?? -1 : -1;
-    if (col >= 0) lines.push([seg(' '.repeat(col), 'plain'), seg('↓', 'active')]);
-    lines.push(...flowLines(now, w));
-    const file = str(now.file);
-    // The path adds nothing when the latest step already names the file ("Editing app.js").
-    const pills = Array.isArray(now.pills) ? now.pills : [];
-    const base = file.split('/').pop() ?? '';
-    const named = base !== '' && str(pills[pills.length - 1]?.label).includes(base);
-    if (file && !named) lines.push([seg('  ', 'plain'), seg(clip(file, w - 2), 'dim')]);
-  }
+  const now = !isDone && job?.now && typeof job.now === 'object' ? job.now : null;
+  lines.push(...railLines(milestones, w, isDone, now));
   lines.push(...block);
 
   return lines.map((l) => fit(l.filter(nonEmpty), w));
 }
 
 /**
- * Metro line plus aligned labels. A done job's leftover 'active' milestone is
- * drawn neutral (plain ◉, no accent): it never finished, but nothing runs now.
+ * Vertical rail: one milestone per line with its full title (`✓` done, `◉`
+ * active, `○` pending), the now-flow under the anchored one behind a `│`
+ * gutter. Past RAIL_MAX milestones, the done ones before the current one fold
+ * into `✓ N done` and at most RAIL_AHEAD milestones show from it, then `+N more`.
+ * A done job's leftover 'active' milestone is drawn neutral: nothing runs now.
  * @param {import('./state.mjs').Milestone[]} milestones
  * @param {number} w
  * @param {boolean} isDone
- * @returns {{ lines: Line[], nodeCols: number[] }} nodeCols[i] is node i's column, or -1 when not drawn.
+ * @param {import('./state.mjs').Now|null} now the flow to show; null for none
+ * @returns {Line[]}
  */
-function metroLines(milestones, w, isDone) {
-  const n = milestones.length;
-  // Gap between node columns: connector glyphs + 1 for the node itself.
-  // Wide enough for the longest label (capped), never past the width.
-  const longest = Math.max(0, ...milestones.map((m) => (str(m?.title) || str(m?.key)).length));
-  const want = Math.min(STEP_MAX, Math.max(STEP_MIN, longest + 1));
-  const step = n <= 1 ? w : Math.min(want, Math.floor((w - 1) / (n - 1)));
-  if (step < 1) {
-    return { lines: [[seg(clip(`${n} milestones`, w), 'dim')]], nodeCols: milestones.map(() => -1) };
+function railLines(milestones, w, isDone, now) {
+  // Anchor the flow under now.milestone (a key); else the active-status node.
+  const byKey = now ? milestones.findIndex((m) => str(m?.key) !== '' && m.key === now.milestone) : -1;
+  const anchor = byKey >= 0 ? byKey : milestones.findIndex((m) => m?.status === 'active');
+  let from = 0;
+  let to = milestones.length;
+  /** @type {Line[]} */
+  const lines = [];
+  if (milestones.length > RAIL_MAX) {
+    const current = anchor >= 0 ? anchor : milestones.findIndex((m) => m?.status !== 'done');
+    from = current >= 0 ? current : milestones.length;
+    to = Math.min(milestones.length, from + RAIL_AHEAD);
+    const folded = milestones.slice(0, from).filter((m) => m?.status === 'done').length;
+    if (folded > 0) lines.push([seg('✓', 'done'), seg(` ${folded} done`, 'dim')]);
   }
+  for (let i = from; i < to; i++) {
+    const m = milestones[i];
+    const status = m?.status;
+    const active = status === 'active' && !isDone;
+    const glyph = status === 'done' ? seg('✓', 'done') : status === 'active' ? seg('◉', active ? 'active' : 'plain') : seg('○', 'dim');
+    const title = str(m?.title) || str(m?.key) || '?';
+    lines.push([glyph, seg(' ', 'plain'), seg(clip(title, w - 2), active ? 'bold' : status === 'active' ? 'plain' : 'dim')]);
+    if (now && i === anchor) lines.push(...nowLines(now, w, GUTTER));
+  }
+  if (to < milestones.length) lines.push([seg(`  +${milestones.length - to} more`, 'dim')]);
+  // No milestone shown to hang the flow from: it goes under the rail.
+  if (now && (anchor < from || anchor >= to)) lines.push(...nowLines(now, w, '  '));
+  return lines;
+}
 
-  /** @type {Line} */
-  const track = [];
-  /** @type {Line} */
-  const labels = [];
-  /** @type {number[]} */
-  const nodeCols = [];
-  let labelEnd = 0;
-
-  milestones.forEach((m, i) => {
-    const tone = nodeTone(m?.status, isDone);
-    const col = i * step;
-    if (i > 0) {
-      const reached = m?.status === 'done' || (m?.status === 'active' && !isDone);
-      track.push(seg((reached ? '━' : '┄').repeat(step - 1), reached ? 'done' : 'dim'));
-    }
-    track.push(seg(nodeGlyph(m?.status), tone));
-    nodeCols.push(col);
-
-    // Label starts at its node, clipped one column short of the next node.
-    const room = (i === n - 1 ? w : col + step - 1) - col;
-    const text = clip(str(m?.title) || str(m?.key) || '?', room);
-    if (col >= labelEnd && text) {
-      labels.push(seg(' '.repeat(col - labelEnd), 'plain'), seg(text, tone === 'pending' ? 'dim' : tone));
-      labelEnd = col + text.length;
-    }
-  });
-
-  return { lines: [track, labels], nodeCols };
+/**
+ * The now-flow plus the last touched file, each line behind `prefix`.
+ * @param {import('./state.mjs').Now} now @param {number} w @param {string} prefix
+ * @returns {Line[]}
+ */
+function nowLines(now, w, prefix) {
+  const lines = flowLines(now, w, prefix);
+  const file = str(now.file);
+  // The path adds nothing when the latest step already names the file ("Editing app.js").
+  const pills = Array.isArray(now.pills) ? now.pills : [];
+  const base = file.split('/').pop() ?? '';
+  const named = base !== '' && str(pills[pills.length - 1]?.label).includes(base);
+  if (file && !named) lines.push([seg(prefix, 'dim'), seg(clip(file, w - prefix.length), 'dim')]);
+  return lines;
 }
 
 /**
@@ -180,12 +184,13 @@ function metroLines(milestones, w, isDone) {
  * with the pill after it, so a line never ends on "→".
  * @param {import('./state.mjs').Now} now
  * @param {number} w
+ * @param {string} prefix drawn before each line (`│   ` under a rail node)
  * @returns {Line[]}
  */
-function flowLines(now, w) {
+function flowLines(now, w, prefix) {
   const pills = Array.isArray(now.pills) ? now.pills : [];
   const attempt = Number.isFinite(now.attempt) && now.attempt >= 2 ? `  ↻ ${now.attempt}` : '';
-  const room = w - 2;
+  const room = w - prefix.length;
   /** @type {Segment[]} */
   const kept = [];
   // Newest first: each older pill is kept only if the whole set still lays out.
@@ -193,12 +198,13 @@ function flowLines(now, w) {
     const text = pillText(pills[i], room - 2 - attempt.length);
     if (!text) continue;
     const next = [seg(text, pillTone(pills[i]?.kind)), ...kept];
-    if (layout(next, room, attempt.length) === null) break;
+    if (layout(next, room, attempt.length, FLOW_ROWS) === null) break;
     kept.unshift(next[0]);
   }
-  if (!kept.length) return attempt ? [[seg('  ', 'plain'), seg(attempt.trim(), 'warn')]] : [];
-  const rows = /** @type {Segment[][]} */ (layout(kept, room, attempt.length));
-  const lines = rows.map((row, r) => [seg(r === 0 ? '  ' : '    ', 'plain'), ...row]);
+  const gutter = seg(prefix, 'dim');
+  if (!kept.length) return attempt ? [[gutter, seg(attempt.trim(), 'warn')]] : [];
+  const rows = /** @type {Segment[][]} */ (layout(kept, room, attempt.length, FLOW_ROWS));
+  const lines = rows.map((row, r) => [gutter, ...(r === 0 ? [] : [seg('  ', 'plain')]), ...row]);
   if (attempt) lines[lines.length - 1].push(seg(attempt, 'warn'));
   return lines;
 }
@@ -208,9 +214,10 @@ const FLOW_ROWS = 2;
 /**
  * Wraps pills into rows; continuation rows are indented 2 more columns.
  * @param {Segment[]} pills @param {number} room @param {number} tail columns kept free on the last row
- * @returns {Segment[][]|null} null when they need more than FLOW_ROWS rows.
+ * @param {number} maxRows
+ * @returns {Segment[][]|null} null when they need more than `maxRows` rows.
  */
-function layout(pills, room, tail) {
+function layout(pills, room, tail, maxRows) {
   /** @type {Segment[][]} */
   const rows = [[]];
   let used = 0;
@@ -219,7 +226,7 @@ function layout(pills, room, tail) {
     const width = room - (rows.length > 1 ? 2 : 0);
     const cost = p.text.length + (row.length ? 3 : 0);
     if (row.length && used + cost > width) {
-      if (rows.length === FLOW_ROWS) return null;
+      if (rows.length === maxRows) return null;
       rows.push([seg('→ ', 'dim'), p]);
       used = p.text.length + 2;
       continue;
@@ -236,12 +243,16 @@ function layout(pills, room, tail) {
 const AGENT_GLYPH = { running: ['●', 'active'], done: ['✓', 'done'], stale: ['○', 'dim'], error: ['✗', 'error'] };
 
 /**
- * "Agents" block: one line per subagent, `● <name> — <latest activity>`, running ones first.
+ * "Agents" block: one row per subagent, running ones first. A row is
+ * `▸ ● <name>  d/t · <latest step>`; an expanded row (`▾`, the first running
+ * agent, or every agent with `expandAll`) shows the agent's own steps under it
+ * as an arrow story: its milestones when it made a plan, else its story steps.
  * @param {RenderableAgent[]} agents
  * @param {number} w
+ * @param {boolean} expandAll
  * @returns {Line[]} none when there are no agents.
  */
-function agentLines(agents, w) {
+function agentLines(agents, w, expandAll) {
   if (!agents.length) return [];
   const rank = (a) => (a.status === 'running' ? 0 : 1);
   const recent = (a) => Date.parse(a.updatedAt ?? '') || 0;
@@ -252,18 +263,70 @@ function agentLines(agents, w) {
     .map((x) => x.a);
   const shown = sorted.slice(0, AGENTS_SHOWN);
   /** @type {Line[]} */
-  const lines = [[seg('  Agents', 'dim')]];
-  for (const a of shown) {
+  const lines = [[], [seg('Agents', 'dim')]];
+  shown.forEach((a, i) => {
+    const open = expandAll || (i === 0 && a.status === 'running');
     const [glyph, tone] = AGENT_GLYPH[/** @type {keyof typeof AGENT_GLYPH} */ (a.status)] ?? ['·', 'dim'];
-    const activity = str(a.activity) || (a.status === 'running' ? 'starting…' : '');
-    const nameRoom = activity ? Math.max(8, Math.floor((w - 6) * 0.45)) : w - 6;
-    const name = clip(str(a.name) || 'agent', nameRoom);
-    const line = [seg('  ', 'plain'), seg(glyph, /** @type {Tone} */ (tone)), seg(' ', 'plain'), seg(name, a.status === 'running' ? 'plain' : 'dim')];
-    if (activity) line.push(seg(' — ', 'dim'), seg(clip(activity, w - 4 - name.length - 3), 'dim'));
-    lines.push(line);
-  }
-  if (shown.length < sorted.length) lines.push([seg(`    +${sorted.length - shown.length} more`, 'dim')]);
+    const running = a.status === 'running';
+    const ms = Array.isArray(a.milestones) ? a.milestones.filter((m) => m && typeof m === 'object') : [];
+    const count = ms.length ? `  ${ms.filter((m) => m.status === 'done').length}/${ms.length}` : '';
+    const story = open ? agentStory(a, ms, running, w - 4) : [];
+    const activity = str(a.activity) || (running ? 'starting…' : '');
+    // Collapsed, or open with nothing to show under it: the latest step stays on the row.
+    const tail = !story.length && activity ? activity : '';
+    const name = clip(str(a.name) || 'agent', tail ? Math.max(8, Math.floor((w - 4 - count.length) * 0.5)) : w - 4 - count.length);
+    /** @type {Line} */
+    const row = [seg(open ? '▾ ' : '▸ ', running ? 'active' : 'dim'), seg(glyph, /** @type {Tone} */ (tone)), seg(' ', 'plain'),
+      seg(name, running ? 'bold' : 'dim'), seg(count, 'plain')];
+    if (tail) row.push(seg(count ? ' · ' : ' — ', 'dim'), seg(clip(tail, w - 4 - name.length - count.length - 3), 'dim'));
+    lines.push(row);
+    for (const r of story) lines.push([seg('    ', 'plain'), ...r]);
+  });
+  if (shown.length < sorted.length) lines.push([seg(`  +${sorted.length - shown.length} more`, 'dim')]);
   return lines;
+}
+
+/**
+ * An expanded agent's own steps as an arrow story, oldest first, wrapped onto
+ * up to AGENT_ROWS rows (oldest dropped first). With a plan: its done
+ * milestones and the active one; else its story steps.
+ * @param {RenderableAgent} a
+ * @param {import('./state.mjs').Milestone[]} ms
+ * @param {boolean} running
+ * @param {number} room
+ * @returns {Segment[][]}
+ */
+function agentStory(a, ms, running, room) {
+  /** @type {Segment[]} */
+  let items;
+  if (ms.length) {
+    items = ms
+      .filter((m) => m.status === 'done' || m.status === 'active')
+      .map((m) => {
+        const t = str(m.title) || str(m.key) || '?';
+        if (m.status === 'done') return seg(clip(`✓ ${t}`, room), 'done');
+        return running ? seg(clip(`${t} ▶`, room), 'active') : seg(clip(t, room), 'plain');
+      });
+  } else {
+    const steps = Array.isArray(a.steps) ? a.steps : [];
+    items = steps
+      .filter((p) => p && str(p.label))
+      .map((p) => {
+        const t = str(p.label);
+        if (p.kind === 'ok') return seg(clip(`✓ ${t}`, room), 'done');
+        if (p.kind === 'warn') return seg(clip(`✗ ${t}`, room), 'warn');
+        if (p.kind === 'active' && running) return seg(clip(`${t} ▶`, room), 'active');
+        return seg(clip(t, room), 'dim');
+      });
+  }
+  /** @type {Segment[]} */
+  const kept = [];
+  for (let i = items.length - 1; i >= 0; i--) {
+    const next = [items[i], ...kept];
+    if (layout(next, room, 0, AGENT_ROWS) === null) break;
+    kept.unshift(items[i]);
+  }
+  return kept.length ? /** @type {Segment[][]} */ (layout(kept, room, 0, AGENT_ROWS)) : [];
 }
 
 /**
@@ -293,20 +356,6 @@ function pillTone(kind) {
   if (kind === 'warn') return 'warn';
   if (kind === 'active') return 'active';
   return 'dim';
-}
-
-/** @param {string|undefined} status @param {boolean} isDone @returns {Tone} */
-function nodeTone(status, isDone) {
-  if (status === 'done') return 'done';
-  if (status === 'active') return isDone ? 'plain' : 'active';
-  return 'pending';
-}
-
-/** @param {string|undefined} status */
-function nodeGlyph(status) {
-  if (status === 'done') return '●';
-  if (status === 'active') return '◉';
-  return '○';
 }
 
 /**

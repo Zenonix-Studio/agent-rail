@@ -14,6 +14,8 @@ const POLL_MS = 1000
 
 const view = atom({ plugin: 'agent-rail', key: 'view' } as const, { job: null, at: 0, agents: [] } as RailView)
 const isPaneShown = atom({ plugin: 'agent-rail', key: 'isPaneShown' } as const, false)
+/** `/rail agents` toggles it: every agent row shows its own steps, not only the first running one. */
+const expandAll = atom({ plugin: 'agent-rail', key: 'expandAll' } as const, false)
 
 const TONE: Record<string, { color?: string; dimColor?: boolean; weight?: 'bold' }> = {
   plain: {},
@@ -69,7 +71,8 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'rail',
-      description: 'Show the agent-rail progress pane for this session',
+      description: 'Show the agent-rail progress pane; `/rail agents` expands every agent row',
+      argumentHint: '[agents]',
     })
     // Unasked, the pane is placed only on a wide terminal; the band covers the rest.
     void $.ui.open({ id: PANE, title: TITLE })
@@ -78,7 +81,11 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('command.run', { command: 'rail' }, async $ => {
+  on('command.run', { command: 'rail' }, async ($, e) => {
+    if (e.args.trim() === 'agents') {
+      const all = await update($, expandAll, v => !v)
+      return { text: all ? 'Agent rail: every agent row expanded.' : 'Agent rail: only the first running agent expanded.' }
+    }
     const opened = await $.ui.open({ id: PANE, title: TITLE })
     return { text: opened.isPlaced ? 'Agent rail pane opened.' : `Agent rail pane waits: ${opened.reason}` }
   })
@@ -87,9 +94,10 @@ export const register: Register = on => {
     const { Box, Text } = $.ui.resolve(e)
     const { job, at, agents } = await read($, view)
     if (job === null) return <Text dimColor>No job yet in this session.</Text>
+    const opts = { expandAll: await read($, expandAll) }
     return (
       <Box flexDirection="column">
-        {renderJobSegments(job, e.props.bodyColumns, at, agents).map(line => (
+        {renderJobSegments(job, e.props.bodyColumns, at, agents, opts).map(line => (
           <Text wrap="truncate">
             {line.length === 0 ? ' ' : line.map(s => <Text {...TONE[s.tone]}>{s.text}</Text>)}
           </Text>
@@ -102,7 +110,8 @@ export const register: Register = on => {
     const { job, at, agents } = await read($, view)
     if (e.props.hasSurvey || job === null || (await read($, isPaneShown))) return next(e)
     const { Box, Text } = $.ui.resolve(e)
-    const lines = renderJobSegments(job, e.props.bodyColumns, at, agents).slice(0, Math.max(1, e.props.maxRows))
+    const opts = { expandAll: await read($, expandAll) }
+    const lines = renderJobSegments(job, e.props.bodyColumns, at, agents, opts).slice(0, Math.max(1, e.props.maxRows))
     return (
       <Box flexDirection="column">
         {lines.map(line => (
