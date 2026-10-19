@@ -391,7 +391,7 @@ const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep it
  * them), so an agent's steps are `step:` lines in its own text, read from its transcript.
  */
 export const SUBAGENT_INSTRUCTION =
-  'Your progress is shown live from your steps. Work in 2–7 steps, and when you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>", where stage is plan, analyse, dev, fix or review (e.g. "step: analyse: read the reducer"). Do each step in its own tool calls, not one long script.';
+  'Your progress is shown live from your steps. Work in 2–7 steps, and when you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>", where stage is plan, analyse, dev, fix or review (e.g. "step: analyse: read the reducer"). Right after it, write one more line: "progress: <at most 2 short sentences: what you have done so far and what is left>". Do each step in its own tool calls, not one long script.';
 
 /**
  * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge.
@@ -443,6 +443,8 @@ function tailLines(path) {
 }
 
 const STEP_LINE = /^[\s*_>-]*step:\s*(.+?)[\s*_]*$/gim;
+const PROGRESS_LINE = /^[\s*_>-]*progress:\s*(.+?)[\s*_]*$/gim;
+const PROGRESS_MAX = 200;
 
 /**
  * A Claude subagent's own transcript: `<session transcript without .jsonl>/subagents/agent-<id>.jsonl`.
@@ -455,23 +457,29 @@ export function agentTranscriptPath(transcriptPath, agentId) {
 }
 
 /**
- * The `step: <stage>: <title>` lines a subagent wrote (SUBAGENT_INSTRUCTION), in order, once each.
+ * The `step: <stage>: <title>` lines a subagent wrote (SUBAGENT_INSTRUCTION), in order, once each,
+ * and its latest `progress:` line: its own 1–2 sentence summary of what is done and what is left.
  * @param {string|null|undefined} path the agent's transcript
- * @returns {string[]} step titles with their stage prefix; [] when none or unreadable
+ * @returns {{steps: string[], progress: string|null}} step titles with their stage prefix ([] when none
+ *   or unreadable), and the latest progress line (null when none)
  */
 export function findStepsInTranscript(path) {
   const steps = [];
+  let progress = null;
   try {
     for (const l of tailLines(path)) {
-      if (!l.includes('step:')) continue;
+      if (!l.includes('step:') && !l.includes('progress:')) continue;
       let o;
       try { o = JSON.parse(l); } catch { continue; }
       const { role, texts } = transcriptLine(o);
       if (role !== 'assistant') continue;
-      for (const t of texts) for (const m of t.matchAll(STEP_LINE)) if (!steps.includes(m[1])) steps.push(m[1]);
+      for (const t of texts) {
+        for (const m of t.matchAll(STEP_LINE)) if (!steps.includes(m[1])) steps.push(m[1]);
+        for (const m of t.matchAll(PROGRESS_LINE)) progress = clipText(m[1].replace(/\s+/g, ' '), PROGRESS_MAX);
+      }
     }
   } catch { /* the transcript is a best-effort source */ }
-  return steps;
+  return { steps, progress };
 }
 
 /** @returns {{role: 'user'|'assistant'|null, texts: string[]}} */

@@ -72,6 +72,7 @@ holds several jobs over time (spec §5.1a).
 | `updatedAt` | `string` | Last change to this job. |
 | `endedAt` | `string \| null` | When the job became `done`; `null` while it is not done. |
 | `now` | `Now \| null` | What the main agent is doing right now; `null` before its first step (a tool call or a plan change). |
+| `digest` | `string` | Rule-based one-liner from the plan: `Done: A, B. Left: C, D.` (at most 3 names each), else the last finished steps. `''` when unknown. Rebuilt on every event. |
 
 Progress is derived, not stored: `done / total` milestones (`core/progress.mjs`).
 With no milestones there is no %: viewers show "Planning · 0/?".
@@ -194,6 +195,8 @@ was seen for it. Ids with an `agent_type` are always listed.
 | `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: it never reported back. Either it was still running when its job finished or the session ended, or a Claude main-agent stop no longer listed it among the running background tasks. |
 | `activity` | `string` | One line: its current step. With its own plan, the active milestone's in-progress form (`Writing adim-3`, else its title), or the next pending one; without a plan, or once every milestone is done, its latest step (the last entry of `steps`, e.g. `Reading 3 files`). |
 | `stage` | `Stage \| null` | The agent's current stage, as `Now.stage`. |
+| `progress` | `string` | The agent's own 1–2 sentence summary of what is done and what is left: its latest `progress:` line, read from its transcript like its `step:` lines. `''` until it writes one. Viewers show it, else `digest`. |
+| `digest` | `string` | Rule-based one-liner, as `Job.digest`, from the agent's milestones or steps. |
 | `summary` | `string` | What it was asked to do: the first sentence of the dispatch prompt (Claude Agent `prompt`, Codex spawn `message`), at most 100 characters; else the dispatch description. `''` when unknown. May equal `name`. |
 | `milestones` | `Milestone[]` | The agent's own plan, in plan order; empty when it made none. Its `done / total` is its own progress, never the job's. |
 | `steps` | `Pill[]` | The agent's own story: its last 6 steps, oldest first, with the same labels, collapsing and plan steps (`Planned 6 steps`, a finished task's title as `ok`) as `Now.pills`. |

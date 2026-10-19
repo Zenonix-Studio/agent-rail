@@ -71,6 +71,32 @@ export function fallbackTitle(prompt) {
 
 /** @param {Session} s @param {Record<string, any>} input @param {string} at */
 function apply(s, input, at) {
+  applyEvent(s, input, at);
+  // Free summaries from the plan, rebuilt on every event.
+  const job = current(s);
+  if (job) job.digest = digestOf(job.milestones, job.now?.pills ?? []);
+  for (const a of Object.values(s.agents)) a.digest = digestOf(a.milestones, a.steps);
+}
+
+/**
+ * A rule-based one-liner: "Done: A, B. Left: C, D." from the plan, else the last finished steps.
+ * @param {import('./state.mjs').Milestone[]} milestones @param {Pill[]} pills @returns {string}
+ */
+function digestOf(milestones, pills) {
+  if (milestones.length === 0) {
+    const ok = pills.filter((p) => p.kind === 'ok').map((p) => p.label).slice(-2);
+    return ok.length ? `Done: ${ok.join(', ')}.` : '';
+  }
+  const done = milestones.filter((m) => m.status === 'done').map((m) => m.title);
+  const left = milestones.filter((m) => m.status !== 'done').map((m) => m.title);
+  // At most 3 names each: the latest done ones, the next left ones.
+  const doneText = done.length ? `Done: ${done.length > 3 ? `${done.length - 3} more, ` : ''}${done.slice(-3).join(', ')}.` : '';
+  const leftText = left.length ? `Left: ${left.slice(0, 3).join(', ')}${left.length > 3 ? ` +${left.length - 3}` : ''}.` : 'All steps done.';
+  return [doneText, leftText].filter(Boolean).join(' ');
+}
+
+/** @param {Session} s @param {Record<string, any>} input @param {string} at */
+function applyEvent(s, input, at) {
   const e = input.event;
   if (!isObj(e)) return;
   const agentId = str(input.agentId);
@@ -83,6 +109,8 @@ function apply(s, input, at) {
   // The agent's `rail:` line, read from the transcript on a main-agent tool or plan call: names the job mid-turn.
   if (!agentId && typeof e.marker === 'string') onMarker(s, e.marker, at);
   if (agentId && Array.isArray(e.steps)) onAgentSteps(s, agentId, e.steps, e.type === 'agent-stop', at);
+  // The agent's own `progress:` line: its 1–2 sentence summary of what is done and what is left.
+  if (agentId && str(e.progress) && isObj(s.agents[agentId])) s.agents[agentId].progress = e.progress;
   switch (e.type) {
     case 'plan-step': {
       const plan = stepPlan(agentId ? agent(s, agentId, at).milestones : ensureJob(s, at).milestones, e);
@@ -1030,6 +1058,8 @@ function fixAgent(id, a, at) {
     milestones: fixMilestones(a.milestones),
     steps: fixPills(a.steps).slice(-MAX_AGENT_STEPS),
     stage: STAGE_SET.has(a.stage) ? a.stage : null,
+    progress: typeof a.progress === 'string' ? a.progress : '',
+    digest: typeof a.digest === 'string' ? a.digest : '',
     _failed: a._failed === true,
     _type: str(a._type),
     _open: Array.isArray(a._open) ? a._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
