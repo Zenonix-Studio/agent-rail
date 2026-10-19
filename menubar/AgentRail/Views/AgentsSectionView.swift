@@ -83,6 +83,31 @@ private struct AgentRowView: View {
     }
 
     private func header(_ p: (done: Int, total: Int)) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            headerLine(p)
+            // Its own words when it wrote some, else the rule-based digest; aligned under the name.
+            if let note {
+                Text(verbatim: note)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 34)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .contentShape(Rectangle())
+    }
+
+    private var note: String? {
+        if !agent.progress.isEmpty { return agent.progress }
+        return agent.digest.isEmpty ? nil : agent.digest
+    }
+
+    private func headerLine(_ p: (done: Int, total: Int)) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "chevron.right")
                 .font(.system(size: 9, weight: .semibold))
@@ -111,9 +136,6 @@ private struct AgentRowView: View {
                     .fixedSize()
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .contentShape(Rectangle())
     }
 
     private var nameText: some View {
@@ -166,6 +188,7 @@ private struct AgentRowView: View {
     private func accessibilityLabel(_ p: (done: Int, total: Int)) -> String {
         var parts = [agent.name, L10n.agentStatus(agent.status), currentStep]
         if p.total > 0 { parts.append(String(localized: "\(p.done) of \(p.total) steps")) }
+        if let note { parts.append(note) }
         return parts.joined(separator: ", ")
     }
 }

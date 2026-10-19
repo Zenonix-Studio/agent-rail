@@ -17,13 +17,15 @@ export type RailJob = {
   seq: number;
   title: string;
   summary?: string;
+  /** Rule-based `Done: A, B. Left: C, D.` */
+  digest?: string;
   status: 'planning' | 'running' | 'waiting' | 'done' | 'error';
   milestones: RailMilestone[];
   startedAt: string;
   endedAt: string | null;
   now: { milestone: string; pills: RailPill[]; attempt: number; file: string | null; stage?: RailStage | null } | null;
 };
-/** `summary`, `milestones`, `steps` and `stage` are absent in files written before they existed. */
+/** `summary`, `milestones`, `steps`, `stage`, `progress` and `digest` are absent in files written before they existed. */
 export type RailAgent = {
   name: string;
   status: 'running' | 'done' | 'error' | 'stale';
@@ -33,6 +35,10 @@ export type RailAgent = {
   milestones?: RailMilestone[];
   steps?: RailPill[];
   stage?: RailStage | null;
+  /** The agent's own 1-2 sentence summary; '' when none. */
+  progress?: string;
+  /** Rule-based like `RailJob.digest`. */
+  digest?: string;
 };
 /** The current job, the clock it was read at (ms since the epoch), and the subagents that started in it. */
 export type RailView = { job: RailJob | null; at: number; agents: RailAgent[] };

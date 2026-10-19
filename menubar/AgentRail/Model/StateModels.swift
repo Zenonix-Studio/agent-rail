@@ -124,6 +124,28 @@ struct Job: Decodable, Sendable {
     let updatedAt: Date
     let endedAt: Date?
     let now: Now?
+    /// Rule-based "Done: A, B. Left: C, D."; `""` when unknown (and in files written before the field existed).
+    let digest: String
+
+    private enum CodingKeys: String, CodingKey {
+        case id, seq, title, summary, prompt, status, milestones, startedAt, updatedAt, endedAt, now, digest
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        seq = try c.decode(Int.self, forKey: .seq)
+        title = try c.decode(String.self, forKey: .title)
+        summary = try c.decode(String.self, forKey: .summary)
+        prompt = try c.decode(String.self, forKey: .prompt)
+        status = try c.decode(JobStatus.self, forKey: .status)
+        milestones = try c.decode([Milestone].self, forKey: .milestones)
+        startedAt = try c.decode(Date.self, forKey: .startedAt)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        endedAt = try c.decodeIfPresent(Date.self, forKey: .endedAt)
+        now = try c.decodeIfPresent(Now.self, forKey: .now)
+        digest = (try? c.decodeIfPresent(String.self, forKey: .digest)) ?? ""
+    }
 }
 
 struct Agent: Decodable, Sendable {
@@ -144,9 +166,14 @@ struct Agent: Decodable, Sendable {
     let steps: [Pill]
     /// Its current stage, as `Now.stage`.
     let stage: Stage?
+    /// Its own 1-2 sentence summary of what is done and left; `""` until it writes one.
+    let progress: String
+    /// Rule-based one-liner, as `Job.digest`.
+    let digest: String
 
     private enum CodingKeys: String, CodingKey {
         case id, name, status, activity, job, startedAt, updatedAt, endedAt, summary, milestones, steps, stage
+        case progress, digest
     }
 
     init(from decoder: Decoder) throws {
@@ -164,6 +191,8 @@ struct Agent: Decodable, Sendable {
         milestones = try c.decodeIfPresent([Milestone].self, forKey: .milestones) ?? []
         steps = try c.decodeIfPresent([Pill].self, forKey: .steps) ?? []
         stage = c.decodeStage(forKey: .stage)
+        progress = (try? c.decodeIfPresent(String.self, forKey: .progress)) ?? ""
+        digest = (try? c.decodeIfPresent(String.self, forKey: .digest)) ?? ""
     }
 }
 

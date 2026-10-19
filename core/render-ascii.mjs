@@ -2,7 +2,8 @@
  * ASCII rendering of one job for fixed-width terminals: title + %, block
  * progress bar, a vertical rail of milestones (one per line, full title) with
  * the flow of human-readable steps under the active one, and one row per
- * subagent of the job (the first running one expanded to its own steps). No
+ * subagent of the job (the first running one expanded to its own steps), each
+ * with a dim line of its progress or digest under it, then a Done / Left recap. No
  * Node built-ins: the Claude Code mod imports this file.
  *
  * `renderJobSegments` returns each line as toned segments so a caller can
@@ -16,11 +17,12 @@ import { eta, progress, stepDuration } from './progress.mjs';
  *   its palette color (plan violet, analyse blue, dev orange, fix red, review teal).
  * @typedef {{ text: string, tone: Tone }} Segment
  * @typedef {Segment[]} Line
- * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'> & {summary?: string}} RenderableJob
+ * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'> & {summary?: string, digest?: string}} RenderableJob
+ *   `digest`: rule-based `Done: A, B. Left: C, D.`, shown at the bottom only when the job has no milestones.
  * @typedef {Pick<import('./state.mjs').Agent, 'name'|'status'|'activity'> & {
  *   id?: string, startedAt?: string, updatedAt?: string, milestones?: import('./state.mjs').Milestone[], steps?: import('./state.mjs').Pill[],
- *   stage?: Stage|null
- * }} RenderableAgent `milestones` / `steps` are absent in files written before they existed.
+ *   stage?: Stage|null, summary?: string, progress?: string, digest?: string
+ * }} RenderableAgent `milestones` / `steps` / `progress` / `digest` are absent in files written before they existed.
  * @typedef {number|RenderableAgent[]} AgentsArg Running count only (title hint), or the job's
  *   subagents (`jobAgents` in core/progress.mjs): the hint plus an "Agents" block in the wide layout.
  * @typedef {{expandAll?: boolean}} RenderOptions `expandAll`: every agent row shows its steps,
@@ -92,6 +94,8 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
       if (recent.length) lines.push(recent);
     }
     lines.push(...block);
+    const digest = w >= COMPACT_WIDTH ? str(job?.digest) : '';
+    if (digest) lines.push([seg(clip(digest, w), 'dim')]);
     return lines.map((l) => fit(l.filter(nonEmpty), w));
   }
 
@@ -125,6 +129,8 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
   const now = !isDone && job?.now && typeof job.now === 'object' ? job.now : null;
   lines.push(...railLines(milestones, w, isDone, now, nowMs));
   lines.push(...block);
+  if (block.length) lines.push([]);
+  lines.push(...recapLines(milestones, w));
 
   return lines.map((l) => fit(l.filter(nonEmpty), w));
 }
@@ -285,7 +291,7 @@ function agentLines(agents, w, expandAll) {
   shown.forEach((a, i) => {
     // A few agents: every one shows its own work. Many: the first running one.
     const open = expandAll || shown.length <= OPEN_ALL_MAX || (i === 0 && a.status === 'running');
-    lines.push(agentRow(a, w, open));
+    lines.push(agentRow(a, w, open), ...agentProgressLine(a, w));
     if (open) lines.push(...agentBody(a, w));
   });
   if (shown.length < sorted.length) lines.push([seg(`+${sorted.length - shown.length} more`, 'dim')]);
@@ -320,6 +326,15 @@ function agentRow(a, w, open) {
       seg('█'.repeat(filled), 'done'), seg('░'.repeat(MINI_BAR - filled), 'dim'), seg(` ${count}`, 'dim'));
   }
   return row;
+}
+
+/**
+ * One dim line under an agent row: its own `progress` summary, else its `digest`; none when both are empty.
+ * @param {RenderableAgent} a @param {number} w @returns {Line[]}
+ */
+function agentProgressLine(a, w) {
+  const text = str(a.progress) || str(a.digest);
+  return text ? [[seg('    ', 'plain'), seg(clip(text, w - 4), 'dim')]] : [];
 }
 
 /**
@@ -425,6 +440,31 @@ export function sortAgents(agents) {
 function currentStep(a, ms) {
   const m = ms.find((x) => x.status === 'active') ?? ms.find((x) => x.status === 'pending');
   return (m && (str(m.title) || str(m.key))) || str(a.activity);
+}
+
+/** Titles each recap line names at most. */
+const RECAP_MAX = 3;
+
+/**
+ * Done / Left recap at the bottom of the rail: `✓ Done: N more, A, B, C` (latest done,
+ * omitted when none) and `○ Left: D, E, F +N` (next not done), or `All steps done.`.
+ * @param {import('./state.mjs').Milestone[]} milestones @param {number} w @returns {Line[]}
+ */
+function recapLines(milestones, w) {
+  const name = (m) => str(m?.title) || str(m?.key) || '?';
+  const done = milestones.filter((m) => m?.status === 'done').map(name);
+  const left = milestones.filter((m) => m?.status !== 'done').map(name);
+  /** @type {Line[]} */
+  const lines = [];
+  if (done.length) {
+    const more = done.length > RECAP_MAX ? `${done.length - RECAP_MAX} more, ` : '';
+    lines.push([seg('✓', 'done'), seg(' ', 'plain'), seg(clip(`Done: ${more}${done.slice(-RECAP_MAX).join(', ')}`, w - 2), 'dim')]);
+  }
+  const more = left.length > RECAP_MAX ? ` +${left.length - RECAP_MAX}` : '';
+  // The `+N` count survives clipping: only the titles are cut.
+  const text = left.length ? `${clip(`Left: ${left.slice(0, RECAP_MAX).join(', ')}`, w - 2 - more.length)}${more}` : 'All steps done.';
+  lines.push([seg('○', 'dim'), seg(' ', 'plain'), seg(clip(text, w - 2), 'dim')]);
+  return lines;
 }
 
 /**
