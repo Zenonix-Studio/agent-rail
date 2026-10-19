@@ -3,7 +3,7 @@
   "source": "claude",
   "sessionId": "done",
   "cwd": "/work/shipped",
-  "updatedAt": "2026-10-18T20:42:27.497Z",
+  "updatedAt": "2026-10-19T12:57:01.634Z",
   "jobs": [
     {
       "id": "claude:done:1",
@@ -19,9 +19,9 @@
           "status": "done"
         }
       ],
-      "startedAt": "2026-10-18T20:27:27.497Z",
-      "updatedAt": "2026-10-18T20:42:27.497Z",
-      "endedAt": "2026-10-18T20:42:27.497Z",
+      "startedAt": "2026-10-19T12:42:01.634Z",
+      "updatedAt": "2026-10-19T12:57:01.634Z",
+      "endedAt": "2026-10-19T12:57:01.634Z",
       "now": null
     }
   ],

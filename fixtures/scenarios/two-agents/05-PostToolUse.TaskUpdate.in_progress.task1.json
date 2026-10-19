@@ -1,0 +1,22 @@
+{
+  "session_id": "session-0501",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/rail-demo",
+  "prompt_id": "prompt-0501-1",
+  "permission_mode": "bypassPermissions",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskUpdate",
+  "tool_input": {
+    "taskId": "1",
+    "status": "in_progress"
+  },
+  "tool_response": {
+    "success": true,
+    "taskId": "1",
+    "updatedFields": [
+      "status"
+    ]
+  },
+  "tool_use_id": "toolu-0501-04",
+  "duration_ms": 2
+}

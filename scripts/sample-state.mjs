@@ -103,6 +103,33 @@ write('claude-untitled.json', session('claude', 'untitled', {
   })],
 }));
 
+// Two background agents (fixtures/scenarios/two-agents): Agent 1 keeps its own 6-step plan, Agent 2 has none.
+write('claude-agents.json', session('claude', 'agents', {
+  project: 'rail-demo', updatedAt: t(0.2),
+  jobs: [job('claude', 'agents', 1, {
+    title: 'Two agents write steps', summary: 'Dispatch two background step writers.', startedAt: t(1.2), updatedAt: t(0.5),
+    prompt: 'Give 2 agents a one-minute job each: write adim-1..6 to agentN.txt, 10 seconds apart, then summarize.',
+    milestones: [ms('1', 'Start the agents', 'done'), ms('2', 'Wait for the agents', 'active'), ms('3', 'Summarize the results', 'pending')],
+    now: { milestone: '2', pills: [pill('Planned 3 steps', 'ok'), pill('Dispatched 2 agents', 'ok'), pill('Start the agents', 'ok'), pill('Waiting for the agents', 'info')], attempt: 1, file: null },
+  })],
+  agents: {
+    'agent-0510': {
+      id: 'agent-0510', name: 'Agent 1 step writer', status: 'running', activity: 'Writing adim-3', job: 1, startedAt: t(1.0), updatedAt: t(0.3), endedAt: null,
+      summary: 'Write adim-1 to adim-6 into agent1.txt, one line every 10 seconds',
+      milestones: [ms('1', 'Create agent1.txt', 'done'), ms('2', 'Write adim-1', 'done'), ms('3', 'Write adim-2', 'done'),
+        ms('4', 'Write adim-3', 'active'), ms('5', 'Write adim-4', 'pending'), ms('6', 'Write adim-5 and adim-6', 'pending')],
+      steps: [pill('Write adim-1 to agent1.txt', 'ok'), pill('Write adim-1', 'ok'), pill('Write adim-2 to agent1.txt', 'ok'),
+        pill('Write adim-2', 'ok'), pill('Writing adim-3', 'info'), pill('Write adim-3 to agent1.txt', 'active')],
+    },
+    'agent-0511': {
+      id: 'agent-0511', name: 'Agent 2 step writer', status: 'running', activity: 'Write adim-4 to agent2.txt', job: 1, startedAt: t(0.95), updatedAt: t(0.2), endedAt: null,
+      summary: 'Append adim-1 to adim-6 to agent2.txt, one line every 10 seconds', milestones: [],
+      steps: [pill('Write adim-1 to agent2.txt', 'ok'), pill('Write adim-2 to agent2.txt', 'ok'),
+        pill('Write adim-3 to agent2.txt', 'ok'), pill('Write adim-4 to agent2.txt', 'active')],
+    },
+  },
+}));
+
 write('broken.json', '{"sch');
 
 write('claude-future.json', { ...session('claude', 'future', { project: 'future', jobs: [] }), schema: 2 });
@@ -115,4 +142,4 @@ write('claude-exploded.json', session('claude', 'exploded', {
   })],
 }));
 
-console.log(`wrote 10 sample files to ${dir}`);
+console.log(`wrote 11 sample files to ${dir}`);

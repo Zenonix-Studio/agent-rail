@@ -39,13 +39,14 @@ const AGENT_NAME_MAX = 40;
  * row collapse into one pill (`groupLabel`).
  * @typedef {{
  *   label: string, fail: string, key: string,
- *   group: string|null, item: string|null, agentName?: string|null, agentType?: string|null
+ *   group: string|null, item: string|null, agentName?: string|null, agentType?: string|null, agentTask?: string|null
  * }} Step
  *  `label`: human sentence, e.g. "Editing LoginView.swift". `fail`: what to show when it failed.
  *  `key`: what the retry counter counts (`Build`, `Test`, else the label).
  *  `group`: collapse family (`read`, `search`, `edit`, `dispatch`, `web`, or `=<label>` for exact repeats).
  *  `item`: the file / pattern / agent the step is about, for the collapsed count.
  *  `agentName`/`agentType`: for a dispatch, the name the new agent is shown under and its type.
+ *  `agentTask`: for a dispatch, what the agent is asked to do: the first sentence of its prompt.
  */
 
 /**
@@ -82,12 +83,12 @@ export function describeTool(name, input) {
     const typeName = type ? agentTypeName(type) : null;
     const label = desc ? `Dispatched agent: ${desc}`
       : typeName ? `Dispatched ${lowerFirst(typeName)}` : 'Dispatched an agent';
-    return step(label, { group: 'dispatch', item: desc ?? typeName, fail: 'Agent dispatch failed', agentName: desc ? clipText(desc, AGENT_NAME_MAX) : typeName, agentType: type });
+    return step(label, { group: 'dispatch', item: desc ?? typeName, fail: 'Agent dispatch failed', agentName: desc ? clipText(desc, AGENT_NAME_MAX) : typeName, agentType: type, agentTask: firstSentence(args.prompt) });
   }
   if (tool === 'collaborationspawn_agent' || tool === 'spawn_agent') {
     const task = text(args.task_name) ?? text(args.name);
     const shown = task ? sentence(words(task)) : null;
-    return step(shown ? `Dispatched agent: ${shown}` : 'Dispatched an agent', { group: 'dispatch', item: shown, agentName: shown && clipText(shown, AGENT_NAME_MAX), agentType: null });
+    return step(shown ? `Dispatched agent: ${shown}` : 'Dispatched an agent', { group: 'dispatch', item: shown, agentName: shown && clipText(shown, AGENT_NAME_MAX), agentType: null, agentTask: firstSentence(args.message) });
   }
   if (tool === 'Skill') {
     const skill = text(args.skill) ?? text(args.name);
@@ -246,7 +247,7 @@ function fileStep(verb, group, path, none) {
 
 /**
  * @param {string} label
- * @param {{key?: string, fail?: string, group?: string|null, item?: string|null, agentName?: string|null, agentType?: string|null}} [o]
+ * @param {{key?: string, fail?: string, group?: string|null, item?: string|null, agentName?: string|null, agentType?: string|null, agentTask?: string|null}} [o]
  * @returns {Step}
  */
 function step(label, o = {}) {
@@ -263,8 +264,23 @@ function step(label, o = {}) {
   if (o.agentName !== undefined) {
     s.agentName = o.agentName;
     s.agentType = o.agentType ?? null;
+    s.agentTask = o.agentTask ?? null;
   }
   return s;
+}
+
+const TASK_MAX = 100;
+
+/**
+ * The first sentence of a dispatch prompt, one line, at most 100 characters.
+ * @param {unknown} prompt @returns {string|null} null when there is no prompt.
+ */
+export function firstSentence(prompt) {
+  const t = text(prompt);
+  if (!t) return null;
+  // A sentence ends at . ! or ? followed by whitespace and a capital: "v1.2 fix" or "e.g. this" do not split.
+  const first = t.split(/(?<=[.!?])\s+(?=\p{Lu})/u)[0] ?? t;
+  return clipText(first.replace(/[.]$/, ''), TASK_MAX);
 }
 
 /** One line of the agent's own text: whitespace collapsed, trimmed; null when empty. @param {unknown} v */
@@ -340,13 +356,23 @@ const PLAN_NUDGE = {
   codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.',
 };
 
+/** Asks the main agent to have its subagents plan too, so each agent row has its own progress. */
+const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep its own short task list (3–7 steps) updated as it works.';
+
+/**
+ * Injected into a Claude subagent on SubagentStart (hookSpecificOutput.additionalContext).
+ */
+export const SUBAGENT_INSTRUCTION =
+  'For work with more than two steps, keep your own short task list (3–7 steps) with your task tool, and keep each step\'s status updated as you work.';
+
 /**
  * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge.
  * @param {string|undefined} source 'claude' | 'codex'
  * @returns {string}
  */
 export function railInstruction(source) {
-  return MARKER_INSTRUCTION + (PLAN_NUDGE[/** @type {'claude'|'codex'} */ (source)] ?? '');
+  const nudge = PLAN_NUDGE[/** @type {'claude'|'codex'} */ (source)];
+  return MARKER_INSTRUCTION + (nudge ? nudge + AGENT_PLAN_NUDGE : '');
 }
 
 const TRANSCRIPT_TAIL_LINES = 200;

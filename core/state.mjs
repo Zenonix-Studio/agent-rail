@@ -18,9 +18,12 @@ import { dirname, join } from 'node:path';
  * }} Job
  * @typedef {{
  *   id: string, name: string, status: 'running'|'done'|'error'|'stale',
- *   activity: string, job: number|null, updatedAt: string, endedAt: string|null,
- *   _type?: string|null, _run?: object|null
+ *   activity: string, summary: string, milestones: Milestone[], steps: Pill[],
+ *   job: number|null, startedAt: string, updatedAt: string, endedAt: string|null,
+ *   _type?: string|null, _open?: string[]
  * }} Agent `name`: the dispatch description, else the agent type. `job` is the seq of the job the agent started in.
+ *   `startedAt`: when it was first seen; agents are listed in this order.
+ *   `summary`: what it was asked to do. `milestones`: its own plan. `steps`: its own story, the last 6 pills.
  * @typedef {{
  *   schema: 1, source: 'claude'|'codex', sessionId: string, cwd: string,
  *   project: string, updatedAt: string, jobs: Job[],

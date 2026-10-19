@@ -4,6 +4,7 @@ import SwiftUI
 /// The menu bar popover: header, one card per job (one expanded at a time), footer.
 struct PopoverView: View {
     let store: SessionStore
+    let agentExpansion: AgentExpansion
     /// The snapshot renders the list unscrolled, since `ImageRenderer` does not draw scroll view content.
     var scrollable = true
 
@@ -14,8 +15,9 @@ struct PopoverView: View {
 
     @State private var expansion: Expansion
 
-    init(store: SessionStore, scrollable: Bool = true, expandedJobID: String? = nil) {
+    init(store: SessionStore, agentExpansion: AgentExpansion, scrollable: Bool = true, expandedJobID: String? = nil) {
         self.store = store
+        self.agentExpansion = agentExpansion
         self.scrollable = scrollable
         _expansion = State(initialValue: expandedJobID.map(Expansion.job) ?? .automatic)
     }
@@ -44,6 +46,7 @@ struct PopoverView: View {
         .padding(8)
         .frame(width: Self.width)
         .background(Theme.surface)
+        .onChange(of: agentIDs, initial: true) { _, ids in agentExpansion.prune(keeping: ids) }
     }
 
     /// Counts what the cards show (stale included); the menu bar icon keeps its live counts.
@@ -69,7 +72,7 @@ struct PopoverView: View {
         return VStack(spacing: 8) {
             ForEach(items) { item in
                 if item.id == expandedID {
-                    JobDetailView(item: item, now: store.now) { toggle(item.id, current: expandedID) }
+                    JobDetailView(item: item, now: store.now, agentExpansion: agentExpansion) { toggle(item.id, current: expandedID) }
                 } else {
                     Button { toggle(item.id, current: expandedID) } label: {
                         JobRowView(item: item, now: store.now)
@@ -78,6 +81,10 @@ struct PopoverView: View {
                 }
             }
         }
+    }
+
+    private var agentIDs: Set<String> {
+        Set(store.sessions.flatMap { $0.agents.keys })
     }
 
     private func resolvedExpansion(_ items: [JobItem]) -> String? {

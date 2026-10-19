@@ -5,7 +5,7 @@ import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSe
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce } from '../core/reduce.mjs';
-import { railInstruction, extractMeta, findMarkerInTranscript } from '../core/flow.mjs';
+import { railInstruction, extractMeta, findMarkerInTranscript, SUBAGENT_INSTRUCTION } from '../core/flow.mjs';
 
 const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
 
@@ -60,10 +60,17 @@ async function main() {
     }
     writeSession(path, reduce(prev, { source, ...event }, new Date()));
   }, logError);
-  // The only stdout output: ask the agent to write the title/summary marker (spike Q5 shape, both tools).
+  // Stdout carries hook context only, never anything else. UserPromptSubmit: ask the main agent
+  // for the title/summary marker and a plan (spike Q5 shape, both tools).
   if (event.event?.type === 'prompt' && !event.agentId) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: railInstruction(source) },
+    }));
+  }
+  // Claude Code adds a SubagentStart hook's context to the subagent: ask it to keep its own task list.
+  if (source === 'claude' && event.event?.type === 'agent-start' && event.agentId) {
+    process.stdout.write(JSON.stringify({
+      hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: SUBAGENT_INSTRUCTION },
     }));
   }
 }

@@ -9,11 +9,16 @@ enum DebugCommands {
     static func run(arguments: [String]) -> Bool {
         if let i = arguments.firstIndex(of: "--snapshot") {
             guard let out = arguments.dropFirst(i + 1).first else {
-                FileHandle.standardError.write(Data("usage: --snapshot <out.png> [--expand <jobId>] [--light]\n".utf8))
+                FileHandle.standardError.write(Data("usage: --snapshot <out.png> [--expand <jobId>] [--expand-agent <agentId>]... [--collapse-agent <agentId>]... [--light]\n".utf8))
                 exit(2)
             }
             let expand = arguments.firstIndex(of: "--expand").flatMap { arguments.dropFirst($0 + 1).first }
-            exit(snapshot(to: URL(fileURLWithPath: out), expandedJobID: expand, light: arguments.contains("--light")) ? 0 : 1)
+            let values = { (flag: String) in
+                arguments.indices.filter { arguments[$0] == flag && $0 + 1 < arguments.count }.map { arguments[$0 + 1] }
+            }
+            let agents = AgentExpansion(open: values("--expand-agent"), closed: values("--collapse-agent"))
+            exit(snapshot(to: URL(fileURLWithPath: out), expandedJobID: expand, agents: agents,
+                          light: arguments.contains("--light")) ? 0 : 1)
         }
         if let i = arguments.firstIndex(of: "--dump-after") {
             let seconds = arguments.dropFirst(i + 1).first.flatMap(Double.init) ?? 3
@@ -28,9 +33,9 @@ enum DebugCommands {
     }
 
     /// Renders the popover once (dark, or light with `--light`; 2x, 340 pt wide) from a store loaded from `StateRoot.url()`.
-    @MainActor private static func snapshot(to url: URL, expandedJobID: String?, light: Bool) -> Bool {
+    @MainActor private static func snapshot(to url: URL, expandedJobID: String?, agents: AgentExpansion, light: Bool) -> Bool {
         let store = SessionStore()
-        let view = PopoverView(store: store, scrollable: false, expandedJobID: expandedJobID)
+        let view = PopoverView(store: store, agentExpansion: agents, scrollable: false, expandedJobID: expandedJobID)
             .environment(\.colorScheme, light ? .light : .dark)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 2

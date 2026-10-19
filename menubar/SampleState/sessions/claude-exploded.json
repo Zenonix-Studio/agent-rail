@@ -3,7 +3,7 @@
   "source": "claude",
   "sessionId": "exploded",
   "cwd": "/work/weird",
-  "updatedAt": "2026-10-18T20:43:27.497Z",
+  "updatedAt": "2026-10-19T12:58:01.635Z",
   "jobs": [
     {
       "id": "claude:exploded:1",
@@ -13,8 +13,8 @@
       "prompt": "x",
       "status": "exploded",
       "milestones": [],
-      "startedAt": "2026-10-18T20:17:27.497Z",
-      "updatedAt": "2026-10-18T20:43:27.497Z",
+      "startedAt": "2026-10-19T12:32:01.635Z",
+      "updatedAt": "2026-10-19T12:58:01.635Z",
       "endedAt": null,
       "now": {
         "milestone": "",

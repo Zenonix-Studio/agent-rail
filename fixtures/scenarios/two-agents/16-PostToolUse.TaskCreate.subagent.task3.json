@@ -1,0 +1,24 @@
+{
+  "session_id": "session-0501",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/rail-demo",
+  "prompt_id": "prompt-0501-1",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "agent-0510",
+  "agent_type": "general-purpose",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskCreate",
+  "tool_input": {
+    "subject": "Write adim-2",
+    "description": "Write adim-2 in agent1.txt.",
+    "activeForm": "Writing adim-2"
+  },
+  "tool_response": {
+    "task": {
+      "id": "3",
+      "subject": "Write adim-2"
+    }
+  },
+  "tool_use_id": "toolu-0501-11",
+  "duration_ms": 3
+}

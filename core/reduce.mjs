@@ -19,6 +19,8 @@ const MILESTONE_STATUS = new Set(['pending', 'active', 'done']);
 const AGENT_STATUS = new Set(['running', 'done', 'error', 'stale']);
 const PILL_KINDS = new Set(['ok', 'warn', 'active', 'info']);
 const MAX_PILLS = 4;
+const MAX_AGENT_STEPS = 6; // story steps kept per subagent
+const SUMMARY_MAX = 100;
 const MAX_OPEN = 20; // open call ids kept for pre/post pairing
 const MAX_ITEMS = 20; // items kept per collapsed run
 const MAX_DISPATCH = 10; // recent Agent calls kept to name the agents they start
@@ -84,12 +86,9 @@ function apply(s, input, at) {
     case 'plan':
     case 'task-create':
     case 'task-update':
-      // Only the main agent's plan drives milestones and %.
-      if (agentId) {
-        const a = agent(s, agentId, at);
-        a.activity = (e.type === 'task-update' && e.status === 'active' && str(e.activeForm)) ? clipText(e.activeForm, LABEL_MAX) : 'Planning';
-        a._run = null;
-      } else onMilestones(s, e, at);
+      // Only the main agent's plan drives the job's milestones and %; a subagent's plan is its own.
+      if (agentId) onAgentMilestones(s, agentId, e, at);
+      else onMilestones(s, e, at);
       break;
     case 'tool':
       onTool(s, agentId, e, at);
@@ -99,7 +98,9 @@ function apply(s, input, at) {
         const a = agent(s, agentId, at);
         a._type = str(e.name) ?? a._type ?? null;
         // The dispatch's own description names it; else its agent type, humanized.
-        a.name = claimDispatch(s, agentId, a._type)?.name ?? agentTypeName(a._type) ?? a.name;
+        const d = claimDispatch(s, agentId, a._type);
+        a.name = d?.name ?? agentTypeName(a._type) ?? a.name;
+        if (d) a.summary = dispatchSummary(d);
         a.status = 'running';
         a.job = current(s)?.seq ?? null;
         a.endedAt = null;
@@ -205,37 +206,101 @@ function onMilestones(s, e, at) {
     // Its own start pill ("Planning the change") is superseded by the ✓.
     const startOf = `@${left?.key}`;
     job.now = { ...emptyNow(key), pills: job.now.pills.filter((p) => !(left?.status === 'done' && p._run?.g === startOf)) };
-    if (left?.status === 'done') pushPill(job, key, newPill({ label: clipText(left.title, LABEL_MAX), group: null, item: null }, 'ok', null));
+    if (left?.status === 'done') pushPill(nowOf(job, key), donePill(left), MAX_PILLS);
   }
   if (!changed) return;
-  // The plan itself is a step of the story: "Planned 4 steps", then the step being worked on.
-  if (isNewTask) planPill(job, key, 1);
-  else if (e.type === 'plan' && known === 0 && job.milestones.length > 0) planPill(job, key, job.milestones.length);
-  if (key !== '' && key !== prevKey) {
-    // The task's own "-ing" form ("Writing the README") only when it says more than the title above.
-    const m = job.milestones.find((x) => x.key === key);
-    const label = (e.type === 'task-update' && str(e.activeForm)) || str(m?._activeForm);
-    if (label && label !== m?.title) pushPill(job, key, newPill({ label: clipText(label, LABEL_MAX), group: `@${key}`, item: null }, 'info', null));
-  }
+  planPills(nowOf(job, key), e, known, isNewTask, job.milestones, MAX_PILLS);
+  if (key !== prevKey) startPill(nowOf(job, key), e, job.milestones, key, MAX_PILLS);
 }
 
-/** Adds `n` planned steps to the flow, merging with a "Planned N steps" pill right before. */
-function planPill(job, key, n) {
-  const now = job.now ?? (job.now = emptyNow(key));
-  const last = now.pills[now.pills.length - 1];
+/**
+ * A subagent's own plan (Claude TaskCreate / TaskUpdate / TodoWrite, Codex update_plan
+ * from a sub-thread): it fills `Agent.milestones` and adds the same story steps as the
+ * main flow. It never touches the job's milestones.
+ */
+function onAgentMilestones(s, agentId, e, at) {
+  const a = agent(s, agentId, at);
+  const prevKey = activeKey(a);
+  const known = a.milestones.length;
+  const wasDone = new Set(a.milestones.filter((m) => m.status === 'done').map((m) => m.key));
+  const isNewTask = e.type === 'task-create' && !a.milestones.some((m) => m.key === e.key);
+  if (!changeMilestones(a, e)) return;
+  const story = { pills: a.steps, _open: a._open };
+  planPills(story, e, known, isNewTask, a.milestones, MAX_AGENT_STEPS);
+  // A finished step of its plan becomes a step of its story, replacing its own start step.
+  for (const m of a.milestones) {
+    if (m.status !== 'done' || wasDone.has(m.key)) continue;
+    story.pills = story.pills.filter((p) => p._run?.g !== `@${m.key}`);
+    pushPill(story, donePill(m), MAX_AGENT_STEPS);
+  }
+  const key = activeKey(a);
+  if (key !== prevKey) startPill(story, e, a.milestones, key, MAX_AGENT_STEPS);
+  a.steps = story.pills;
+  a.activity = agentActivity(a);
+}
+
+/**
+ * The plan itself is a step of the story: "Planned 4 steps".
+ * @param {{pills: Pill[]}} story @param {Record<string, any>} e
+ * @param {number} known milestones before the event @param {boolean} isNewTask
+ * @param {import('./state.mjs').Milestone[]} milestones after the event
+ * @param {number} max pills kept
+ */
+function planPills(story, e, known, isNewTask, milestones, max) {
+  if (isNewTask) planPill(story, 1, max);
+  else if (e.type === 'plan' && known === 0 && milestones.length > 0) planPill(story, milestones.length, max);
+}
+
+/**
+ * The step being worked on, once its milestone becomes active.
+ * @param {{pills: Pill[]}} story @param {Record<string, any>} e
+ * @param {import('./state.mjs').Milestone[]} milestones
+ * @param {string} started key of the milestone that just became active, or '' @param {number} max
+ */
+function startPill(story, e, milestones, started, max) {
+  if (started === '') return;
+  // The task's own "-ing" form ("Writing the README") only when it says more than the title above.
+  const m = milestones.find((x) => x.key === started);
+  const label = (e.type === 'task-update' && str(e.activeForm)) || str(m?._activeForm);
+  if (label && label !== m?.title) pushPill(story, newPill({ label: clipText(label, LABEL_MAX), group: `@${started}`, item: null }, 'info', null), max);
+}
+
+/** @param {import('./state.mjs').Milestone} m @returns {Pill} "<title> ✓" */
+function donePill(m) {
+  return newPill({ label: clipText(m.title, LABEL_MAX), group: null, item: null }, 'ok', null);
+}
+
+/**
+ * An agent's current step, one line: with a plan, the active milestone's "-ing" form (else its
+ * title), else the next pending one; without a plan (or with every step done), its latest step.
+ * @param {Agent} a @returns {string}
+ */
+function agentActivity(a) {
+  const m = a.milestones.find((x) => x.status === 'active') ?? a.milestones.find((x) => x.status === 'pending');
+  if (m) return clipText(str(m._activeForm) ?? m.title, LABEL_MAX);
+  return a.steps[a.steps.length - 1]?.label ?? (a.milestones.length ? 'Planning' : a.activity);
+}
+
+/** @param {Job} job @param {string} key @returns {Now} */
+function nowOf(job, key) {
+  return job.now ?? (job.now = emptyNow(key));
+}
+
+/** Adds `n` planned steps to a story, merging with a "Planned N steps" pill right before. */
+function planPill(story, n, max) {
+  const last = story.pills[story.pills.length - 1];
   if (last?._run?.g === 'plan') {
     last._run.n += n;
     last.label = groupLabel('plan', [], last._run.n, '');
     return;
   }
-  pushPill(job, key, { label: groupLabel('plan', [], n, ''), kind: 'ok', _run: { g: 'plan', items: [], n, one: '', ids: [] } });
+  pushPill(story, { label: groupLabel('plan', [], n, ''), kind: 'ok', _run: { g: 'plan', items: [], n, one: '', ids: [] } }, max);
 }
 
-/** @param {Job} job @param {string} key @param {Pill} pill */
-function pushPill(job, key, pill) {
-  const now = job.now ?? (job.now = emptyNow(key));
-  now.pills.push(pill);
-  now.pills = now.pills.slice(-MAX_PILLS);
+/** @param {{pills: Pill[]}} story @param {Pill} pill @param {number} max */
+function pushPill(story, pill, max) {
+  story.pills.push(pill);
+  story.pills = story.pills.slice(-max);
 }
 
 /**
@@ -250,7 +315,7 @@ function isDisjoint(job, e) {
   return items.every((it) => !keys.has(it.key));
 }
 
-/** @param {Job} job @param {Record<string, any>} e @returns {boolean} true when milestones changed */
+/** @param {{milestones: import('./state.mjs').Milestone[]}} job a job, or a subagent's own plan @param {Record<string, any>} e @returns {boolean} true when milestones changed */
 function changeMilestones(job, e) {
   if (e.type === 'plan') {
     job.milestones = planItems(e);
@@ -313,29 +378,47 @@ function onTool(s, agentId, e, at) {
   const ck = step.key;
   if (step.group === 'dispatch') noteDispatch(s, e, id);
 
+  if (storyTool(now, e, step, id, MAX_PILLS)) counts[ck] = (counts[ck] ?? 0) + 1;
+  // R18: a failure starts a retry count for steps that do not always count.
+  if (e.phase !== 'pre' && e.ok === false && !RETRY_KEYS.has(ck) && !(ck in now._retryBase)) now._retryBase[ck] = (counts[ck] ?? 1) - 1;
+  const n = counts[ck] ?? 1;
+  now.attempt = RETRY_KEYS.has(ck) ? n : ck in now._retryBase ? n - now._retryBase[ck] : 1;
+  if (file) now.file = file;
+  job.updatedAt = at;
+}
+
+/**
+ * Folds one tool call into a story: pairs pre/post by call id, collapses steps of
+ * the same group into one pill, and keeps a failed step visible on its own.
+ * @param {{pills: Pill[], _open: string[]}} story mutated in place
+ * @param {Record<string, any>} e @param {StepIn} step @param {string|null} id
+ * @param {number} max pills kept
+ * @returns {boolean} true when the call counts as a new occurrence of its step
+ */
+function storyTool(story, e, step, id, max) {
+  let counted = true;
   if (e.phase === 'pre') {
-    const last = now.pills[now.pills.length - 1];
+    const last = story.pills[story.pills.length - 1];
     if (mergeable(last, step)) {
       addToRun(last, step, id);
       last.kind = 'active';
     } else {
-      now.pills.push(newPill(step, 'active', id));
+      story.pills.push(newPill(step, 'active', id));
     }
-    counts[ck] = (counts[ck] ?? 0) + 1;
-    if (id) now._open = [...now._open, id].slice(-MAX_OPEN);
+    if (id) story._open = [...story._open, id].slice(-MAX_OPEN);
   } else {
     const kind = e.ok === true ? 'ok' : e.ok === false ? 'warn' : 'info';
     // Parallel calls: pair by call id first, else by the latest active pill of this group.
-    const opened = id !== null && now._open.includes(id);
-    if (opened) now._open = now._open.filter((x) => x !== id);
+    const opened = id !== null && story._open.includes(id);
+    if (opened) story._open = story._open.filter((x) => x !== id);
     let i = -1;
-    for (let k = now.pills.length - 1; k >= 0; k--) {
-      const p = now.pills[k];
+    for (let k = story.pills.length - 1; k >= 0; k--) {
+      const p = story.pills[k];
       const run = p._run;
       if (id !== null ? run?.ids.includes(id) : p.kind === 'active' && run?.g === step.group) { i = k; break; }
     }
     if (i >= 0) {
-      const p = now.pills[i];
+      const p = story.pills[i];
       const run = /** @type {Run} */ (p._run);
       if (id !== null) run.ids = run.ids.filter((x) => x !== id);
       else run.ids = run.ids.slice(1);
@@ -346,54 +429,36 @@ function onTool(s, agentId, e, at) {
         if (j >= 0) run.items.splice(j, 1);
         p.label = groupLabel(run.g, run.items, run.n, run.one);
         if (run.ids.length === 0) p.kind = 'ok';
-        now.pills.splice(i + 1, 0, failPill(step));
+        story.pills.splice(i + 1, 0, failPill(step));
       } else if (e.ok === false) {
-        now.pills[i] = failPill(step);
+        story.pills[i] = failPill(step);
       } else if (run.ids.length === 0) {
         p.kind = kind;
       }
     } else {
-      const last = now.pills[now.pills.length - 1];
+      const last = story.pills[story.pills.length - 1];
       if (e.ok !== false && mergeable(last, step)) {
         addToRun(last, step, null);
         if (/** @type {Run} */ (last._run).ids.length === 0) last.kind = kind;
       } else {
-        now.pills.push(e.ok === false ? failPill(step) : newPill(step, kind, null));
+        story.pills.push(e.ok === false ? failPill(step) : newPill(step, kind, null));
       }
     }
     // A post whose pre was never seen still counts as one occurrence.
-    if (i < 0 && !opened) counts[ck] = (counts[ck] ?? 0) + 1;
-    // R18: a failure starts a retry count for steps that do not always count.
-    if (e.ok === false && !RETRY_KEYS.has(ck) && !(ck in now._retryBase)) now._retryBase[ck] = (counts[ck] ?? 1) - 1;
+    counted = i < 0 && !opened;
   }
-  now.pills = now.pills.slice(-MAX_PILLS);
-  const n = counts[ck] ?? 1;
-  now.attempt = RETRY_KEYS.has(ck) ? n : ck in now._retryBase ? n - now._retryBase[ck] : 1;
-  if (file) now.file = file;
-  job.updatedAt = at;
+  story.pills = story.pills.slice(-max);
+  return counted;
 }
 
-/** A subagent's tool call: its `activity` is its latest step, collapsed the same way as pills. */
+/** A subagent's tool call: a step of its own story, built like the main flow; `activity` is its latest step. */
 function onAgentTool(s, agentId, e, step, id, at) {
   const a = agent(s, agentId, at);
-  if (e.ok === false) {
-    a.activity = step.fail;
-    a._run = null;
-  } else {
-    const run = a._run;
-    // The post of a call already shown by its pre adds nothing.
-    if (!(e.phase === 'post' && id !== null && run?.ids.includes(id))) {
-      if (run && run.g !== null && run.g === step.group) {
-        run.n += 1;
-        if (step.item) run.items = [...run.items, step.item].slice(-MAX_ITEMS);
-        if (id) run.ids = [...run.ids, id].slice(-MAX_OPEN);
-        a.activity = groupLabel(run.g, run.items, run.n, run.one);
-      } else {
-        a._run = { g: step.group, items: step.item ? [step.item] : [], n: 1, one: step.label, ids: id ? [id] : [] };
-        a.activity = step.label;
-      }
-    }
-  }
+  const story = { pills: a.steps, _open: a._open };
+  storyTool(story, e, step, id, MAX_AGENT_STEPS);
+  a.steps = story.pills;
+  a._open = story._open;
+  a.activity = agentActivity(a);
   // M3: only the main agent's activity clears a permission 'waiting'. R19: after a
   // main-agent Stop, a working subagent of the job means the job still runs.
   const job = current(s);
@@ -452,14 +517,18 @@ function noteDispatch(s, e, id) {
     if (!d) return;
     s._dispatch = s._dispatch.filter((x) => x !== d);
     const took = d.claimed ? s.agents[d.claimed] : null;
-    if (isObj(took)) took.name = agentTypeName(took._type) ?? 'agent';
+    if (isObj(took)) {
+      took.name = agentTypeName(took._type) ?? 'agent';
+      took.summary = '';
+    }
     return;
   }
   if (!d) {
-    d = { id, name: str(e.agentName), type: str(e.agentType), agent: null, claimed: null, job: current(s)?.seq ?? null };
+    d = { id, name: str(e.agentName), task: str(e.agentTask), type: str(e.agentType), agent: null, claimed: null, job: current(s)?.seq ?? null };
     s._dispatch = [...s._dispatch, d].slice(-MAX_DISPATCH);
   }
   d.name ??= str(e.agentName);
+  d.task ??= str(e.agentTask);
   const spawned = str(e.spawned);
   if (!spawned || d.agent === spawned) return;
   d.agent = spawned;
@@ -471,10 +540,15 @@ function noteDispatch(s, e, id) {
     for (const x of s._dispatch) if (x !== d && x.claimed === spawned) x.claimed = null;
     d.claimed = spawned;
     if (d.name) target.name = d.name;
+    target.summary = dispatchSummary(d);
   }
   // Another agent took this call's name by guess: it guesses again.
   const wrong = guessed ? s.agents[guessed] : null;
-  if (isObj(wrong)) wrong.name = claimDispatch(s, wrong.id, wrong._type)?.name ?? agentTypeName(wrong._type) ?? 'agent';
+  if (isObj(wrong)) {
+    const again = claimDispatch(s, wrong.id, wrong._type);
+    wrong.name = again?.name ?? agentTypeName(wrong._type) ?? 'agent';
+    wrong.summary = again ? dispatchSummary(again) : '';
+  }
 }
 
 /**
@@ -483,7 +557,7 @@ function noteDispatch(s, e, id) {
  * calls of the type with different names: no guess (the type name shows until
  * an exact link arrives). Untyped agents never guess.
  * @param {Session} s @param {string} agentId @param {string|null} type
- * @returns {{name: string|null}|null}
+ * @returns {{name: string|null, task: string|null}|null}
  */
 function claimDispatch(s, agentId, type) {
   const list = s._dispatch;
@@ -495,7 +569,12 @@ function claimDispatch(s, agentId, type) {
   }
   if (!d) return null;
   d.claimed = agentId;
-  return d.name ? d : null;
+  return d;
+}
+
+/** What a dispatch asked its agent to do: the prompt's first sentence, else its description. */
+function dispatchSummary(d) {
+  return d.task ?? d.name ?? '';
 }
 
 /**
@@ -506,7 +585,10 @@ function applyNames(s, names) {
   for (const n of names) {
     if (!isObj(n) || !str(n.id) || !str(n.description)) continue;
     const a = s.agents[n.id];
-    if (isObj(a)) a.name = clipText(n.description.replace(/\s+/g, ' ').trim(), 40);
+    if (!isObj(a)) continue;
+    const desc = n.description.replace(/\s+/g, ' ').trim();
+    a.name = clipText(desc, 40);
+    if (a.summary === '') a.summary = clipText(desc, SUMMARY_MAX);
   }
 }
 
@@ -600,13 +682,16 @@ function newJob(s, seq, prompt, status, at) {
 /** @returns {Agent} */
 function agent(s, id, at) {
   if (!isObj(s.agents[id])) {
-    s.agents[id] = { id, name: 'agent', status: 'running', activity: '', job: current(s)?.seq ?? null, updatedAt: at, endedAt: null, _type: null, _run: null };
+    s.agents[id] = {
+      id, name: 'agent', status: 'running', activity: '', summary: '', milestones: [], steps: [],
+      job: current(s)?.seq ?? null, startedAt: at, updatedAt: at, endedAt: null, _type: null, _open: [],
+    };
   }
   s.agents[id].updatedAt = at;
   return s.agents[id];
 }
 
-/** @param {Job} job @returns {string} key of the active milestone, or '' */
+/** @param {{milestones: import('./state.mjs').Milestone[]}} job a job or an agent @returns {string} key of the active milestone, or '' */
 function activeKey(job) {
   return job.milestones.find((m) => m.status === 'active')?.key ?? '';
 }
@@ -646,7 +731,7 @@ function sanitize(prev, input, at) {
     _dispatch: Array.isArray(p._dispatch)
       ? p._dispatch
         .filter((d) => isObj(d) && str(d.id))
-        .map((d) => ({ id: d.id, name: str(d.name), type: str(d.type), agent: str(d.agent), claimed: str(d.claimed), job: Number.isInteger(d.job) ? d.job : null }))
+        .map((d) => ({ id: d.id, name: str(d.name), task: str(d.task), type: str(d.type), agent: str(d.agent), claimed: str(d.claimed), job: Number.isInteger(d.job) ? d.job : null }))
         .slice(-MAX_DISPATCH)
       : [],
   };
@@ -663,15 +748,7 @@ function fixJob(j, i, source, sessionId, at) {
     summary: typeof j.summary === 'string' ? j.summary : '',
     prompt,
     status: JOB_STATUS.has(j.status) ? j.status : 'running',
-    milestones: Array.isArray(j.milestones)
-      ? j.milestones
-        .filter((m) => isObj(m) && str(m.key))
-        .map((m) => {
-          const out = { key: m.key, title: str(m.title) ?? m.key, status: MILESTONE_STATUS.has(m.status) ? m.status : 'pending' };
-          if (str(m._activeForm)) out._activeForm = m._activeForm;
-          return out;
-        })
-      : [],
+    milestones: fixMilestones(j.milestones),
     startedAt: str(j.startedAt) ?? at,
     updatedAt: str(j.updatedAt) ?? at,
     endedAt: str(j.endedAt),
@@ -680,6 +757,26 @@ function fixJob(j, i, source, sessionId, at) {
   if ('_prevEndedAt' in j) job._prevEndedAt = str(j._prevEndedAt);
   if (j._mainStopped !== true) delete job._mainStopped;
   return job;
+}
+
+/** @param {unknown} list @returns {import('./state.mjs').Milestone[]} */
+function fixMilestones(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((m) => isObj(m) && str(m.key))
+    .map((m) => {
+      const out = { key: m.key, title: str(m.title) ?? m.key, status: MILESTONE_STATUS.has(m.status) ? m.status : 'pending' };
+      if (str(m._activeForm)) out._activeForm = m._activeForm;
+      return out;
+    });
+}
+
+/** @param {unknown} list @returns {Pill[]} */
+function fixPills(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter((x) => isObj(x) && typeof x.label === 'string' && PILL_KINDS.has(x.kind))
+    .map((x) => ({ label: x.label, kind: x.kind, _run: fixRun(x._run, x.label, x._id) }));
 }
 
 function fixNow(n) {
@@ -691,11 +788,7 @@ function fixNow(n) {
   };
   return {
     milestone: typeof n.milestone === 'string' ? n.milestone : '',
-    pills: Array.isArray(n.pills)
-      ? n.pills
-        .filter((x) => isObj(x) && typeof x.label === 'string' && PILL_KINDS.has(x.kind))
-        .map((x) => ({ label: x.label, kind: x.kind, _run: fixRun(x._run, x.label, x._id) }))
-      : [],
+    pills: fixPills(n.pills),
     attempt: Number.isFinite(n.attempt) ? n.attempt : 0,
     file: str(n.file),
     _counts: nums(n._counts),
@@ -730,9 +823,14 @@ function fixAgent(id, a, at) {
     status: AGENT_STATUS.has(a.status) ? a.status : 'running',
     activity: typeof a.activity === 'string' ? a.activity : '',
     job: Number.isInteger(a.job) ? a.job : null,
+    // Older files: the first event seen is the best guess at its start.
+    startedAt: str(a.startedAt) ?? str(a.updatedAt) ?? at,
     updatedAt: str(a.updatedAt) ?? at,
     endedAt: str(a.endedAt),
+    summary: typeof a.summary === 'string' ? a.summary : '',
+    milestones: fixMilestones(a.milestones),
+    steps: fixPills(a.steps).slice(-MAX_AGENT_STEPS),
     _type: str(a._type),
-    _run: isObj(a._run) ? fixRun(a._run, typeof a.activity === 'string' ? a.activity : '') : null,
+    _open: Array.isArray(a._open) ? a._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
   };
 }

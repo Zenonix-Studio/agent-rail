@@ -14,12 +14,21 @@ export type RailJob = {
   endedAt: string | null;
   now: { milestone: string; pills: RailPill[]; attempt: number; file: string | null } | null;
 };
-export type RailAgent = { name: string; status: 'running' | 'done' | 'error' | 'stale'; activity: string; updatedAt?: string };
+/** `summary`, `milestones` and `steps` are absent in files written before they existed. */
+export type RailAgent = {
+  name: string;
+  status: 'running' | 'done' | 'error' | 'stale';
+  activity: string;
+  updatedAt?: string;
+  summary?: string;
+  milestones?: RailMilestone[];
+  steps?: RailPill[];
+};
 /** The current job, the clock it was read at (ms since the epoch), and the subagents that started in it. */
 export type RailView = { job: RailJob | null; at: number; agents: RailAgent[] };
 
 declare module 'claude-code' {
   interface PluginState {
-    'agent-rail': { view: RailView; isPaneShown: boolean };
+    'agent-rail': { view: RailView; isPaneShown: boolean; expandAll: boolean };
   }
 }

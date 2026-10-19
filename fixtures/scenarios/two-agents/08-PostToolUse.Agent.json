@@ -1,0 +1,22 @@
+{
+  "session_id": "session-0501",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/rail-demo",
+  "prompt_id": "prompt-0501-1",
+  "permission_mode": "bypassPermissions",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Agent 1 step writer",
+    "prompt": "Write adim-1 to adim-6 into agent1.txt, one line every 10 seconds. Keep a short task list of your steps and update it as you go.",
+    "subagent_type": "general-purpose",
+    "run_in_background": true
+  },
+  "tool_use_id": "toolu-0501-05",
+  "tool_response": {
+    "isAsync": true,
+    "status": "async_launched",
+    "agentId": "agent-0510",
+    "description": "Agent 1 step writer"
+  }
+}
