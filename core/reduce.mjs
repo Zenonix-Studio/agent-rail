@@ -209,7 +209,8 @@ function onMilestones(s, e, at) {
     if (left?.status === 'done') pushPill(nowOf(job, key), donePill(left), MAX_PILLS);
   }
   if (!changed) return;
-  planStory(nowOf(job, key), e, known, isNewTask, job.milestones, key !== prevKey ? key : '', MAX_PILLS);
+  planPills(nowOf(job, key), e, known, isNewTask, job.milestones, MAX_PILLS);
+  if (key !== prevKey) startPill(nowOf(job, key), e, job.milestones, key, MAX_PILLS);
 }
 
 /**
@@ -225,6 +226,7 @@ function onAgentMilestones(s, agentId, e, at) {
   const isNewTask = e.type === 'task-create' && !a.milestones.some((m) => m.key === e.key);
   if (!changeMilestones(a, e)) return;
   const story = { pills: a.steps, _open: a._open };
+  planPills(story, e, known, isNewTask, a.milestones, MAX_AGENT_STEPS);
   // A finished step of its plan becomes a step of its story, replacing its own start step.
   for (const m of a.milestones) {
     if (m.status !== 'done' || wasDone.has(m.key)) continue;
@@ -232,22 +234,30 @@ function onAgentMilestones(s, agentId, e, at) {
     pushPill(story, donePill(m), MAX_AGENT_STEPS);
   }
   const key = activeKey(a);
-  planStory(story, e, known, isNewTask, a.milestones, key !== prevKey ? key : '', MAX_AGENT_STEPS);
+  if (key !== prevKey) startPill(story, e, a.milestones, key, MAX_AGENT_STEPS);
   a.steps = story.pills;
   a.activity = a.steps[a.steps.length - 1]?.label ?? 'Planning';
 }
 
 /**
- * The plan itself is a step of the story: "Planned 4 steps", then the step being worked on.
+ * The plan itself is a step of the story: "Planned 4 steps".
  * @param {{pills: Pill[]}} story @param {Record<string, any>} e
  * @param {number} known milestones before the event @param {boolean} isNewTask
  * @param {import('./state.mjs').Milestone[]} milestones after the event
- * @param {string} started key of a milestone that just became active, or ''
  * @param {number} max pills kept
  */
-function planStory(story, e, known, isNewTask, milestones, started, max) {
+function planPills(story, e, known, isNewTask, milestones, max) {
   if (isNewTask) planPill(story, 1, max);
   else if (e.type === 'plan' && known === 0 && milestones.length > 0) planPill(story, milestones.length, max);
+}
+
+/**
+ * The step being worked on, once its milestone becomes active.
+ * @param {{pills: Pill[]}} story @param {Record<string, any>} e
+ * @param {import('./state.mjs').Milestone[]} milestones
+ * @param {string} started key of the milestone that just became active, or '' @param {number} max
+ */
+function startPill(story, e, milestones, started, max) {
   if (started === '') return;
   // The task's own "-ing" form ("Writing the README") only when it says more than the title above.
   const m = milestones.find((x) => x.key === started);
