@@ -2,7 +2,8 @@ import { describeTool } from './flow.mjs';
 
 /**
  * @typedef {{type:'prompt', text:string}
- *  |{type:'plan', items:{key:string,title:string,status:'pending'|'active'|'done'}[], explanation:string|null}
+ *  |{type:'plan', items:{key:string,title:string,status:'pending'|'active'|'done'}[], explanation:string|null, scope?:string|null}
+ *  |{type:'plan-step', advance?:boolean, done?:number[], start?:number|null, finish?:boolean}
  *  |{type:'task-create', key:string, title:string, description:string|null, activeForm:string|null}
  *  |{type:'task-update', key:string, status:'pending'|'active'|'done'|'deleted', activeForm:string|null}
  *  |({type:'tool', phase:'pre'|'post', name:string, file:string|null, ok:boolean|null, id:string|null, spawned?:string|null} & import('./flow.mjs').Step)
@@ -18,6 +19,11 @@ import { describeTool } from './flow.mjs';
 
 /** Claude's task tools: only TaskCreate / TaskUpdate change milestones; the rest are not shown as pills. */
 const TASK_TOOLS = new Set(['TaskCreate', 'TaskUpdate', 'TaskList', 'TaskGet', 'TaskStop']);
+
+/** The Claude desktop app's task list (it replaces TaskCreate / TaskUpdate there). */
+const DESKTOP_PLAN = 'mcp__ccd_turn__update_plan';
+/** Closes the desktop app's turn and checks off its task list. */
+const DESKTOP_WRAP_UP = 'mcp__ccd_turn__wrap_up';
 
 /** @type {Record<string, 'pending'|'active'|'done'|'deleted'>} */
 const STATUS = { pending: 'pending', in_progress: 'active', completed: 'done', deleted: 'deleted' };
@@ -95,6 +101,8 @@ function toolEvent(p, phase, ok) {
   const input = p.tool_input && typeof p.tool_input === 'object' ? p.tool_input : {};
 
   if (name === 'TodoWrite') return phase === 'post' && ok ? todoPlan(input) : null;
+  if (name === DESKTOP_PLAN) return phase === 'post' && ok ? desktopPlan(input) : null;
+  if (name === DESKTOP_WRAP_UP) return phase === 'post' && ok ? { type: 'plan-step', finish: true } : null;
   if (TASK_TOOLS.has(name)) {
     if (phase !== 'post' || !ok) return null;
     if (name === 'TaskCreate') return taskCreate(p, input);
@@ -163,4 +171,26 @@ function todoPlan(input) {
     items.push({ key: title, title, status });
   }
   return { type: 'plan', items, explanation: null };
+}
+
+/**
+ * The desktop app's update_plan: a whole list (`items`, with the request's `scope`), or a
+ * relative move (`advance`, `done` 1-based indexes, `start`) the reducer applies to the current plan.
+ * @param {any} input @returns {Event|null}
+ */
+function desktopPlan(input) {
+  if (Array.isArray(input.items)) {
+    const items = [];
+    for (const t of input.items) {
+      const title = str(t?.content);
+      const status = STATUS[t?.status];
+      if (!title || !status || status === 'deleted') continue;
+      items.push({ key: title, title, status });
+    }
+    return { type: 'plan', items, explanation: null, scope: str(input.scope) };
+  }
+  const done = Array.isArray(input.done) ? input.done.filter((n) => Number.isInteger(n)) : [];
+  const start = Number.isInteger(input.start) ? input.start : null;
+  if (input.advance !== true && done.length === 0 && start === null) return null;
+  return { type: 'plan-step', advance: input.advance === true, done, start };
 }

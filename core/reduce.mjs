@@ -79,7 +79,16 @@ function apply(s, input, at) {
   // agent_id with no agent_type and never a SubagentStart. A SubagentStart, or a typed
   // event, makes an id a subagent; untyped events from ids never seen are skipped.
   if (agentId && input.source === 'claude' && !str(input.agentType) && e.type !== 'agent-start' && !isObj(s.agents[agentId])) return;
+  // The agent's `rail:` line, read from the transcript on a main-agent tool or plan call: names the job mid-turn.
+  if (!agentId && typeof e.marker === 'string') onMarker(s, e.marker, at);
   switch (e.type) {
+    case 'plan-step': {
+      const plan = stepPlan(agentId ? agent(s, agentId, at).milestones : ensureJob(s, at).milestones, e);
+      if (!plan) break;
+      if (agentId) onAgentMilestones(s, agentId, plan, at);
+      else onMilestones(s, plan, at);
+      break;
+    }
     case 'prompt':
       if (!agentId) onPrompt(s, typeof e.text === 'string' ? e.text : '', at);
       break;
@@ -146,6 +155,7 @@ function onPrompt(s, text, at) {
     // A paused job (R16, R19) already holds its stop time in _prevEndedAt.
     delete job._mainStopped;
     s._pendingPrompt = text;
+    s._turnPrompt = text;
     if (job.status === 'done') job._prevEndedAt = job.endedAt;
     job.status = 'running';
     job.endedAt = null;
@@ -167,15 +177,15 @@ function onMilestones(s, e, at) {
     // once every milestone is done; a task-update on a known key continues.
     const decided = e.type !== 'task-update' || job.milestones.some((m) => m.key === e.key);
     if (decided) {
-      const split = e.type === 'plan' ? isDisjoint(job, e) : e.type === 'task-create' && job.milestones.every((m) => m.status === 'done');
+      // The desktop app's plan says it itself: `scope` new_task splits, continuation never does.
+      const split = e.type === 'plan'
+        ? e.scope === 'new_task' || (e.scope !== 'continuation' && isDisjoint(job, e))
+        : e.type === 'task-create' && job.milestones.every((m) => m.status === 'done');
       if (split) {
-        job.status = 'done';
-        job.endedAt = job._prevEndedAt ?? at;
-        delete job._prevEndedAt;
-        job.updatedAt = at;
-        job = newJob(s, job.seq + 1, s._pendingPrompt, 'running', at);
-        s.jobs.push(job);
+        job = splitJob(s, job, at);
       } else {
+        // Kept until the turn ends: a marker naming another task can still split it (see onMarker).
+        job._beforeTurn = { milestones: structuredClone(job.milestones), now: structuredClone(job.now), endedAt: job._prevEndedAt ?? null };
         delete job._prevEndedAt;
       }
       s._pendingPrompt = null;
@@ -603,7 +613,9 @@ function applyNames(s, names) {
  */
 function finish(s, lastMessage, at, final, background = null) {
   s._pendingPrompt = null;
+  s._turnPrompt = null;
   const job = current(s);
+  if (job) delete job._beforeTurn;
   if (job && job.status !== 'done') {
     // R19: the Stop's own list is authoritative; a "running" agent missing from it never reported back.
     if (!final && background) closeAgents(s, at, job.seq, new Set(background));
@@ -660,6 +672,75 @@ function ensureJob(s, at) {
   const created = newJob(s, 1, '', 'planning', at);
   s.jobs.push(created);
   return created;
+}
+
+/** Closes `job` where its last turn stopped and starts the pending prompt's job. @returns {Job} the new job */
+function splitJob(s, job, at) {
+  job.status = 'done';
+  job.endedAt = job._prevEndedAt ?? at;
+  delete job._prevEndedAt;
+  job.updatedAt = at;
+  const next = newJob(s, job.seq + 1, s._pendingPrompt ?? '', 'running', at);
+  s.jobs.push(next);
+  s._pendingPrompt = null;
+  return next;
+}
+
+/**
+ * The marker the agent wrote this turn. After a follow-up prompt a marker naming another
+ * task starts a new job (it is written once per task); otherwise it replaces the stand-in title.
+ * @param {Session} s @param {string} text @param {string} at
+ */
+function onMarker(s, text, at) {
+  const meta = extractMeta(text);
+  if (!meta) return;
+  let job = ensureJob(s, at);
+  if (s._pendingPrompt !== null) {
+    if (meta.title === job.title) return; // the same task, named again: the split stays undecided
+    job = splitJob(s, job, at);
+  } else if (job._beforeTurn && s._turnPrompt !== null && meta.title !== job.title) {
+    // A plan this turn continued the job before the marker reached the transcript:
+    // what this turn planned moves to the new job, the old one gets its last turn back.
+    const b = job._beforeTurn;
+    const next = newJob(s, job.seq + 1, s._turnPrompt, 'running', at);
+    next.milestones = job.milestones;
+    next.now = job.now;
+    Object.assign(job, { milestones: b.milestones, now: b.now, status: 'done', endedAt: b.endedAt ?? at, updatedAt: at });
+    delete job._beforeTurn;
+    s.jobs.push(next);
+    job = next;
+  } else if (job.title !== fallbackTitle(job.prompt)) {
+    return;
+  }
+  job.title = meta.title;
+  if (job.summary === '' || job._summaryFromPlan) job.summary = meta.summary;
+  delete job._summaryFromPlan;
+  job.updatedAt = at;
+}
+
+/**
+ * The desktop app's relative plan moves, applied to a copy of the current plan:
+ * `finish` (wrap_up) checks off every step, `done` 1-based indexes, `advance` completes the
+ * active step and starts the next pending one, `start` makes one step active.
+ * @param {import('./state.mjs').Milestone[]} milestones @param {Record<string, any>} e
+ * @returns {Record<string, any>|null} a continuation plan event, or null with no plan to move
+ */
+function stepPlan(milestones, e) {
+  if (milestones.length === 0) return null;
+  const items = milestones.map((m) => ({ key: m.key, title: m.title, status: m.status }));
+  if (e.finish === true) for (const it of items) it.status = 'done';
+  for (const n of Array.isArray(e.done) ? e.done : []) if (items[n - 1]) items[n - 1].status = 'done';
+  if (e.advance === true) {
+    const i = items.findIndex((it) => it.status === 'active');
+    if (i >= 0) items[i].status = 'done';
+    const next = items.find((it) => it.status === 'pending');
+    if (next) next.status = 'active';
+  }
+  if (Number.isInteger(e.start) && items[e.start - 1]) {
+    for (const it of items) if (it.status === 'active') it.status = 'pending';
+    items[e.start - 1].status = 'active';
+  }
+  return { type: 'plan', items, explanation: null, scope: 'continuation' };
 }
 
 /** @returns {Job} */
@@ -728,6 +809,7 @@ function sanitize(prev, input, at) {
     jobs: Array.isArray(p.jobs) ? p.jobs.filter(isObj).map((j, i) => fixJob(j, i, source, sessionId, at)) : [],
     agents,
     _pendingPrompt: typeof p._pendingPrompt === 'string' ? p._pendingPrompt : null,
+    _turnPrompt: typeof p._turnPrompt === 'string' ? p._turnPrompt : null,
     _dispatch: Array.isArray(p._dispatch)
       ? p._dispatch
         .filter((d) => isObj(d) && str(d.id))

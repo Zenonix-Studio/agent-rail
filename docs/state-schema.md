@@ -182,7 +182,7 @@ was seen for it. Ids with an `agent_type` are always listed.
 
 ## Internal fields (ignore)
 
-Listed only so readers know they are expected: `Session._pendingPrompt`,
+Listed only so readers know they are expected: `Session._pendingPrompt`, `Session._turnPrompt`, `Job._beforeTurn`,
 `Session._dispatch`, `Job._prevEndedAt`, `Job._mainStopped`, `Job._summaryFromPlan`,
 `Milestone._activeForm`, `Now._counts`, `Now._open`, `Now._retryBase`, `Pill._run`
 (older files: `Pill._id`), `Agent._type`, `Agent._open` (older files: `Agent._run`).

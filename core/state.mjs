@@ -27,7 +27,7 @@ import { dirname, join } from 'node:path';
  * @typedef {{
  *   schema: 1, source: 'claude'|'codex', sessionId: string, cwd: string,
  *   project: string, updatedAt: string, jobs: Job[],
- *   agents: Record<string, Agent>, _pendingPrompt: string|null, _dispatch?: object[]
+ *   agents: Record<string, Agent>, _pendingPrompt: string|null, _turnPrompt?: string|null, _dispatch?: object[]
  * }} Session
  */
 

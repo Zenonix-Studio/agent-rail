@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock } from '../core/state.mjs';
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
-import { reduce } from '../core/reduce.mjs';
+import { reduce, fallbackTitle } from '../core/reduce.mjs';
 import { railInstruction, extractMeta, findMarkerInTranscript, SUBAGENT_INSTRUCTION } from '../core/flow.mjs';
 
 const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
@@ -57,6 +57,16 @@ async function main() {
     if (typeof prev?.schema === 'number' && prev.schema > SCHEMA_VERSION) {
       logError(`skipped ${path}: schema ${prev.schema} is newer than ${SCHEMA_VERSION}`);
       return;
+    }
+    // Until the job is named (or a follow-up may start a new one), look for this turn's marker on each main-agent call.
+    const job = Array.isArray(prev?.jobs) ? prev.jobs[prev.jobs.length - 1] : null;
+    const type = event.event?.type;
+    const isCall = (type === 'tool' && event.event.phase === 'pre') || type === 'plan' || type === 'plan-step' || type === 'task-create';
+    if (isCall && !event.agentId
+      && (typeof prev?._pendingPrompt === 'string' || (job && job.title === fallbackTitle(job.prompt))
+        || (typeof prev?._turnPrompt === 'string' && job?._beforeTurn))) {
+      const found = findMarkerInTranscript(input.transcript_path);
+      if (found) event.event = { ...event.event, marker: found };
     }
     writeSession(path, reduce(prev, { source, ...event }, new Date()));
   }, logError);
