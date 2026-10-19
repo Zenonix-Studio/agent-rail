@@ -1,4 +1,4 @@
-import { describeTool } from './flow.mjs';
+import { describeTool, clipText, PROGRESS_MAX } from './flow.mjs';
 
 /**
  * @typedef {{type:'prompt', text:string}
@@ -102,12 +102,12 @@ function toolEvent(p, phase, ok) {
   const input = p.tool_input && typeof p.tool_input === 'object' ? p.tool_input : {};
 
   if (name === 'TodoWrite') return phase === 'post' && ok ? todoPlan(input) : null;
-  if (name === DESKTOP_PLAN) return phase === 'post' && ok ? desktopPlan(input) : null;
+  if (name === DESKTOP_PLAN) return phase === 'post' && ok ? withProgress(desktopPlan(input), input) : null;
   if (name === DESKTOP_WRAP_UP) return phase === 'post' && ok ? { type: 'plan-step', finish: true } : null;
   if (TASK_TOOLS.has(name)) {
     if (phase !== 'post' || !ok) return null;
-    if (name === 'TaskCreate') return taskCreate(p, input);
-    if (name === 'TaskUpdate') return taskUpdate(p, input);
+    if (name === 'TaskCreate') return withProgress(taskCreate(p, input), input);
+    if (name === 'TaskUpdate') return withProgress(taskUpdate(p, input), input);
     return null;
   }
 
@@ -126,6 +126,17 @@ function toolEvent(p, phase, ok) {
   // The Agent call's response names the agent it started: the link to its SubagentStart.
   if (step.group === 'dispatch' && phase === 'post') e.spawned = str(p.tool_response?.agentId);
   return e;
+}
+
+/**
+ * The agent's own `progress` summary, passed in the plan call's input (update_plan's extra `progress`
+ * field, TaskCreate / TaskUpdate's `metadata.progress`): assistant text before a tool call does not
+ * always reach the transcript, a tool input always reaches the hook.
+ * @param {Event|null} e @param {any} input @returns {Event|null}
+ */
+function withProgress(e, input) {
+  const progress = str(input.progress) ?? str(input.metadata?.progress);
+  return e && progress ? { ...e, progress: clipText(progress.replace(/\s+/g, ' '), PROGRESS_MAX) } : e;
 }
 
 /** @param {unknown} tasks Stop's `background_tasks` @returns {string[]|null} ids still running; null when absent */

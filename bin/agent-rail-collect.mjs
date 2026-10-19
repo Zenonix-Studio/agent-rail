@@ -56,9 +56,10 @@ async function main() {
     if (steps.length > 0) event.event = { ...event.event, steps };
     if (progress) event.event = { ...event.event, progress };
   }
-  // The main agent's `progress:` line: on its plan changes (it writes one as it starts a step) and its stop.
+  // The main agent's summary comes in its plan call's input; a `progress:` line in its transcript is the
+  // fallback (Codex, older prompts), read on its plan changes and its stop.
   const mainType = event.event?.type;
-  if (!event.agentId && ['plan', 'plan-step', 'task-create', 'task-update', 'stop'].includes(mainType)) {
+  if (!event.agentId && !event.event?.progress && ['plan', 'plan-step', 'task-create', 'task-update', 'stop'].includes(mainType)) {
     const progress = findProgressInTranscript(input.transcript_path);
     if (progress) event.event = { ...event.event, progress };
   }

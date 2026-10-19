@@ -382,8 +382,16 @@ const PLAN_NUDGE = {
   codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
 };
 
-/** Asks the main agent for its own running summary of the whole job, read from its transcript. */
-const PROGRESS_NUDGE = ' Each time you start a step, also write one line "progress: <at most 2 short sentences on the work itself so far, your agents\' included: what was found, changed or verified, and what is left — not the step titles>".';
+const PROGRESS_TEXT = '<at most 2 short sentences on the work itself so far, your agents\' included: what was found, changed or verified, and what is left — not the step titles>';
+
+/**
+ * Asks the main agent for its own running summary of the whole job. Claude passes it in the task
+ * tool call (its text before a tool call does not always reach the transcript); Codex writes it as a line.
+ */
+const PROGRESS_NUDGE = {
+  claude: ` Each time you start a step, also pass "progress": "${PROGRESS_TEXT}" in that task tool call: as a top-level "progress" field of update_plan, or as metadata.progress of TaskCreate / TaskUpdate.`,
+  codex: ` Each time you start a step, also write one line "progress: ${PROGRESS_TEXT}".`,
+};
 
 /** Asks the main agent to have its subagents plan too, so each agent row has its own progress. */
 const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep its own short task list (3–7 steps) updated as it works.';
@@ -403,7 +411,7 @@ export const SUBAGENT_INSTRUCTION =
  */
 export function railInstruction(source) {
   const nudge = PLAN_NUDGE[/** @type {'claude'|'codex'} */ (source)];
-  return MARKER_INSTRUCTION + (nudge ? nudge + PROGRESS_NUDGE + AGENT_PLAN_NUDGE : '');
+  return MARKER_INSTRUCTION + (nudge ? nudge + PROGRESS_NUDGE[/** @type {'claude'|'codex'} */ (source)] + AGENT_PLAN_NUDGE : '');
 }
 
 const TRANSCRIPT_TAIL_LINES = 200;
@@ -433,7 +441,7 @@ export function findMarkerInTranscript(path) {
 }
 
 /**
- * The main agent's latest `progress:` line of this turn (PROGRESS_NUDGE): scans back to the latest user prompt.
+ * The main agent's latest summary of this turn (PROGRESS_NUDGE): a plan call's `progress` input or a `progress:` text line, scanning back to the latest user prompt.
  * @param {string|null|undefined} path transcript_path from the hook payload
  * @returns {string|null}
  */
@@ -441,7 +449,7 @@ export function findProgressInTranscript(path) {
   try {
     const lines = tailLines(path).slice(-TRANSCRIPT_TAIL_LINES);
     for (let i = lines.length - 1; i >= 0; i--) {
-      if (!lines[i].includes('progress:') && !lines[i].includes('"user"')) continue;
+      if (!lines[i].includes('progress') && !lines[i].includes('"user"')) continue;
       let o;
       try { o = JSON.parse(lines[i]); } catch { continue; }
       const { role, texts } = transcriptLine(o);
@@ -449,6 +457,11 @@ export function findProgressInTranscript(path) {
       if (role !== 'assistant') continue;
       let last = null;
       for (const t of texts) for (const m of t.matchAll(PROGRESS_LINE)) last = m[1];
+      // A plan call's `progress` input (PROGRESS_NUDGE.claude), in the same order as the text.
+      for (const c of Array.isArray(o.message?.content) ? o.message.content : []) {
+        const p = c?.type === 'tool_use' ? (c.input?.progress ?? c.input?.metadata?.progress) : null;
+        if (typeof p === 'string' && p !== '') last = p;
+      }
       if (last) return clipText(last.replace(/\s+/g, ' '), PROGRESS_MAX);
     }
   } catch { /* the transcript is a best-effort source */ }
@@ -470,7 +483,7 @@ function tailLines(path) {
 
 const STEP_LINE = /^[\s*_>-]*step:\s*(.+?)[\s*_]*$/gim;
 const PROGRESS_LINE = /^[\s*_>-]*progress:\s*(.+?)[\s*_]*$/gim;
-const PROGRESS_MAX = 200;
+export const PROGRESS_MAX = 200;
 
 /**
  * A Claude subagent's own transcript: `<session transcript without .jsonl>/subagents/agent-<id>.jsonl`.
