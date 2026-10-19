@@ -31,3 +31,19 @@ The Xcode project is generated from `menubar/project.yml`. After changing it, re
 ```sh
 cd menubar && xcodegen generate
 ```
+
+## Status line
+
+`bin/agent-rail-statusline.mjs` prints one line for the current session's job in Claude Code's status line: stage, current step, progress, elapsed time, time left (once a step has finished) and running agents.
+
+```
+● dev · Editing parser.mjs · 3/5 · 2m10s · ~4m left · 2 agents
+```
+
+Add it to your Claude Code settings (`~/.claude/settings.json`):
+
+```json
+"statusLine": {"type": "command", "command": "node <path>/bin/agent-rail-statusline.mjs"}
+```
+
+It prints nothing when the session has no job yet. Set `NO_COLOR` to drop the colors.

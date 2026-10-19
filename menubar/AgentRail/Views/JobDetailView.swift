@@ -26,7 +26,7 @@ struct JobDetailView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.bottom, 12)
                 }
-                RailView(job: item.job)
+                RailView(job: item.job, clock: now)
                 let subagents = agents(of: item)
                 if !subagents.isEmpty {
                     AgentsSectionView(agents: subagents, expansion: agentExpansion).padding(.top, 2)

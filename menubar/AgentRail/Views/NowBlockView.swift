@@ -14,6 +14,10 @@ struct NowBlockView: View {
                             if index > 0 {
                                 Text(verbatim: "→").font(.system(size: 11)).foregroundStyle(Theme.muted)
                             }
+                            // The stage tag names the kind of work of the current (latest) step.
+                            if index == now.pills.count - 1, let stage = now.stage {
+                                StageTag(stage: stage)
+                            }
                             PillView(pill: pill)
                         }
                     }
@@ -45,19 +49,37 @@ struct NowBlockView: View {
     }
 }
 
+/// Short stage name on a faint fill of its color: `dev`, `fix`.
+private struct StageTag: View {
+    let stage: Stage
+
+    var body: some View {
+        let color = Theme.stage(stage)
+        Text(verbatim: L10n.stageName(stage))
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.14), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+            .fixedSize()
+    }
+}
+
 private struct PillView: View {
     let pill: Pill
 
     var body: some View {
         let isActive = pill.kind == .active
+        // With a stage, the active pill fills with its color and the others take it as their border.
+        let tint = pill.stage.map(Theme.stage)
         Text(verbatim: pill.label)
             .font(.system(size: 11, weight: isActive ? .semibold : .regular))
             .foregroundStyle(foreground)
             .lineLimit(1)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(isActive ? Theme.accent : Theme.surface, in: Capsule())
-            .overlay(Capsule().strokeBorder(isActive ? Theme.accent : Theme.line, lineWidth: 1))
+            .background(isActive ? tint ?? Theme.accent : Theme.surface, in: Capsule())
+            .overlay(Capsule().strokeBorder(isActive ? tint ?? Theme.accent : tint?.opacity(0.6) ?? Theme.line, lineWidth: 1))
     }
 
     private var foreground: Color {

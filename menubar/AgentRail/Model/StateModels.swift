@@ -37,15 +37,59 @@ enum AgentStatus: String, Decodable, Sendable {
     }
 }
 
+/// The kind of work, for coloring. Optional everywhere it appears: missing or unknown values decode as nil.
+enum Stage: String, Sendable, CaseIterable {
+    case plan, analyse, dev, fix, review
+}
+
+extension KeyedDecodingContainer {
+    /// A `Stage` field: nil when missing, null, not a string or not a known stage.
+    func decodeStage(forKey key: Key) -> Stage? {
+        ((try? decodeIfPresent(String.self, forKey: key)) ?? nil).flatMap(Stage.init(rawValue:))
+    }
+
+    /// An optional date that never fails the whole file: nil when missing, null or malformed.
+    func decodeLenientDate(forKey key: Key) -> Date? {
+        (try? decodeIfPresent(Date.self, forKey: key)) ?? nil
+    }
+}
+
 struct Milestone: Decodable, Sendable {
     let key: String
     let title: String
     let status: MilestoneStatus
+    let stage: Stage?
+    /// When the step first became active (or done); missing in older files.
+    let startedAt: Date?
+    /// When it became done.
+    let endedAt: Date?
+
+    private enum CodingKeys: String, CodingKey { case key, title, status, stage, startedAt, endedAt }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        key = try c.decode(String.self, forKey: .key)
+        title = try c.decode(String.self, forKey: .title)
+        status = try c.decode(MilestoneStatus.self, forKey: .status)
+        stage = c.decodeStage(forKey: .stage)
+        startedAt = c.decodeLenientDate(forKey: .startedAt)
+        endedAt = c.decodeLenientDate(forKey: .endedAt)
+    }
 }
 
 struct Pill: Decodable, Sendable {
     let label: String
     let kind: PillKind
+    let stage: Stage?
+
+    private enum CodingKeys: String, CodingKey { case label, kind, stage }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        label = try c.decode(String.self, forKey: .label)
+        kind = try c.decode(PillKind.self, forKey: .kind)
+        stage = c.decodeStage(forKey: .stage)
+    }
 }
 
 struct Now: Decodable, Sendable {
@@ -53,6 +97,19 @@ struct Now: Decodable, Sendable {
     let pills: [Pill]
     let attempt: Int
     let file: String?
+    /// What kind of work the main agent is doing now.
+    let stage: Stage?
+
+    private enum CodingKeys: String, CodingKey { case milestone, pills, attempt, file, stage }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        milestone = try c.decode(String.self, forKey: .milestone)
+        pills = try c.decode([Pill].self, forKey: .pills)
+        attempt = try c.decode(Int.self, forKey: .attempt)
+        file = try c.decodeIfPresent(String.self, forKey: .file)
+        stage = c.decodeStage(forKey: .stage)
+    }
 }
 
 struct Job: Decodable, Sendable {
@@ -85,9 +142,11 @@ struct Agent: Decodable, Sendable {
     let milestones: [Milestone]
     /// Its own story, the last 6 steps, oldest first.
     let steps: [Pill]
+    /// Its current stage, as `Now.stage`.
+    let stage: Stage?
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, status, activity, job, startedAt, updatedAt, endedAt, summary, milestones, steps
+        case id, name, status, activity, job, startedAt, updatedAt, endedAt, summary, milestones, steps, stage
     }
 
     init(from decoder: Decoder) throws {
@@ -104,6 +163,7 @@ struct Agent: Decodable, Sendable {
         summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
         milestones = try c.decodeIfPresent([Milestone].self, forKey: .milestones) ?? []
         steps = try c.decodeIfPresent([Pill].self, forKey: .steps) ?? []
+        stage = c.decodeStage(forKey: .stage)
     }
 }
 

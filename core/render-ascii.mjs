@@ -8,15 +8,18 @@
  * `renderJobSegments` returns each line as toned segments so a caller can
  * color them; `renderJob` returns the same lines as plain strings.
  */
-import { progress } from './progress.mjs';
+import { eta, progress, stepDuration } from './progress.mjs';
 
 /**
- * @typedef {'plain'|'bold'|'dim'|'done'|'active'|'warn'|'error'} Tone
+ * @typedef {import('./state.mjs').Stage} Stage
+ * @typedef {'plain'|'bold'|'dim'|'done'|'active'|'warn'|'error'|Stage} Tone A stage name is a tone too:
+ *   its palette color (plan violet, analyse blue, dev orange, fix red, review teal).
  * @typedef {{ text: string, tone: Tone }} Segment
  * @typedef {Segment[]} Line
  * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'> & {summary?: string}} RenderableJob
  * @typedef {Pick<import('./state.mjs').Agent, 'name'|'status'|'activity'> & {
- *   id?: string, startedAt?: string, updatedAt?: string, milestones?: import('./state.mjs').Milestone[], steps?: import('./state.mjs').Pill[]
+ *   id?: string, startedAt?: string, updatedAt?: string, milestones?: import('./state.mjs').Milestone[], steps?: import('./state.mjs').Pill[],
+ *   stage?: Stage|null
  * }} RenderableAgent `milestones` / `steps` are absent in files written before they existed.
  * @typedef {number|RenderableAgent[]} AgentsArg Running count only (title hint), or the job's
  *   subagents (`jobAgents` in core/progress.mjs): the hint plus an "Agents" block in the wide layout.
@@ -37,6 +40,7 @@ const OPEN_ALL_MAX = 3;
 /** Cells of an agent row's mini progress bar. */
 const MINI_BAR = 6;
 const GUTTER = '│   ';
+const STAGES = ['plan', 'analyse', 'dev', 'fix', 'review'];
 
 /**
  * @param {RenderableJob} job
@@ -99,7 +103,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
     const name = clip(current, w - 2 - info.length - tailLen(tail));
     return [
       [seg(clip(title, w - hintLen), 'bold'), ...hint],
-      [seg('▸ ', isDone ? 'done' : 'active'), seg(name, 'plain'), seg(info, 'dim'), ...tail],
+      [seg('▸ ', isDone ? 'done' : stageOf(job?.now?.stage) ?? 'active'), seg(name, 'plain'), seg(info, 'dim'), ...tail],
     ].map((l) => fit(l, w));
   }
 
@@ -111,14 +115,15 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
   const gap = Math.max(1, w - shownTitle.length - hintLen - pctText.length);
   lines.push([seg(shownTitle, 'bold'), ...hint, seg(' '.repeat(gap), 'plain'), seg(pctText, 'bold')]);
 
-  const counts = `  ${done}/${total} · ${elapsed(job, nowMs)}`;
+  const left = isDone ? null : eta(job, nowMs);
+  const counts = `  ${done}/${total} · ${elapsed(job, nowMs)}${left === null ? '' : ` · ~${shortLeft(left)} left`}`;
   const barW = Math.max(BAR_MIN, Math.min(BAR_MAX, w - counts.length - tailLen(tail)));
   const filled = Math.round((barW * done) / total);
   lines.push([seg('█'.repeat(filled), 'done'), seg('░'.repeat(barW - filled), 'dim'), seg(counts, 'plain'), ...tail]);
   lines.push(...summaryLines(job, w));
 
   const now = !isDone && job?.now && typeof job.now === 'object' ? job.now : null;
-  lines.push(...railLines(milestones, w, isDone, now));
+  lines.push(...railLines(milestones, w, isDone, now, nowMs));
   lines.push(...block);
 
   return lines.map((l) => fit(l.filter(nonEmpty), w));
@@ -132,13 +137,16 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
  * through the anchored one), then `+N more`. Every milestone is either shown
  * or counted.
  * A done job's leftover 'active' milestone is drawn neutral: nothing runs now.
+ * Done and active milestones end in their duration (`1m20s`); the active
+ * glyph takes the milestone's stage color.
  * @param {import('./state.mjs').Milestone[]} milestones
  * @param {number} w
  * @param {boolean} isDone
  * @param {import('./state.mjs').Now|null} now the flow to show; null for none
+ * @param {number} nowMs clock for the active milestone's running duration
  * @returns {Line[]}
  */
-function railLines(milestones, w, isDone, now) {
+function railLines(milestones, w, isDone, now, nowMs) {
   // Anchor the flow under now.milestone (a key); else the active-status node.
   const byKey = now ? milestones.findIndex((m) => str(m?.key) !== '' && m.key === now.milestone) : -1;
   const anchor = byKey >= 0 ? byKey : milestones.findIndex((m) => m?.status === 'active');
@@ -157,9 +165,13 @@ function railLines(milestones, w, isDone, now) {
     const m = milestones[i];
     const status = m?.status;
     const active = status === 'active' && !isDone;
-    const glyph = status === 'done' ? seg('✓', 'done') : status === 'active' ? seg('◉', active ? 'active' : 'plain') : seg('○', 'dim');
+    const glyph = status === 'done' ? seg('✓', 'done')
+      : status === 'active' ? seg('◉', active ? stageOf(m?.stage) ?? 'active' : 'plain') : seg('○', 'dim');
     const title = str(m?.title) || str(m?.key) || '?';
-    lines.push([glyph, seg(' ', 'plain'), seg(clip(title, w - 2), active ? 'bold' : status === 'active' ? 'plain' : 'dim')]);
+    const ms = status === 'done' || active ? stepDuration(m, nowMs) : null;
+    const dur = ms === null ? '' : `  ${duration(ms)}`;
+    lines.push([glyph, seg(' ', 'plain'), seg(clip(title, w - 2 - dur.length), active ? 'bold' : status === 'active' ? 'plain' : 'dim'),
+      seg(dur, 'dim')]);
     if (now && i === anchor) lines.push(...nowLines(now, w, GUTTER));
   }
   if (to < milestones.length) lines.push([seg(`  +${milestones.length - to} more`, 'dim')]);
@@ -185,7 +197,8 @@ function nowLines(now, w, prefix) {
 }
 
 /**
- * The story of the latest steps: `A ✓ → B → C ▶`, on up to FLOW_ROWS lines.
+ * The story of the latest steps: `A ✓ → B → C ▶`, on up to FLOW_ROWS lines,
+ * led by the stage when known (`● fix · …`, in its color).
  * Most recent pills that fit are kept, oldest dropped first; an arrow travels
  * with the pill after it, so a line never ends on "→".
  * @param {import('./state.mjs').Now} now
@@ -196,21 +209,24 @@ function nowLines(now, w, prefix) {
 function flowLines(now, w, prefix) {
   const pills = Array.isArray(now.pills) ? now.pills : [];
   const attempt = Number.isFinite(now.attempt) && now.attempt >= 2 ? `  ↻ ${now.attempt}` : '';
-  const room = w - prefix.length;
+  const stage = stageOf(now.stage);
+  /** @type {Segment[]} */
+  const tag = stage ? [seg('●', stage), seg(` ${stage}`, stage), seg(' · ', 'dim')] : [];
+  const room = w - prefix.length - tailLen(tag);
   /** @type {Segment[]} */
   const kept = [];
   // Newest first: each older pill is kept only if the whole set still lays out.
   for (let i = pills.length - 1; i >= 0; i--) {
     const text = pillText(pills[i], room - 2 - attempt.length);
     if (!text) continue;
-    const next = [seg(text, pillTone(pills[i]?.kind)), ...kept];
+    const next = [seg(text, pillTone(pills[i]?.kind, pills[i]?.stage)), ...kept];
     if (layout(next, room, attempt.length, FLOW_ROWS) === null) break;
     kept.unshift(next[0]);
   }
   const gutter = seg(prefix, 'dim');
   if (!kept.length) return attempt ? [[gutter, seg(attempt.trim(), 'warn')]] : [];
   const rows = /** @type {Segment[][]} */ (layout(kept, room, attempt.length, FLOW_ROWS));
-  const lines = rows.map((row, r) => [gutter, ...(r === 0 ? [] : [seg('  ', 'plain')]), ...row]);
+  const lines = rows.map((row, r) => [gutter, ...(r === 0 ? tag : [seg('  ', 'plain')]), ...row]);
   if (attempt) lines[lines.length - 1].push(seg(attempt, 'warn'));
   return lines;
 }
@@ -281,8 +297,10 @@ function agentLines(agents, w, expandAll) {
  * @returns {Line} `▾ ● name  current step ……… ███░░░ 3/6`
  */
 function agentRow(a, w, open) {
-  const [glyph, tone] = AGENT_GLYPH[/** @type {keyof typeof AGENT_GLYPH} */ (a.status)] ?? ['·', 'dim'];
+  const [glyph, base] = AGENT_GLYPH[/** @type {keyof typeof AGENT_GLYPH} */ (a.status)] ?? ['·', 'dim'];
   const running = a.status === 'running';
+  // A running agent's dot takes its stage color.
+  const tone = (running && stageOf(a.stage)) || base;
   const ms = agentMilestones(a);
   const done = ms.filter((m) => m.status === 'done').length;
   const count = ms.length ? `${done}/${ms.length}` : '';
@@ -439,12 +457,19 @@ function pillText(p, room) {
   return clip(label, room - mark.length) + mark;
 }
 
-/** @param {string|undefined} kind @returns {Tone} */
-function pillTone(kind) {
+/**
+ * Status kinds keep their color (ok green, warn amber); an active or info pill takes its stage's.
+ * @param {string|undefined} kind @param {unknown} [stage] @returns {Tone}
+ */
+function pillTone(kind, stage) {
   if (kind === 'ok') return 'done';
   if (kind === 'warn') return 'warn';
-  if (kind === 'active') return 'active';
-  return 'dim';
+  return stageOf(stage) ?? (kind === 'active' ? 'active' : 'dim');
+}
+
+/** @param {unknown} v @returns {Stage|null} `v` when it is a known stage. */
+export function stageOf(v) {
+  return typeof v === 'string' && STAGES.includes(v) ? /** @type {Stage} */ (v) : null;
 }
 
 /**
@@ -492,11 +517,30 @@ export function elapsed(job, nowMs) {
   const start = Date.parse(job?.startedAt ?? '');
   const end = job?.endedAt ? Date.parse(job.endedAt) : nowMs;
   if (!Number.isFinite(start) || !Number.isFinite(end)) return '–';
-  const s = Math.max(0, Math.floor((end - start) / 1000));
+  return duration(end - start);
+}
+
+/**
+ * @param {number} ms
+ * @returns {string} e.g. `42s`, `1m20s`, `1h05m`.
+ */
+export function duration(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m${String(s % 60).padStart(2, '0')}s`;
   return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}m`;
+}
+
+/**
+ * Time left, coarser than `duration`: an estimate has no use for seconds past the first minute.
+ * @param {number} ms @returns {string} e.g. `40s`, `4m`, `1h05m`.
+ */
+export function shortLeft(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s`;
+  const m = Math.round(s / 60);
+  return m < 60 ? `${m}m` : duration(m * 60_000);
 }
 
 /** Cuts a line's segments so its total length is at most `w`. @param {Line} line @param {number} w */

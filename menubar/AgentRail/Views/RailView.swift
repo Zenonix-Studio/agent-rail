@@ -3,6 +3,8 @@ import SwiftUI
 /// Vertical milestone rail (desktop-v2 card B). The now block sits under the active node.
 struct RailView: View {
     let job: Job
+    /// The current time, for the active step's running duration.
+    let clock: Date
 
     var body: some View {
         let activeKey = activeMilestoneKey(job)
@@ -13,7 +15,8 @@ struct RailView: View {
                 RailRow(milestone: milestone,
                         isActive: isActive,
                         isLast: index == job.milestones.count - 1,
-                        now: isActive ? job.now : nil)
+                        now: isActive ? job.now : nil,
+                        duration: isActive || milestone.status == .done ? stepDuration(milestone, now: clock) : nil)
             }
             // No milestone to anchor to (e.g. planning, or `now.milestone` is empty): show it under the rail.
             if activeKey == nil, job.status != .done, let now = job.now, !pills.isEmpty {
@@ -30,6 +33,8 @@ private struct RailRow: View {
     let isActive: Bool
     let isLast: Bool
     let now: Now?
+    /// How long a done step took, or the active one has taken so far; nil hides it.
+    let duration: TimeInterval?
 
     private static let node: CGFloat = 14
     private static let indent: CGFloat = 24
@@ -39,12 +44,22 @@ private struct RailRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(verbatim: milestone.title)
-                .accessibilityLabel(String(localized: "\(milestone.title), \(L10n.milestoneState(done: isDone, active: isActive))"))
-                .font(.system(size: 12.5, weight: isActive ? .semibold : .regular))
-                .foregroundStyle(isActive ? Theme.text : Theme.muted)
-                .lineLimit(1)
-                .truncationMode(.tail)
+            HStack(spacing: 6) {
+                StageDot(stage: milestone.stage)
+                Text(verbatim: milestone.title)
+                    .accessibilityLabel(String(localized: "\(milestone.title), \(L10n.milestoneState(done: isDone, active: isActive))"))
+                    .font(.system(size: 12.5, weight: isActive ? .semibold : .regular))
+                    .foregroundStyle(isActive ? Theme.text : Theme.muted)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if let duration {
+                    Spacer(minLength: 6)
+                    Text(verbatim: formatDuration(duration))
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(Theme.muted)
+                        .fixedSize()
+                }
+            }
             if let now, !now.pills.isEmpty || now.attempt >= 2 || now.file != nil {
                 NowBlockView(now: now).padding(.top, 6)
             }

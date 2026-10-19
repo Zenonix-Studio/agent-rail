@@ -12,6 +12,27 @@ func progress(_ job: Job) -> (done: Int, total: Int, pct: Int?) {
     return (done, total, Int((100.0 * Double(done) / Double(total)).rounded()))
 }
 
+/// Rough time left (`eta` in core/progress.mjs): the average length of the finished steps times the
+/// steps still open, less what the active step already took. nil before any step finished or once all are done.
+func eta(_ job: Job, now: Date) -> TimeInterval? {
+    let spans = job.milestones.compactMap { m -> TimeInterval? in
+        guard m.status == .done, let start = m.startedAt, let end = m.endedAt else { return nil }
+        let d = end.timeIntervalSince(start)
+        return d > 0 ? d : nil
+    }
+    let open = job.milestones.filter { $0.status != .done }
+    guard !spans.isEmpty, !open.isEmpty else { return nil }
+    let avg = spans.reduce(0, +) / Double(spans.count)
+    let spent = open.first { $0.status == .active }?.startedAt.map { max(0, now.timeIntervalSince($0)) } ?? 0
+    return max(0, avg * Double(open.count) - min(spent, avg))
+}
+
+/// How long a step took, or has taken so far (`stepDuration` in core/progress.mjs); nil before it started.
+func stepDuration(_ m: Milestone, now: Date) -> TimeInterval? {
+    guard let start = m.startedAt else { return nil }
+    return max(0, (m.endedAt ?? now).timeIntervalSince(start))
+}
+
 func isStale(_ item: JobItem, now: Date) -> Bool {
     guard item.job.status == .running || item.job.status == .planning else { return false }
     let toolInFlight = item.job.status == .running && item.job.now?.pills.last?.kind == .active

@@ -41,6 +41,22 @@ enum L10n {
         done ? String(localized: "done") : active ? String(localized: "active") : String(localized: "pending")
     }
 
+    /// Short stage name for the stage tag.
+    static func stageName(_ stage: Stage) -> String {
+        switch stage {
+        case .plan: String(localized: "plan")
+        case .analyse: String(localized: "analyse")
+        case .dev: String(localized: "dev")
+        case .fix: String(localized: "fix")
+        case .review: String(localized: "review")
+        }
+    }
+
+    /// Rough time left after the step count: "~4 min left".
+    static func timeLeft(_ interval: TimeInterval) -> String {
+        String(localized: "~\(formatDuration(interval)) left")
+    }
+
     static func agentStatus(_ status: AgentStatus) -> String {
         switch status {
         case .running: String(localized: "running")

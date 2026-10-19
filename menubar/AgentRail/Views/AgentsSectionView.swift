@@ -124,12 +124,16 @@ private struct AgentRowView: View {
             .truncationMode(.tail)
     }
 
+    /// The current step, after a small dot of the agent's stage when known.
     private var stepText: some View {
-        Text(verbatim: currentStep)
-            .font(.system(size: 12))
-            .foregroundStyle(Theme.muted)
-            .lineLimit(1)
-            .truncationMode(.tail)
+        HStack(spacing: 5) {
+            StageDot(stage: agent.stage)
+            Text(verbatim: currentStep)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.muted)
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
     }
 
     private var detail: some View {

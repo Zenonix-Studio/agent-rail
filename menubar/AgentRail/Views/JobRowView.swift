@@ -40,11 +40,18 @@ struct JobHeaderView: View {
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Text(verbatim: expanded ? detailSubtitle : rowSubtitle(p))
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.muted)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                // Only the step title truncates; the step count and the time left stay whole.
+                let subtitle = expanded ? (detailSubtitle, nil) : rowSubtitle(p)
+                HStack(spacing: 0) {
+                    Text(verbatim: subtitle.0)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if let tail = subtitle.1 {
+                        Text(verbatim: tail).lineLimit(1).fixedSize()
+                    }
+                }
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.muted)
                 // Status gets its own short line so the subtitle keeps its full content.
                 if item.job.status == .waiting {
                     Text("● waiting for you")
@@ -86,14 +93,17 @@ struct JobHeaderView: View {
         return String(localized: "No activity for \(minutes) min")
     }
 
-    private func rowSubtitle(_ p: (done: Int, total: Int, pct: Int?)) -> String {
-        if let staleText { return staleText }
-        guard p.total > 0 else { return String(localized: "Planning · 0/?") }
+    /// "▸ <step>" and " · <done>/<total> · ~4 min left"; one part alone when there is no step or count.
+    private func rowSubtitle(_ p: (done: Int, total: Int, pct: Int?)) -> (String, String?) {
+        if let staleText { return (staleText, nil) }
+        guard p.total > 0 else { return (String(localized: "Planning · 0/?"), nil) }
+        var count = "\(p.done)/\(p.total)"
+        if let left = eta(item.job, now: now) { count += " · " + L10n.timeLeft(left) }
         // Name the milestone only when the rail marks one active, so the row and the rail agree.
         guard let key = activeMilestoneKey(item.job),
               let current = item.job.milestones.first(where: { $0.key == key })
-        else { return "\(p.done)/\(p.total)" }
-        return String(localized: "▸ \(current.title) · \(p.done)/\(p.total)")
+        else { return (count, nil) }
+        return ("▸ " + current.title, " · " + count)
     }
 
     private var detailSubtitle: String {

@@ -25,6 +25,12 @@ const TONE: Record<string, { color?: string; dimColor?: boolean; weight?: 'bold'
   active: { color: 'claude' },
   warn: { color: 'warning' },
   error: { color: 'error' },
+  // Stage palette, the menubar's dark-mode hues: dev is the existing accent, fix the theme's red.
+  plan: { color: '#b49af2' },
+  analyse: { color: '#7fa8f0' },
+  dev: { color: 'claude' },
+  fix: { color: 'error' },
+  review: { color: '#4cc2b6' },
 }
 
 let lastSignature = ''

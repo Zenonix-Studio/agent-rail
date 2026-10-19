@@ -229,16 +229,6 @@
         }
       }
     },
-    "▸ %@ · %lld/%lld": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "▸ %@ · %lld/%lld"
-          }
-        }
-      }
-    },
     "%@ · %@": {
       "localizations": {
         "tr": {
@@ -485,6 +475,66 @@
           "stringUnit": {
             "state": "translated",
             "value": "başarısız"
+          }
+        }
+      }
+    },
+    "plan": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "plan"
+          }
+        }
+      }
+    },
+    "analyse": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "analiz"
+          }
+        }
+      }
+    },
+    "dev": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "geliştirme"
+          }
+        }
+      }
+    },
+    "fix": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "düzeltme"
+          }
+        }
+      }
+    },
+    "review": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "inceleme"
+          }
+        }
+      }
+    },
+    "~%@ left": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "~%@ kaldı"
           }
         }
       }

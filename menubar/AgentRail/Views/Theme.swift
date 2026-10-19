@@ -31,6 +31,23 @@ enum Theme {
 
     static let cardRadius: CGFloat = 10
 
+    // Stage palette shared with the other viewers: plan violet, analyse blue, dev orange (the accent),
+    // fix red, review teal. Light values are darkened for 4.5:1 text contrast, as above.
+    private static let plan = dynamic(light: 0x6A3FB8, dark: 0xB49AF2)
+    private static let analyse = dynamic(light: 0x2C5BB0, dark: 0x7FA8F0)
+    private static let fix = dynamic(light: 0xB02A22, dark: 0xEC746C)
+    private static let review = dynamic(light: 0x0E716C, dark: 0x4CC2B6)
+
+    static func stage(_ stage: Stage) -> Color {
+        switch stage {
+        case .plan: plan
+        case .analyse: analyse
+        case .dev: accent
+        case .fix: fix
+        case .review: review
+        }
+    }
+
     private static func dynamic(light: UInt32, dark: UInt32) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
             NSColor(hex: appearance.isDark ? dark : light)
@@ -63,11 +80,31 @@ struct JobCard: ViewModifier {
 
 /// Minutes or hours-and-minutes, e.g. `4 min`, `1 h 12 min`.
 func formatElapsed(from start: Date, to end: Date) -> String {
-    let minutes = max(1, Int(end.timeIntervalSince(start) / 60))
+    formatDuration(end.timeIntervalSince(start))
+}
+
+/// A span as `formatElapsed` shows it; anything under a minute reads `1 min`.
+func formatDuration(_ interval: TimeInterval) -> String {
+    let minutes = max(1, Int(interval / 60))
     let (h, m) = (minutes / 60, minutes % 60)
     if h == 0 { return String(localized: "\(m) min") }
     if m == 0 { return String(localized: "\(h) h") }
     return String(localized: "\(h) h \(m) min")
+}
+
+/// A small round stage marker; nothing when the stage is unknown, so older files keep their look.
+struct StageDot: View {
+    let stage: Stage?
+    var size: CGFloat = 6
+
+    var body: some View {
+        if let stage {
+            Circle()
+                .fill(Theme.stage(stage))
+                .frame(width: size, height: size)
+                .accessibilityLabel(L10n.stageName(stage))
+        }
+    }
 }
 
 /// Lays out children left to right and wraps onto new lines (the now block's pill flow).

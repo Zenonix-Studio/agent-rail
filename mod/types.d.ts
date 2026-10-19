@@ -3,8 +3,16 @@
 // (see docs/state-schema.md). The session file also holds `_`-prefixed internal
 // fields (e.g. a pill's `_run`) and may gain fields: readers ignore both.
 
-export type RailPill = { label: string; kind: 'ok' | 'warn' | 'active' | 'info' };
-export type RailMilestone = { key: string; title: string; status: 'pending' | 'active' | 'done' };
+export type RailStage = 'plan' | 'analyse' | 'dev' | 'fix' | 'review';
+export type RailPill = { label: string; kind: 'ok' | 'warn' | 'active' | 'info'; stage?: RailStage };
+export type RailMilestone = {
+  key: string;
+  title: string;
+  status: 'pending' | 'active' | 'done';
+  stage?: RailStage;
+  startedAt?: string;
+  endedAt?: string;
+};
 export type RailJob = {
   seq: number;
   title: string;
@@ -13,9 +21,9 @@ export type RailJob = {
   milestones: RailMilestone[];
   startedAt: string;
   endedAt: string | null;
-  now: { milestone: string; pills: RailPill[]; attempt: number; file: string | null } | null;
+  now: { milestone: string; pills: RailPill[]; attempt: number; file: string | null; stage?: RailStage | null } | null;
 };
-/** `summary`, `milestones` and `steps` are absent in files written before they existed. */
+/** `summary`, `milestones`, `steps` and `stage` are absent in files written before they existed. */
 export type RailAgent = {
   name: string;
   status: 'running' | 'done' | 'error' | 'stale';
@@ -24,6 +32,7 @@ export type RailAgent = {
   summary?: string;
   milestones?: RailMilestone[];
   steps?: RailPill[];
+  stage?: RailStage | null;
 };
 /** The current job, the clock it was read at (ms since the epoch), and the subagents that started in it. */
 export type RailView = { job: RailJob | null; at: number; agents: RailAgent[] };
