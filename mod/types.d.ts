@@ -8,6 +8,7 @@ export type RailMilestone = { key: string; title: string; status: 'pending' | 'a
 export type RailJob = {
   seq: number;
   title: string;
+  summary?: string;
   status: 'planning' | 'running' | 'waiting' | 'done' | 'error';
   milestones: RailMilestone[];
   startedAt: string;

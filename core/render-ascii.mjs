@@ -14,7 +14,7 @@ import { progress } from './progress.mjs';
  * @typedef {'plain'|'bold'|'dim'|'done'|'active'|'warn'|'error'} Tone
  * @typedef {{ text: string, tone: Tone }} Segment
  * @typedef {Segment[]} Line
- * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'>} RenderableJob
+ * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'> & {summary?: string}} RenderableJob
  * @typedef {Pick<import('./state.mjs').Agent, 'name'|'status'|'activity'> & {
  *   id?: string, startedAt?: string, updatedAt?: string, milestones?: import('./state.mjs').Milestone[], steps?: import('./state.mjs').Pill[]
  * }} RenderableAgent `milestones` / `steps` are absent in files written before they existed.
@@ -32,8 +32,8 @@ const AGENTS_SHOWN = 4;
 /** Above this many milestones the rail folds: done ones into one line, at most RAIL_AHEAD from the current one. */
 const RAIL_MAX = 7;
 const RAIL_AHEAD = 4;
-/** Rows an expanded agent's story may wrap onto. */
-const AGENT_ROWS = 3;
+/** Cells of an agent row's mini progress bar. */
+const MINI_BAR = 6;
 const GUTTER = '│   ';
 
 /**
@@ -76,6 +76,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
     const lead = `${clip(title, w - label.length - 2 - tailLen(tail) - hintLen)}  `;
     /** @type {Line[]} */
     const lines = [[seg(lead, 'bold'), seg(label, isDone ? 'done' : 'dim'), ...tail, ...hint]];
+    if (w >= COMPACT_WIDTH) lines.push(...summaryLines(job, w));
     // Spec §7 fallback: a planless job still shows what the agent is doing.
     const now = job?.now;
     if (!isDone && now && typeof now === 'object') {
@@ -112,6 +113,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
   const barW = Math.max(BAR_MIN, Math.min(BAR_MAX, w - counts.length - tailLen(tail)));
   const filled = Math.round((barW * done) / total);
   lines.push([seg('█'.repeat(filled), 'done'), seg('░'.repeat(barW - filled), 'dim'), seg(counts, 'plain'), ...tail]);
+  lines.push(...summaryLines(job, w));
 
   const now = !isDone && job?.now && typeof job.now === 'object' ? job.now : null;
   lines.push(...railLines(milestones, w, isDone, now));
@@ -245,10 +247,11 @@ function layout(pills, room, tail, maxRows) {
 const AGENT_GLYPH = { running: ['●', 'active'], done: ['✓', 'done'], stale: ['○', 'dim'], error: ['✗', 'error'] };
 
 /**
- * "Agents" block: one row per subagent, running ones first. A row is
- * `▸ ● <name>  d/t · <latest step>`; an expanded row (`▾`, the first running
- * agent, or every agent with `expandAll`) shows the agent's own steps under it
- * as an arrow story: its milestones when it made a plan, else its story steps.
+ * "Agents · N running" block, laid out like the menubar's agent rows. One row
+ * per subagent: `▸ ● <name>  <current step>` with, when it keeps its own plan,
+ * a right-aligned mini bar and `done/total`. An open row (`▾`: the first
+ * running agent, or every agent with `expandAll`) lists under it what the
+ * agent was asked to do and its own steps, one per line with a status node.
  * @param {RenderableAgent[]} agents
  * @param {number} w
  * @param {boolean} expandAll
@@ -258,28 +261,124 @@ function agentLines(agents, w, expandAll) {
   if (!agents.length) return [];
   const sorted = sortAgents(agents);
   const shown = sorted.slice(0, AGENTS_SHOWN);
+  const running = agents.filter((a) => a.status === 'running').length;
   /** @type {Line[]} */
-  const lines = [[], [seg('Agents', 'dim')]];
+  const lines = [[], [seg(running > 0 ? `Agents · ${running} running` : 'Agents', 'dim')]];
   shown.forEach((a, i) => {
     const open = expandAll || (i === 0 && a.status === 'running');
-    const [glyph, tone] = AGENT_GLYPH[/** @type {keyof typeof AGENT_GLYPH} */ (a.status)] ?? ['·', 'dim'];
-    const running = a.status === 'running';
-    const ms = Array.isArray(a.milestones) ? a.milestones.filter((m) => m && typeof m === 'object') : [];
-    const count = ms.length ? `  ${ms.filter((m) => m.status === 'done').length}/${ms.length}` : '';
-    const story = open ? agentStory(a, ms, running, w - 4) : [];
-    const activity = currentStep(a, ms) || (running ? 'starting…' : '');
-    // Collapsed, or open with nothing to show under it: the latest step stays on the row.
-    const tail = !story.length && activity ? activity : '';
-    const name = clip(str(a.name) || 'agent', tail ? Math.max(8, Math.floor((w - 4 - count.length) * 0.5)) : w - 4 - count.length);
-    /** @type {Line} */
-    const row = [seg(open ? '▾ ' : '▸ ', running ? 'active' : 'dim'), seg(glyph, /** @type {Tone} */ (tone)), seg(' ', 'plain'),
-      seg(name, running ? 'bold' : 'dim'), seg(count, 'plain')];
-    if (tail) row.push(seg(count ? ' · ' : ' — ', 'dim'), seg(clip(tail, w - 4 - name.length - count.length - 3), 'dim'));
-    lines.push(row);
-    for (const r of story) lines.push([seg('    ', 'plain'), ...r]);
+    lines.push(agentRow(a, w, open));
+    if (open) lines.push(...agentBody(a, w));
   });
-  if (shown.length < sorted.length) lines.push([seg(`  +${sorted.length - shown.length} more`, 'dim')]);
+  if (shown.length < sorted.length) lines.push([seg(`+${sorted.length - shown.length} more`, 'dim')]);
   return lines;
+}
+
+/**
+ * @param {RenderableAgent} a @param {number} w @param {boolean} open
+ * @returns {Line} `▾ ● name  current step ……… ███░░░ 3/6`
+ */
+function agentRow(a, w, open) {
+  const [glyph, tone] = AGENT_GLYPH[/** @type {keyof typeof AGENT_GLYPH} */ (a.status)] ?? ['·', 'dim'];
+  const running = a.status === 'running';
+  const ms = agentMilestones(a);
+  const done = ms.filter((m) => m.status === 'done').length;
+  const count = ms.length ? `${done}/${ms.length}` : '';
+  const filled = ms.length ? Math.round((MINI_BAR * done) / ms.length) : 0;
+  const right = ms.length ? MINI_BAR + 1 + count.length : 0;
+  const room = w - 4 - (right ? right + 2 : 0);
+  const name = clip(str(a.name) || 'agent', Math.max(8, Math.min(room, Math.ceil(room * 0.55))));
+  const step = currentStep(a, ms) || (running ? 'starting…' : '');
+  const stepText = step ? clip(step, room - name.length - 2) : '';
+  /** @type {Line} */
+  const row = [seg(open ? '▾ ' : '▸ ', running ? 'active' : 'dim'), seg(glyph, /** @type {Tone} */ (tone)), seg(' ', 'plain'),
+    seg(name, running ? 'bold' : 'plain')];
+  if (stepText) row.push(seg('  ', 'plain'), seg(stepText, 'dim'));
+  if (right) {
+    const used = 4 + name.length + (stepText ? 2 + stepText.length : 0);
+    row.push(seg(' '.repeat(Math.max(2, w - used - right)), 'plain'),
+      seg('█'.repeat(filled), 'done'), seg('░'.repeat(MINI_BAR - filled), 'dim'), seg(` ${count}`, 'dim'));
+  }
+  return row;
+}
+
+/**
+ * An open agent row's body: its summary (when it says more than the name) and
+ * its own steps, `✓` done, `◉` current, `✗` failed, `○` not started or unknown.
+ * @param {RenderableAgent} a @param {number} w @returns {Line[]}
+ */
+function agentBody(a, w) {
+  const pad = '    ';
+  /** @type {Line[]} */
+  const lines = [];
+  const summary = str(a.summary);
+  if (summary && summary !== str(a.name)) {
+    for (const t of wrapText(summary, w - pad.length, 2)) lines.push([seg(pad, 'plain'), seg(t, 'dim')]);
+  }
+  for (const s of agentSteps(a)) {
+    const [g, gt, tt] = STEP_STYLE[s.state];
+    lines.push([seg(pad, 'plain'), seg(g, gt), seg(' ', 'plain'), seg(clip(s.label, w - pad.length - 2), tt)]);
+  }
+  return lines;
+}
+
+/** Node glyph, its tone and the label's tone per step state (the menubar's step list). */
+const STEP_STYLE = /** @type {const} */ ({
+  done: ['✓', 'done', 'dim'],
+  current: ['◉', 'active', 'bold'],
+  failed: ['✗', 'warn', 'warn'],
+  neutral: ['○', 'dim', 'dim'],
+});
+
+/** @param {RenderableAgent} a @returns {import('./state.mjs').Milestone[]} */
+function agentMilestones(a) {
+  return Array.isArray(a.milestones) ? a.milestones.filter((m) => m && typeof m === 'object') : [];
+}
+
+/**
+ * The steps an open agent row lists, oldest first (same rule as the menubar's
+ * `agentSteps`). With a plan: its done milestones and the active one (or, with
+ * none active, the next pending one). Without: its last 6 story steps.
+ * @param {RenderableAgent} a
+ * @returns {{label: string, state: 'done'|'current'|'failed'|'neutral'}[]}
+ */
+function agentSteps(a) {
+  const running = a.status === 'running';
+  const ms = agentMilestones(a);
+  if (ms.length) {
+    const active = ms.some((m) => m.status === 'active');
+    const next = active ? null : ms.find((m) => m.status !== 'done');
+    return ms
+      .filter((m) => m.status === 'done' || (active ? m.status === 'active' : m === next))
+      .map((m) => ({
+        label: str(m.title) || str(m.key) || '?',
+        state: m.status === 'done' ? 'done' : m.status === 'active' && running ? 'current' : 'neutral',
+      }));
+  }
+  const steps = Array.isArray(a.steps) ? a.steps.filter((p) => p && str(p.label)) : [];
+  return steps.slice(-6).map((p) => ({
+    label: str(p.label),
+    state: p.kind === 'ok' ? 'done' : p.kind === 'warn' ? 'failed' : p.kind === 'active' && running ? 'current' : 'neutral',
+  }));
+}
+
+/**
+ * Word-wraps one line of text to at most `maxLines` lines of `room` columns; the last one ends in "…" when cut.
+ * @param {string} text @param {number} room @param {number} maxLines @returns {string[]}
+ */
+function wrapText(text, room, maxLines) {
+  if (room <= 0) return [];
+  /** @type {string[]} */
+  const out = [];
+  let rest = text.trim();
+  while (rest && out.length < maxLines) {
+    if (rest.length <= room) { out.push(rest); rest = ''; break; }
+    if (out.length === maxLines - 1) { out.push(clip(rest, room)); rest = ''; break; }
+    const cut = rest.lastIndexOf(' ', room);
+    const at = cut > 0 ? cut : room;
+    out.push(rest.slice(0, at).trimEnd());
+    rest = rest.slice(at).trimStart();
+  }
+  return out;
 }
 
 /**
@@ -308,46 +407,12 @@ function currentStep(a, ms) {
 }
 
 /**
- * An expanded agent's own steps as an arrow story, oldest first, wrapped onto
- * up to AGENT_ROWS rows (oldest dropped first). With a plan: its done
- * milestones and the active one; else its story steps.
- * @param {RenderableAgent} a
- * @param {import('./state.mjs').Milestone[]} ms
- * @param {boolean} running
- * @param {number} room
- * @returns {Segment[][]}
+ * The job's summary under its header, as on the menubar card: dim, up to 2 lines.
+ * @param {RenderableJob} job @param {number} w @returns {Line[]}
  */
-function agentStory(a, ms, running, room) {
-  /** @type {Segment[]} */
-  let items;
-  if (ms.length) {
-    items = ms
-      .filter((m) => m.status === 'done' || m.status === 'active')
-      .map((m) => {
-        const t = str(m.title) || str(m.key) || '?';
-        if (m.status === 'done') return seg(clip(`✓ ${t}`, room), 'done');
-        return running ? seg(clip(`${t} ▶`, room), 'active') : seg(clip(t, room), 'plain');
-      });
-  } else {
-    const steps = Array.isArray(a.steps) ? a.steps : [];
-    items = steps
-      .filter((p) => p && str(p.label))
-      .map((p) => {
-        const t = str(p.label);
-        if (p.kind === 'ok') return seg(clip(`✓ ${t}`, room), 'done');
-        if (p.kind === 'warn') return seg(clip(`✗ ${t}`, room), 'warn');
-        if (p.kind === 'active' && running) return seg(clip(`${t} ▶`, room), 'active');
-        return seg(clip(t, room), 'dim');
-      });
-  }
-  /** @type {Segment[]} */
-  const kept = [];
-  for (let i = items.length - 1; i >= 0; i--) {
-    const next = [items[i], ...kept];
-    if (layout(next, room, 0, AGENT_ROWS) === null) break;
-    kept.unshift(items[i]);
-  }
-  return kept.length ? /** @type {Segment[][]} */ (layout(kept, room, 0, AGENT_ROWS)) : [];
+function summaryLines(job, w) {
+  const summary = str(job?.summary);
+  return summary ? wrapText(summary, w, 2).map((t) => [seg(t, 'dim')]) : [];
 }
 
 /**
