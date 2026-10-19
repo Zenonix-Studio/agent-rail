@@ -1,0 +1,10 @@
+{
+  "session_id": "session-0501",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/rail-demo",
+  "prompt_id": "prompt-0501-1",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "agent-0511",
+  "agent_type": "general-purpose",
+  "hook_event_name": "SubagentStart"
+}

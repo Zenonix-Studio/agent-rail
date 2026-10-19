@@ -1,0 +1,23 @@
+{
+  "session_id": "session-0501",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/rail-demo",
+  "prompt_id": "prompt-0501-1",
+  "permission_mode": "bypassPermissions",
+  "agent_id": "agent-0510",
+  "agent_type": "general-purpose",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "touch agent1.txt",
+    "description": "Create agent1.txt"
+  },
+  "tool_use_id": "toolu-0501-17",
+  "tool_response": {
+    "stdout": "",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": true
+  }
+}

@@ -158,7 +158,9 @@ A failed step is never merged into and stays visible: `Build failed`,
 
 ## Agent
 
-A subagent of the main agent. Subagents never change milestones or %.
+A subagent of the main agent. Subagents never change the job's milestones or
+%: a subagent's own plan (Claude task tools or TodoWrite with its `agent_id`, a
+Codex `update_plan` from a sub-thread) goes to that agent's `milestones`.
 Claude Code's own helper agents (prompt suggestions, internal forks) report an
 `agent_id` with an empty or missing `agent_type` and never start as subagents:
 an id whose events carry no `agent_type` is listed only once a subagent start
@@ -169,7 +171,10 @@ was seen for it. Ids with an `agent_type` are always listed.
 | `id` | `string` | The agent id the hooks report. |
 | `name` | `string` | Display name: the description the main agent gave when it dispatched the agent (`Review the popover UI`), else its humanized type (`General-purpose agent`, `Code reviewer agent`); `'agent'` when unknown. Exact links: the Claude Agent call's response, and the background tasks a Claude stop lists. Until then (and for Codex) the only open dispatch of the agent's type in the job is assumed; with several differently named ones, the type name shows. |
 | `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: it never reported back. Either it was still running when its job finished or the session ended, or a Claude main-agent stop no longer listed it among the running background tasks. |
-| `activity` | `string` | One line: its latest step, with the same human labels and collapsing as pills (`Reading 3 files`). |
+| `activity` | `string` | One line: its latest step, the label of the last entry of `steps` (`Reading 3 files`). Kept for older readers. |
+| `summary` | `string` | What it was asked to do: the first sentence of the dispatch prompt (Claude Agent `prompt`, Codex spawn `message`), at most 100 characters; else the dispatch description. `''` when unknown. May equal `name`. |
+| `milestones` | `Milestone[]` | The agent's own plan, in plan order; empty when it made none. Its `done / total` is its own progress, never the job's. |
+| `steps` | `Pill[]` | The agent's own story: its last 6 steps, oldest first, with the same labels, collapsing and plan steps (`Planned 6 steps`, a finished task's title as `ok`) as `Now.pills`. |
 | `job` | `number \| null` | `seq` of the job it started in; `null` if it started before any job. |
 | `updatedAt` | `string` | Last event from this agent. |
 | `endedAt` | `string \| null` | When it stopped or was marked `stale`; `null` while running. |
@@ -179,4 +184,7 @@ was seen for it. Ids with an `agent_type` are always listed.
 Listed only so readers know they are expected: `Session._pendingPrompt`,
 `Session._dispatch`, `Job._prevEndedAt`, `Job._mainStopped`, `Job._summaryFromPlan`,
 `Milestone._activeForm`, `Now._counts`, `Now._open`, `Now._retryBase`, `Pill._run`
-(older files: `Pill._id`), `Agent._type`, `Agent._run`.
+(older files: `Pill._id`), `Agent._type`, `Agent._open` (older files: `Agent._run`).
+
+Files written before `summary`, `milestones` and `steps` existed lack them on
+agents: readers treat them as `''` and `[]`.

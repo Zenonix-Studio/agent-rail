@@ -43,9 +43,9 @@ function toEvent(p, agentId) {
     case 'UserPromptSubmit':
       return typeof p.prompt === 'string' ? { type: 'prompt', text: p.prompt } : null;
     case 'PreToolUse':
-      return toolEvent(p, 'pre', agentId);
+      return toolEvent(p, 'pre');
     case 'PostToolUse':
-      return toolEvent(p, 'post', agentId);
+      return toolEvent(p, 'post');
     case 'SubagentStart':
       return { type: 'agent-start', name: str(p.agent_type) ?? 'agent' };
     case 'SubagentStop':
@@ -59,13 +59,14 @@ function toEvent(p, agentId) {
   }
 }
 
-/** @param {any} p @param {'pre'|'post'} phase @param {string|null} agentId @returns {Event|null} */
-function toolEvent(p, phase, agentId) {
+/** @param {any} p @param {'pre'|'post'} phase @returns {Event|null} */
+function toolEvent(p, phase) {
   const name = str(p.tool_name);
   if (!name) return null;
   const input = p.tool_input && typeof p.tool_input === 'object' ? p.tool_input : {};
 
-  if (name === 'update_plan') return phase === 'post' && !agentId ? plan(input) : null;
+  // A sub-thread's plan is that agent's own; the reducer keeps it off the job's milestones.
+  if (name === 'update_plan') return phase === 'post' ? plan(input) : null;
 
   let file = null;
   let ok = null;

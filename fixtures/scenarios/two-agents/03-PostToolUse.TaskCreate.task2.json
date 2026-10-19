@@ -1,0 +1,22 @@
+{
+  "session_id": "session-0501",
+  "transcript_path": "/home/user/.claude/transcripts/<id>.jsonl",
+  "cwd": "/work/rail-demo",
+  "prompt_id": "prompt-0501-1",
+  "permission_mode": "bypassPermissions",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "TaskCreate",
+  "tool_input": {
+    "subject": "Wait for the agents",
+    "description": "Let both agents finish their files.",
+    "activeForm": "Waiting for the agents"
+  },
+  "tool_response": {
+    "task": {
+      "id": "2",
+      "subject": "Wait for the agents"
+    }
+  },
+  "tool_use_id": "toolu-0501-02",
+  "duration_ms": 3
+}
