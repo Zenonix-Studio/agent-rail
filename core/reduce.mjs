@@ -72,27 +72,10 @@ export function fallbackTitle(prompt) {
 /** @param {Session} s @param {Record<string, any>} input @param {string} at */
 function apply(s, input, at) {
   applyEvent(s, input, at);
-  // Free summaries from the plan, rebuilt on every event.
+  // The main agent's own `progress:` line: its 1–2 sentence summary of the whole job.
+  const e = input.event;
   const job = current(s);
-  if (job) job.digest = digestOf(job.milestones, job.now?.pills ?? []);
-  for (const a of Object.values(s.agents)) a.digest = digestOf(a.milestones, a.steps);
-}
-
-/**
- * A rule-based one-liner: "Done: A, B. Left: C, D." from the plan, else the last finished steps.
- * @param {import('./state.mjs').Milestone[]} milestones @param {Pill[]} pills @returns {string}
- */
-function digestOf(milestones, pills) {
-  if (milestones.length === 0) {
-    const ok = pills.filter((p) => p.kind === 'ok').map((p) => p.label).slice(-2);
-    return ok.length ? `Done: ${ok.join(', ')}.` : '';
-  }
-  const done = milestones.filter((m) => m.status === 'done').map((m) => m.title);
-  const left = milestones.filter((m) => m.status !== 'done').map((m) => m.title);
-  // At most 3 names each: the latest done ones, the next left ones.
-  const doneText = done.length ? `Done: ${done.length > 3 ? `${done.length - 3} more, ` : ''}${done.slice(-3).join(', ')}.` : '';
-  const leftText = left.length ? `Left: ${left.slice(0, 3).join(', ')}${left.length > 3 ? ` +${left.length - 3}` : ''}.` : 'All steps done.';
-  return [doneText, leftText].filter(Boolean).join(' ');
+  if (job && isObj(e) && !str(input.agentId) && str(e.progress)) job.progress = e.progress;
 }
 
 /** @param {Session} s @param {Record<string, any>} input @param {string} at */
@@ -1062,7 +1045,6 @@ function fixAgent(id, a, at) {
     steps: fixPills(a.steps).slice(-MAX_AGENT_STEPS),
     stage: STAGE_SET.has(a.stage) ? a.stage : null,
     progress: typeof a.progress === 'string' ? a.progress : '',
-    digest: typeof a.digest === 'string' ? a.digest : '',
     _failed: a._failed === true,
     _type: str(a._type),
     _open: Array.isArray(a._open) ? a._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],

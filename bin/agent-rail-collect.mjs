@@ -5,7 +5,7 @@ import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSe
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce, fallbackTitle } from '../core/reduce.mjs';
-import { railInstruction, extractMeta, findMarkerInTranscript, findStepsInTranscript, agentTranscriptPath, SUBAGENT_INSTRUCTION } from '../core/flow.mjs';
+import { railInstruction, extractMeta, findMarkerInTranscript, findProgressInTranscript, findStepsInTranscript, agentTranscriptPath, SUBAGENT_INSTRUCTION } from '../core/flow.mjs';
 
 const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
 
@@ -54,6 +54,12 @@ async function main() {
   if (source === 'claude' && event.agentId && ((event.event?.type === 'tool' && event.event.phase === 'pre') || event.event?.type === 'agent-stop')) {
     const { steps, progress } = findStepsInTranscript(input.agent_transcript_path ?? agentTranscriptPath(input.transcript_path, event.agentId));
     if (steps.length > 0) event.event = { ...event.event, steps };
+    if (progress) event.event = { ...event.event, progress };
+  }
+  // The main agent's `progress:` line: on its plan changes (it writes one as it starts a step) and its stop.
+  const mainType = event.event?.type;
+  if (!event.agentId && ['plan', 'plan-step', 'task-create', 'task-update', 'stop'].includes(mainType)) {
+    const progress = findProgressInTranscript(input.transcript_path);
     if (progress) event.event = { ...event.event, progress };
   }
   const path = sessionPath(source, event.sessionId);

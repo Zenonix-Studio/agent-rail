@@ -538,46 +538,6 @@
           }
         }
       }
-    },
-    "Done:": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bitti:"
-          }
-        }
-      }
-    },
-    "Left:": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kalan:"
-          }
-        }
-      }
-    },
-    "All steps done.": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tüm adımlar bitti."
-          }
-        }
-      }
-    },
-    "%lld more, ": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld daha, "
-          }
-        }
-      }
     }
   },
   "version": "1.0"

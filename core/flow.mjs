@@ -382,6 +382,9 @@ const PLAN_NUDGE = {
   codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
 };
 
+/** Asks the main agent for its own running summary of the whole job, read from its transcript. */
+const PROGRESS_NUDGE = ' Each time you start a step, also write one line "progress: <at most 2 short sentences on the work itself so far, your agents\' included: what was found, changed or verified, and what is left — not the step titles>".';
+
 /** Asks the main agent to have its subagents plan too, so each agent row has its own progress. */
 const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep its own short task list (3–7 steps) updated as it works.';
 
@@ -391,7 +394,7 @@ const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep it
  * them), so an agent's steps are `step:` lines in its own text, read from its transcript.
  */
 export const SUBAGENT_INSTRUCTION =
-  'Your progress is shown live from your steps. Work in 2–7 steps, and when you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>", where stage is plan, analyse, dev, fix or review (e.g. "step: analyse: read the reducer"). Right after it, write one more line: "progress: <at most 2 short sentences: what you have done so far and what is left>". Do each step in its own tool calls, not one long script.';
+  'Your progress is shown live from your steps. Work in 2–7 steps, and when you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>", where stage is plan, analyse, dev, fix or review (e.g. "step: analyse: read the reducer"). Right after it, write one more line: "progress: <at most 2 short sentences on the work itself: what you found or changed so far and what is left — not the step titles>". Do each step in its own tool calls, not one long script.';
 
 /**
  * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge.
@@ -400,7 +403,7 @@ export const SUBAGENT_INSTRUCTION =
  */
 export function railInstruction(source) {
   const nudge = PLAN_NUDGE[/** @type {'claude'|'codex'} */ (source)];
-  return MARKER_INSTRUCTION + (nudge ? nudge + AGENT_PLAN_NUDGE : '');
+  return MARKER_INSTRUCTION + (nudge ? nudge + PROGRESS_NUDGE + AGENT_PLAN_NUDGE : '');
 }
 
 const TRANSCRIPT_TAIL_LINES = 200;
@@ -424,6 +427,29 @@ export function findMarkerInTranscript(path) {
       if (role !== 'assistant') continue;
       const hit = texts.find((t) => extractMeta(t));
       if (hit) return hit;
+    }
+  } catch { /* the transcript is a best-effort source */ }
+  return null;
+}
+
+/**
+ * The main agent's latest `progress:` line of this turn (PROGRESS_NUDGE): scans back to the latest user prompt.
+ * @param {string|null|undefined} path transcript_path from the hook payload
+ * @returns {string|null}
+ */
+export function findProgressInTranscript(path) {
+  try {
+    const lines = tailLines(path).slice(-TRANSCRIPT_TAIL_LINES);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!lines[i].includes('progress:') && !lines[i].includes('"user"')) continue;
+      let o;
+      try { o = JSON.parse(lines[i]); } catch { continue; }
+      const { role, texts } = transcriptLine(o);
+      if (role === 'user') return null;
+      if (role !== 'assistant') continue;
+      let last = null;
+      for (const t of texts) for (const m of t.matchAll(PROGRESS_LINE)) last = m[1];
+      if (last) return clipText(last.replace(/\s+/g, ' '), PROGRESS_MAX);
     }
   } catch { /* the transcript is a best-effort source */ }
   return null;

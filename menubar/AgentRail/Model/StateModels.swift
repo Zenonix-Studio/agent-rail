@@ -124,11 +124,11 @@ struct Job: Decodable, Sendable {
     let updatedAt: Date
     let endedAt: Date?
     let now: Now?
-    /// Rule-based "Done: A, B. Left: C, D."; `""` when unknown (and in files written before the field existed).
-    let digest: String
+    /// The main agent's own 1-2 sentence summary of the work done and left; `""` until it writes one.
+    let progress: String
 
     private enum CodingKeys: String, CodingKey {
-        case id, seq, title, summary, prompt, status, milestones, startedAt, updatedAt, endedAt, now, digest
+        case id, seq, title, summary, prompt, status, milestones, startedAt, updatedAt, endedAt, now, progress
     }
 
     init(from decoder: Decoder) throws {
@@ -144,7 +144,7 @@ struct Job: Decodable, Sendable {
         updatedAt = try c.decode(Date.self, forKey: .updatedAt)
         endedAt = try c.decodeIfPresent(Date.self, forKey: .endedAt)
         now = try c.decodeIfPresent(Now.self, forKey: .now)
-        digest = (try? c.decodeIfPresent(String.self, forKey: .digest)) ?? ""
+        progress = (try? c.decodeIfPresent(String.self, forKey: .progress)) ?? ""
     }
 }
 
@@ -168,12 +168,10 @@ struct Agent: Decodable, Sendable {
     let stage: Stage?
     /// Its own 1-2 sentence summary of what is done and left; `""` until it writes one.
     let progress: String
-    /// Rule-based one-liner, as `Job.digest`.
-    let digest: String
 
     private enum CodingKeys: String, CodingKey {
         case id, name, status, activity, job, startedAt, updatedAt, endedAt, summary, milestones, steps, stage
-        case progress, digest
+        case progress
     }
 
     init(from decoder: Decoder) throws {
@@ -192,7 +190,6 @@ struct Agent: Decodable, Sendable {
         steps = try c.decodeIfPresent([Pill].self, forKey: .steps) ?? []
         stage = c.decodeStage(forKey: .stage)
         progress = (try? c.decodeIfPresent(String.self, forKey: .progress)) ?? ""
-        digest = (try? c.decodeIfPresent(String.self, forKey: .digest)) ?? ""
     }
 }
 

@@ -85,7 +85,7 @@ private struct AgentRowView: View {
     private func header(_ p: (done: Int, total: Int)) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             headerLine(p)
-            // Its own words when it wrote some, else the rule-based digest; aligned under the name.
+            // Its own summary once it wrote one; aligned under the name.
             if let note {
                 Text(verbatim: note)
                     .font(.system(size: 11.5))
@@ -102,10 +102,7 @@ private struct AgentRowView: View {
         .contentShape(Rectangle())
     }
 
-    private var note: String? {
-        if !agent.progress.isEmpty { return agent.progress }
-        return agent.digest.isEmpty ? nil : agent.digest
-    }
+    private var note: String? { agent.progress.isEmpty ? nil : agent.progress }
 
     private func headerLine(_ p: (done: Int, total: Int)) -> some View {
         HStack(spacing: 8) {
