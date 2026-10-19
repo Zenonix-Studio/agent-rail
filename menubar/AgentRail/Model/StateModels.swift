@@ -77,6 +77,31 @@ struct Agent: Decodable, Sendable {
     let job: Int?
     let updatedAt: Date
     let endedAt: Date?
+    /// What it was asked to do; `""` when unknown (and in files written before the field existed).
+    let summary: String
+    /// Its own plan; empty when it made none.
+    let milestones: [Milestone]
+    /// Its own story, the last 6 steps, oldest first.
+    let steps: [Pill]
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, status, activity, job, updatedAt, endedAt, summary, milestones, steps
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        status = try c.decode(AgentStatus.self, forKey: .status)
+        activity = try c.decode(String.self, forKey: .activity)
+        job = try c.decodeIfPresent(Int.self, forKey: .job)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        endedAt = try c.decodeIfPresent(Date.self, forKey: .endedAt)
+        // Additive v1 fields: older files lack them.
+        summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
+        milestones = try c.decodeIfPresent([Milestone].self, forKey: .milestones) ?? []
+        steps = try c.decodeIfPresent([Pill].self, forKey: .steps) ?? []
+    }
 }
 
 struct Session: Decodable, Sendable {

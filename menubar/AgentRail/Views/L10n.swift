@@ -4,6 +4,11 @@ import Foundation
 enum L10n {
     static func jobs(_ n: Int) -> String { String(localized: "\(n) jobs") }
     static func agents(_ n: Int) -> String { String(localized: "\(n) agents") }
+    /// Heading of a job's agent rows: "Agents · 2 running", or "Agents" when none runs.
+    static func agentsRunning(_ n: Int) -> String {
+        n > 0 ? String(localized: "Agents · \(n) running") : String(localized: "Agents")
+    }
+    static func moreAgents(_ n: Int) -> String { String(localized: "+\(n) more") }
 
     /// The locale of the language the UI strings resolved to (not the system region's formats).
     private static let uiLocale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")

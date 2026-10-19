@@ -45,14 +45,54 @@ func doneToday(_ sessions: [Session], now: Date, calendar: Calendar = .current) 
     }
 }
 
+/// Running agents first; within each group a stable order by name (`Agent 1`, `Agent 2`), so rows
+/// do not jump around while the agents work.
 func agents(of item: JobItem) -> [Agent] {
     item.session.agents.values
         .filter { $0.job == item.job.seq }
         .sorted { a, b in
             let (ra, rb) = (a.status == .running, b.status == .running)
             if ra != rb { return ra }
-            return a.updatedAt > b.updatedAt
+            let byName = a.name.localizedStandardCompare(b.name)
+            if byName != .orderedSame { return byName == .orderedAscending }
+            return a.id < b.id
         }
+}
+
+/// An agent's own progress: done / total of its own milestones (0/0 without a plan).
+func agentProgress(_ agent: Agent) -> (done: Int, total: Int) {
+    (agent.milestones.filter { $0.status == .done }.count, agent.milestones.count)
+}
+
+struct AgentStep: Equatable {
+    enum State { case done, current, failed, neutral }
+    let label: String
+    let state: State
+}
+
+/// The steps an expanded agent row lists, oldest first. With a plan: its done milestones and the
+/// active one (or, with none active, the next pending one). Without: its last 6 story steps.
+func agentSteps(_ agent: Agent) -> [AgentStep] {
+    let running = agent.status == .running
+    if !agent.milestones.isEmpty {
+        var shown = agent.milestones.filter { $0.status == .done || $0.status == .active }
+        if !agent.milestones.contains(where: { $0.status == .active }),
+           let next = agent.milestones.first(where: { $0.status != .done }) {
+            shown = agent.milestones.filter { $0.status == .done || $0.key == next.key }
+        }
+        return shown.map { m in
+            AgentStep(label: m.title, state: m.status == .done ? .done : m.status == .active && running ? .current : .neutral)
+        }
+    }
+    return agent.steps.suffix(6).map { pill in
+        let state: AgentStep.State = switch pill.kind {
+        case .ok: .done
+        case .warn: .failed
+        case .active: running ? .current : .neutral
+        case .info, .unknown: .neutral
+        }
+        return AgentStep(label: pill.label, state: state)
+    }
 }
 
 func activeMilestoneKey(_ job: Job) -> String? {

@@ -21,6 +21,11 @@ enum Theme {
         appearance.isDark ? NSColor(white: 1, alpha: 0.045) : NSColor(white: 0, alpha: 0.035)
     })
 
+    /// Faint fill behind an expanded agent row's steps (`rgba(255,255,255,.02)` in dark).
+    static let inset = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.isDark ? NSColor(white: 1, alpha: 0.02) : NSColor(white: 0, alpha: 0.02)
+    })
+
     /// `--now2`: the accent at 16% alpha (now block, active-node glow).
     static let accentSoft = accent.opacity(0.16)
 

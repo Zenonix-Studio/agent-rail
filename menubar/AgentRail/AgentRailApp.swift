@@ -3,6 +3,8 @@ import SwiftUI
 @main
 struct AgentRailApp: App {
     @State private var store: SessionStore
+    /// Open agent rows; kept here so the choice outlives the popover and every reload.
+    @State private var agentExpansion = AgentExpansion()
 
     init() {
         // Debug flags (e.g. --dump) print and exit before any UI or store starts.
@@ -12,7 +14,7 @@ struct AgentRailApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            PopoverView(store: store)
+            PopoverView(store: store, agentExpansion: agentExpansion)
         } label: {
             MenuBarLabel(store: store)
         }

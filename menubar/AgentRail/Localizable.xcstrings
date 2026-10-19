@@ -79,16 +79,6 @@
         }
       }
     },
-    "Agents in this job": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bu işteki agent'lar"
-          }
-        }
-      }
-    },
     "Done today: %lld": {
       "localizations": {
         "tr": {
@@ -195,16 +185,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Claude eklentisini kur veya scripts/install-codex.mjs çalıştır"
-          }
-        }
-      }
-    },
-    "Main agent": {
-      "localizations": {
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ana agent"
           }
         }
       }
@@ -435,6 +415,76 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@, %@"
+          }
+        }
+      }
+    },
+    "Agents · %lld running": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajanlar · %lld çalışıyor"
+          }
+        }
+      }
+    },
+    "Agents": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajanlar"
+          }
+        }
+      }
+    },
+    "+%lld more": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld daha"
+          }
+        }
+      }
+    },
+    "collapsed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "daraltılmış"
+          }
+        }
+      }
+    },
+    "Starting…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Başlıyor…"
+          }
+        }
+      }
+    },
+    "%lld of %lld steps": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld/%lld adım"
+          }
+        }
+      }
+    },
+    "failed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "başarısız"
           }
         }
       }
