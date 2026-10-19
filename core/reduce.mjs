@@ -82,6 +82,7 @@ function apply(s, input, at) {
   if (agentId && input.source === 'claude' && !str(input.agentType) && e.type !== 'agent-start' && !isObj(s.agents[agentId])) return;
   // The agent's `rail:` line, read from the transcript on a main-agent tool or plan call: names the job mid-turn.
   if (!agentId && typeof e.marker === 'string') onMarker(s, e.marker, at);
+  if (agentId && Array.isArray(e.steps)) onAgentSteps(s, agentId, e.steps, e.type === 'agent-stop', at);
   switch (e.type) {
     case 'plan-step': {
       const plan = stepPlan(agentId ? agent(s, agentId, at).milestones : ensureJob(s, at).milestones, e);
@@ -264,6 +265,24 @@ function onAgentMilestones(s, agentId, e, at) {
   a.stage = planStage(a.milestones, e, known, isNewTask, a.stage ?? null);
 }
 
+/** Keys of milestones made from an agent's `step:` lines. */
+const STEP_KEY = 'step:';
+
+/**
+ * A subagent's `step:` lines, read from its transcript: its plan when it has no task tools.
+ * The latest step is active, earlier ones are done, all are done once it stops. A plan of its
+ * own task tools wins.
+ * @param {string[]} steps titles with their stage prefix, in order @param {boolean} stopped
+ */
+function onAgentSteps(s, agentId, steps, stopped, at) {
+  const a = agent(s, agentId, at);
+  if (a.milestones.some((m) => !m.key.startsWith(STEP_KEY))) return;
+  const items = steps.filter((t) => str(t)).map((t, i, all) => ({ key: STEP_KEY + t, title: t, status: stopped || i < all.length - 1 ? 'done' : 'active' }));
+  if (items.length === 0) return;
+  const same = items.length === a.milestones.length && items.every((it, i) => a.milestones[i].key === it.key && a.milestones[i].status === it.status);
+  if (!same) onAgentMilestones(s, agentId, { type: 'plan', items, explanation: null, fromSteps: true }, at);
+}
+
 /**
  * The plan itself is a step of the story: "Planned 4 steps".
  * @param {{pills: Pill[]}} story @param {Record<string, any>} e
@@ -273,7 +292,8 @@ function onAgentMilestones(s, agentId, e, at) {
  */
 function planPills(story, e, known, isNewTask, milestones, max) {
   if (isNewTask) planPill(story, 1, max);
-  else if (e.type === 'plan' && known === 0 && milestones.length > 0) planPill(story, milestones.length, max);
+  // `step:` lines come one at a time: no "Planned N steps".
+  else if (e.type === 'plan' && !e.fromSteps && known === 0 && milestones.length > 0) planPill(story, milestones.length, max);
 }
 
 /**

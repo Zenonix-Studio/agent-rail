@@ -13,6 +13,7 @@ import { describeTool } from './flow.mjs';
  *  `spawned`: the agent id a Claude Agent call's response names.
  *  `idle`: Claude's idle_prompt notice. `background`: ids of the background tasks a Claude Stop lists as running; null when absent.
  *  `names`: background agents with the description they were dispatched with (exact names).
+ *  The collector adds `steps` (a subagent's `step:` lines from its transcript) to its tool-pre and agent-stop events.
  * @typedef {{sessionId:string, cwd:string, agentId:string|null, agentType?:string|null, event:Event}} Normalized
  *  `agentType`: Claude's agent_type, null when empty or missing (the reducer uses it to skip helper agents).
  */

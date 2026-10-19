@@ -387,9 +387,11 @@ const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep it
 
 /**
  * Injected into a Claude subagent on SubagentStart (hookSpecificOutput.additionalContext).
+ * Background agents in the desktop app have no task tools (and update_plan is refused for
+ * them), so an agent's steps are `step:` lines in its own text, read from its transcript.
  */
 export const SUBAGENT_INSTRUCTION =
-  'For work with more than two steps, keep your own short task list (3–7 steps) with your task tool, and keep each step\'s status updated as you work.' + STAGE_NUDGE;
+  'Your progress is shown live from your steps. Work in 2–7 steps, and when you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>", where stage is plan, analyse, dev, fix or review (e.g. "step: analyse: read the reducer"). Do each step in its own tool calls, not one long script.';
 
 /**
  * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge.
@@ -412,18 +414,8 @@ const TRANSCRIPT_TAIL_BYTES = 2 * 1024 * 1024;
  * @returns {string|null} the assistant text containing the marker, or null
  */
 export function findMarkerInTranscript(path) {
-  if (typeof path !== 'string' || path === '') return null;
   try {
-    const size = statSync(path).size;
-    const start = Math.max(0, size - TRANSCRIPT_TAIL_BYTES);
-    const fd = openSync(path, 'r');
-    let text;
-    try {
-      const buf = Buffer.alloc(size - start);
-      readSync(fd, buf, 0, buf.length, start);
-      text = buf.toString('utf8');
-    } finally { closeSync(fd); }
-    const lines = text.split('\n').filter(Boolean).slice(-TRANSCRIPT_TAIL_LINES);
+    const lines = tailLines(path).slice(-TRANSCRIPT_TAIL_LINES);
     for (let i = lines.length - 1; i >= 0; i--) {
       let o;
       try { o = JSON.parse(lines[i]); } catch { continue; }
@@ -435,6 +427,51 @@ export function findMarkerInTranscript(path) {
     }
   } catch { /* the transcript is a best-effort source */ }
   return null;
+}
+
+/** @param {string|null|undefined} path @returns {string[]} the non-empty lines of the last 2 MB of a file */
+function tailLines(path) {
+  if (typeof path !== 'string' || path === '') return [];
+  const size = statSync(path).size;
+  const start = Math.max(0, size - TRANSCRIPT_TAIL_BYTES);
+  const fd = openSync(path, 'r');
+  try {
+    const buf = Buffer.alloc(size - start);
+    readSync(fd, buf, 0, buf.length, start);
+    return buf.toString('utf8').split('\n').filter(Boolean);
+  } finally { closeSync(fd); }
+}
+
+const STEP_LINE = /^[\s*_>-]*step:\s*(.+?)[\s*_]*$/gim;
+
+/**
+ * A Claude subagent's own transcript: `<session transcript without .jsonl>/subagents/agent-<id>.jsonl`.
+ * @param {string|null|undefined} transcriptPath the session's transcript_path @param {string} agentId
+ * @returns {string|null}
+ */
+export function agentTranscriptPath(transcriptPath, agentId) {
+  if (typeof transcriptPath !== 'string' || !transcriptPath.endsWith('.jsonl')) return null;
+  return `${transcriptPath.slice(0, -'.jsonl'.length)}/subagents/agent-${agentId}.jsonl`;
+}
+
+/**
+ * The `step: <stage>: <title>` lines a subagent wrote (SUBAGENT_INSTRUCTION), in order, once each.
+ * @param {string|null|undefined} path the agent's transcript
+ * @returns {string[]} step titles with their stage prefix; [] when none or unreadable
+ */
+export function findStepsInTranscript(path) {
+  const steps = [];
+  try {
+    for (const l of tailLines(path)) {
+      if (!l.includes('step:')) continue;
+      let o;
+      try { o = JSON.parse(l); } catch { continue; }
+      const { role, texts } = transcriptLine(o);
+      if (role !== 'assistant') continue;
+      for (const t of texts) for (const m of t.matchAll(STEP_LINE)) if (!steps.includes(m[1])) steps.push(m[1]);
+    }
+  } catch { /* the transcript is a best-effort source */ }
+  return steps;
 }
 
 /** @returns {{role: 'user'|'assistant'|null, texts: string[]}} */

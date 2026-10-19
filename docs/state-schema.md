@@ -174,6 +174,14 @@ A failed step is never merged into and stays visible: `Build failed`,
 A subagent of the main agent. Subagents never change the job's milestones or
 %: a subagent's own plan (Claude task tools or TodoWrite with its `agent_id`, a
 Codex `update_plan` from a sub-thread) goes to that agent's `milestones`.
+Background subagents in the Claude desktop app have no task tools (and
+`update_plan` is refused for them), so the SubagentStart instruction asks each
+agent to write `step: <stage>: <title>` as a line of its text when it starts a
+step. On each of the agent's tool calls and on its stop, the collector reads
+those lines from the agent's own transcript
+(`<session transcript>/subagents/agent-<id>.jsonl`) and makes them its
+`milestones` (key `step:<line>`): the latest is `active`, earlier ones `done`,
+all `done` once the agent stops. A plan from the agent's own task tools wins.
 Claude Code's own helper agents (prompt suggestions, internal forks) report an
 `agent_id` with an empty or missing `agent_type` and never start as subagents:
 an id whose events carry no `agent_type` is listed only once a subagent start

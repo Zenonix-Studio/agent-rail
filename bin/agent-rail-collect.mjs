@@ -5,7 +5,7 @@ import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSe
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce, fallbackTitle } from '../core/reduce.mjs';
-import { railInstruction, extractMeta, findMarkerInTranscript, SUBAGENT_INSTRUCTION } from '../core/flow.mjs';
+import { railInstruction, extractMeta, findMarkerInTranscript, findStepsInTranscript, agentTranscriptPath, SUBAGENT_INSTRUCTION } from '../core/flow.mjs';
 
 const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
 
@@ -49,6 +49,11 @@ async function main() {
   if (event.event?.type === 'stop' && !extractMeta(event.event.lastMessage)) {
     const found = findMarkerInTranscript(input.transcript_path);
     if (found) event.event = { ...event.event, lastMessage: found };
+  }
+  // A Claude subagent's `step:` lines (its task list when it has no task tools), on each of its calls and its stop.
+  if (source === 'claude' && event.agentId && ((event.event?.type === 'tool' && event.event.phase === 'pre') || event.event?.type === 'agent-stop')) {
+    const steps = findStepsInTranscript(input.agent_transcript_path ?? agentTranscriptPath(input.transcript_path, event.agentId));
+    if (steps.length > 0) event.event = { ...event.event, steps };
   }
   const path = sessionPath(source, event.sessionId);
   withSessionLock(path, () => {
