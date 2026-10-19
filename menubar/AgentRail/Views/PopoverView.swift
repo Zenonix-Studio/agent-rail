@@ -46,6 +46,7 @@ struct PopoverView: View {
         .padding(8)
         .frame(width: Self.width)
         .background(Theme.surface)
+        .onChange(of: agentIDs, initial: true) { _, ids in agentExpansion.prune(keeping: ids) }
     }
 
     /// Counts what the cards show (stale included); the menu bar icon keeps its live counts.
@@ -80,6 +81,10 @@ struct PopoverView: View {
                 }
             }
         }
+    }
+
+    private var agentIDs: Set<String> {
+        Set(store.sessions.flatMap { $0.agents.keys })
     }
 
     private func resolvedExpansion(_ items: [JobItem]) -> String? {

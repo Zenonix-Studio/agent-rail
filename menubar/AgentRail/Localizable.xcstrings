@@ -424,7 +424,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajanlar · %lld çalışıyor"
+            "value": "Agent'lar · %lld çalışıyor"
           }
         }
       }
@@ -434,7 +434,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajanlar"
+            "value": "Agent'lar"
           }
         }
       }

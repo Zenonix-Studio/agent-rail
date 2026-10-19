@@ -45,18 +45,25 @@ func doneToday(_ sessions: [Session], now: Date, calendar: Calendar = .current) 
     }
 }
 
-/// Running agents first; within each group a stable order by name (`Agent 1`, `Agent 2`), so rows
-/// do not jump around while the agents work.
+/// Running agents first, then in start order (`sortAgents` in core/render-ascii.mjs uses the same rule),
+/// so rows do not jump around while the agents work and both viewers open the same default row.
 func agents(of item: JobItem) -> [Agent] {
     item.session.agents.values
         .filter { $0.job == item.job.seq }
         .sorted { a, b in
             let (ra, rb) = (a.status == .running, b.status == .running)
             if ra != rb { return ra }
-            let byName = a.name.localizedStandardCompare(b.name)
-            if byName != .orderedSame { return byName == .orderedAscending }
+            if a.startedAt != b.startedAt { return a.startedAt < b.startedAt }
             return a.id < b.id
         }
+}
+
+/// The step a collapsed agent row names: with a plan, its active milestone (else the next pending
+/// one); without one, or with every step done, its `activity`. nil when there is nothing to name.
+func agentCurrentStep(_ agent: Agent) -> String? {
+    let m = agent.milestones.first { $0.status == .active } ?? agent.milestones.first { $0.status == .pending }
+    if let m, !m.title.isEmpty { return m.title }
+    return agent.activity.isEmpty ? nil : agent.activity
 }
 
 /// An agent's own progress: done / total of its own milestones (0/0 without a plan).

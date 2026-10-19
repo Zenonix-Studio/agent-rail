@@ -3,7 +3,7 @@
   "source": "claude",
   "sessionId": "stale",
   "cwd": "/work/legacy",
-  "updatedAt": "2026-10-18T18:47:27.497Z",
+  "updatedAt": "2026-10-19T11:02:01.634Z",
   "jobs": [
     {
       "id": "claude:stale:1",
@@ -24,8 +24,8 @@
           "status": "active"
         }
       ],
-      "startedAt": "2026-10-18T17:47:27.497Z",
-      "updatedAt": "2026-10-18T18:47:27.497Z",
+      "startedAt": "2026-10-19T10:02:01.634Z",
+      "updatedAt": "2026-10-19T11:02:01.634Z",
       "endedAt": null,
       "now": {
         "milestone": "2",

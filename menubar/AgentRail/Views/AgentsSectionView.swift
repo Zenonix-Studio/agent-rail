@@ -7,15 +7,21 @@ import SwiftUI
 final class AgentExpansion {
     private var choices: [String: Bool]
 
-    /// `open`: agent ids to start expanded (the snapshot's `--expand-agent`).
-    init(open: [String] = []) {
-        choices = Dictionary(open.map { ($0, true) }, uniquingKeysWith: { a, _ in a })
+    /// Agent ids to start expanded or collapsed (the snapshot's `--expand-agent` / `--collapse-agent`).
+    init(open: [String] = [], closed: [String] = []) {
+        choices = Dictionary(open.map { ($0, true) } + closed.map { ($0, false) }, uniquingKeysWith: { _, last in last })
     }
 
     func isExpanded(_ id: String, byDefault open: Bool) -> Bool { choices[id] ?? open }
 
     func toggle(_ id: String, byDefault open: Bool) {
         choices[id] = !isExpanded(id, byDefault: open)
+    }
+
+    /// Forgets choices for agents no session lists any more.
+    func prune(keeping ids: Set<String>) {
+        let kept = choices.filter { ids.contains($0.key) }
+        if kept.count != choices.count { choices = kept }
     }
 }
 
@@ -81,18 +87,19 @@ private struct AgentRowView: View {
                 .rotationEffect(.degrees(expanded ? 90 : 0))
                 .frame(width: 10)
             AgentStatusDot(status: agent.status)
-            Text(verbatim: agent.name)
-                .font(.system(size: 12.5, weight: .semibold))
-                .foregroundStyle(Theme.text)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .layoutPriority(1)
-            Text(verbatim: currentStep)
-                .font(.system(size: 12))
-                .foregroundStyle(Theme.muted)
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // One line as in the mockup when name and step fit; else the step goes under the name,
+            // so a long dispatch name never squeezes the current step to "Write…".
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    nameText.fixedSize()
+                    stepText.fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    nameText
+                    stepText
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             if p.total > 0 {
                 MiniBar(fraction: Double(p.done) / Double(p.total))
                 Text(verbatim: "\(p.done)/\(p.total)")
@@ -104,6 +111,22 @@ private struct AgentRowView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .contentShape(Rectangle())
+    }
+
+    private var nameText: some View {
+        Text(verbatim: agent.name)
+            .font(.system(size: 12.5, weight: .semibold))
+            .foregroundStyle(Theme.text)
+            .lineLimit(1)
+            .truncationMode(.tail)
+    }
+
+    private var stepText: some View {
+        Text(verbatim: currentStep)
+            .font(.system(size: 12))
+            .foregroundStyle(Theme.muted)
+            .lineLimit(1)
+            .truncationMode(.tail)
     }
 
     private var detail: some View {
@@ -128,7 +151,7 @@ private struct AgentRowView: View {
     }
 
     private var currentStep: String {
-        if !agent.activity.isEmpty { return agent.activity }
+        if let step = agentCurrentStep(agent) { return step }
         return agent.status == .running ? String(localized: "Starting…") : "—"
     }
 

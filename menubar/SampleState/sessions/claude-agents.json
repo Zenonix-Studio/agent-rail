@@ -1,0 +1,162 @@
+{
+  "schema": 1,
+  "source": "claude",
+  "sessionId": "agents",
+  "cwd": "/work/rail-demo",
+  "updatedAt": "2026-10-19T13:01:49.635Z",
+  "jobs": [
+    {
+      "id": "claude:agents:1",
+      "seq": 1,
+      "title": "Two agents write steps",
+      "summary": "Dispatch two background step writers.",
+      "prompt": "Give 2 agents a one-minute job each: write adim-1..6 to agentN.txt, 10 seconds apart, then summarize.",
+      "status": "running",
+      "milestones": [
+        {
+          "key": "1",
+          "title": "Start the agents",
+          "status": "done"
+        },
+        {
+          "key": "2",
+          "title": "Wait for the agents",
+          "status": "active"
+        },
+        {
+          "key": "3",
+          "title": "Summarize the results",
+          "status": "pending"
+        }
+      ],
+      "startedAt": "2026-10-19T13:00:49.635Z",
+      "updatedAt": "2026-10-19T13:01:31.635Z",
+      "endedAt": null,
+      "now": {
+        "milestone": "2",
+        "pills": [
+          {
+            "label": "Planned 3 steps",
+            "kind": "ok"
+          },
+          {
+            "label": "Dispatched 2 agents",
+            "kind": "ok"
+          },
+          {
+            "label": "Start the agents",
+            "kind": "ok"
+          },
+          {
+            "label": "Waiting for the agents",
+            "kind": "info"
+          }
+        ],
+        "attempt": 1,
+        "file": null
+      }
+    }
+  ],
+  "agents": {
+    "agent-0510": {
+      "id": "agent-0510",
+      "name": "Agent 1 step writer",
+      "status": "running",
+      "activity": "Writing adim-3",
+      "job": 1,
+      "startedAt": "2026-10-19T13:01:01.635Z",
+      "updatedAt": "2026-10-19T13:01:43.635Z",
+      "endedAt": null,
+      "summary": "Write adim-1 to adim-6 into agent1.txt, one line every 10 seconds",
+      "milestones": [
+        {
+          "key": "1",
+          "title": "Create agent1.txt",
+          "status": "done"
+        },
+        {
+          "key": "2",
+          "title": "Write adim-1",
+          "status": "done"
+        },
+        {
+          "key": "3",
+          "title": "Write adim-2",
+          "status": "done"
+        },
+        {
+          "key": "4",
+          "title": "Write adim-3",
+          "status": "active"
+        },
+        {
+          "key": "5",
+          "title": "Write adim-4",
+          "status": "pending"
+        },
+        {
+          "key": "6",
+          "title": "Write adim-5 and adim-6",
+          "status": "pending"
+        }
+      ],
+      "steps": [
+        {
+          "label": "Write adim-1 to agent1.txt",
+          "kind": "ok"
+        },
+        {
+          "label": "Write adim-1",
+          "kind": "ok"
+        },
+        {
+          "label": "Write adim-2 to agent1.txt",
+          "kind": "ok"
+        },
+        {
+          "label": "Write adim-2",
+          "kind": "ok"
+        },
+        {
+          "label": "Writing adim-3",
+          "kind": "info"
+        },
+        {
+          "label": "Write adim-3 to agent1.txt",
+          "kind": "active"
+        }
+      ]
+    },
+    "agent-0511": {
+      "id": "agent-0511",
+      "name": "Agent 2 step writer",
+      "status": "running",
+      "activity": "Write adim-4 to agent2.txt",
+      "job": 1,
+      "startedAt": "2026-10-19T13:01:04.635Z",
+      "updatedAt": "2026-10-19T13:01:49.635Z",
+      "endedAt": null,
+      "summary": "Append adim-1 to adim-6 to agent2.txt, one line every 10 seconds",
+      "milestones": [],
+      "steps": [
+        {
+          "label": "Write adim-1 to agent2.txt",
+          "kind": "ok"
+        },
+        {
+          "label": "Write adim-2 to agent2.txt",
+          "kind": "ok"
+        },
+        {
+          "label": "Write adim-3 to agent2.txt",
+          "kind": "ok"
+        },
+        {
+          "label": "Write adim-4 to agent2.txt",
+          "kind": "active"
+        }
+      ]
+    }
+  },
+  "project": "rail-demo"
+}

@@ -114,7 +114,7 @@ write('claude-agents.json', session('claude', 'agents', {
   })],
   agents: {
     'agent-0510': {
-      id: 'agent-0510', name: 'Agent 1 step writer', status: 'running', activity: 'Write adim-3 to agent1.txt', job: 1, updatedAt: t(0.3), endedAt: null,
+      id: 'agent-0510', name: 'Agent 1 step writer', status: 'running', activity: 'Writing adim-3', job: 1, startedAt: t(1.0), updatedAt: t(0.3), endedAt: null,
       summary: 'Write adim-1 to adim-6 into agent1.txt, one line every 10 seconds',
       milestones: [ms('1', 'Create agent1.txt', 'done'), ms('2', 'Write adim-1', 'done'), ms('3', 'Write adim-2', 'done'),
         ms('4', 'Write adim-3', 'active'), ms('5', 'Write adim-4', 'pending'), ms('6', 'Write adim-5 and adim-6', 'pending')],
@@ -122,7 +122,7 @@ write('claude-agents.json', session('claude', 'agents', {
         pill('Write adim-2', 'ok'), pill('Writing adim-3', 'info'), pill('Write adim-3 to agent1.txt', 'active')],
     },
     'agent-0511': {
-      id: 'agent-0511', name: 'Agent 2 step writer', status: 'running', activity: 'Write adim-4 to agent2.txt', job: 1, updatedAt: t(0.2), endedAt: null,
+      id: 'agent-0511', name: 'Agent 2 step writer', status: 'running', activity: 'Write adim-4 to agent2.txt', job: 1, startedAt: t(0.95), updatedAt: t(0.2), endedAt: null,
       summary: 'Append adim-1 to adim-6 to agent2.txt, one line every 10 seconds', milestones: [],
       steps: [pill('Write adim-1 to agent2.txt', 'ok'), pill('Write adim-2 to agent2.txt', 'ok'),
         pill('Write adim-3 to agent2.txt', 'ok'), pill('Write adim-4 to agent2.txt', 'active')],

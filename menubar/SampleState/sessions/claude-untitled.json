@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "source": "claude",
+  "sessionId": "untitled",
+  "cwd": "/work/late-joiner",
+  "updatedAt": "2026-10-19T13:00:01.634Z",
+  "jobs": [
+    {
+      "id": "claude:untitled:1",
+      "seq": 1,
+      "title": "",
+      "summary": "",
+      "prompt": "",
+      "status": "running",
+      "milestones": [
+        {
+          "key": "1",
+          "title": "Read",
+          "status": "done"
+        },
+        {
+          "key": "2",
+          "title": "Edit",
+          "status": "active"
+        }
+      ],
+      "startedAt": "2026-10-19T12:32:01.634Z",
+      "updatedAt": "2026-10-19T13:00:01.634Z",
+      "endedAt": null,
+      "now": {
+        "milestone": "2",
+        "pills": [
+          {
+            "label": "Edit Late.swift",
+            "kind": "active"
+          }
+        ],
+        "attempt": 1,
+        "file": "Late.swift"
+      }
+    }
+  ],
+  "agents": {},
+  "project": "late-joiner"
+}

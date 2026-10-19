@@ -3,7 +3,7 @@
   "source": "claude",
   "sessionId": "plan",
   "cwd": "/work/notes",
-  "updatedAt": "2026-10-18T20:46:27.497Z",
+  "updatedAt": "2026-10-19T13:01:01.634Z",
   "jobs": [
     {
       "id": "claude:plan:1",
@@ -13,8 +13,8 @@
       "prompt": "Plan the refactor",
       "status": "planning",
       "milestones": [],
-      "startedAt": "2026-10-18T20:17:27.497Z",
-      "updatedAt": "2026-10-18T20:45:27.497Z",
+      "startedAt": "2026-10-19T12:32:01.634Z",
+      "updatedAt": "2026-10-19T13:00:01.634Z",
       "endedAt": null,
       "now": {
         "milestone": "",

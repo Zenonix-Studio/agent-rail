@@ -3,7 +3,7 @@
   "source": "claude",
   "sessionId": "wait",
   "cwd": "/work/docs-site",
-  "updatedAt": "2026-10-18T20:41:27.497Z",
+  "updatedAt": "2026-10-19T12:56:01.634Z",
   "jobs": [
     {
       "id": "claude:wait:1",
@@ -39,8 +39,8 @@
           "status": "pending"
         }
       ],
-      "startedAt": "2026-10-18T20:17:27.497Z",
-      "updatedAt": "2026-10-18T20:41:27.497Z",
+      "startedAt": "2026-10-19T12:32:01.634Z",
+      "updatedAt": "2026-10-19T12:56:01.634Z",
       "endedAt": null,
       "now": {
         "milestone": "",

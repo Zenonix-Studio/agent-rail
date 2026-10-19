@@ -75,6 +75,8 @@ struct Agent: Decodable, Sendable {
     let status: AgentStatus
     let activity: String
     let job: Int?
+    /// When it was first seen; agents are listed in this order.
+    let startedAt: Date
     let updatedAt: Date
     let endedAt: Date?
     /// What it was asked to do; `""` when unknown (and in files written before the field existed).
@@ -85,7 +87,7 @@ struct Agent: Decodable, Sendable {
     let steps: [Pill]
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, status, activity, job, updatedAt, endedAt, summary, milestones, steps
+        case id, name, status, activity, job, startedAt, updatedAt, endedAt, summary, milestones, steps
     }
 
     init(from decoder: Decoder) throws {
@@ -96,6 +98,7 @@ struct Agent: Decodable, Sendable {
         activity = try c.decode(String.self, forKey: .activity)
         job = try c.decodeIfPresent(Int.self, forKey: .job)
         updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        startedAt = try c.decodeIfPresent(Date.self, forKey: .startedAt) ?? updatedAt
         endedAt = try c.decodeIfPresent(Date.self, forKey: .endedAt)
         // Additive v1 fields: older files lack them.
         summary = try c.decodeIfPresent(String.self, forKey: .summary) ?? ""
