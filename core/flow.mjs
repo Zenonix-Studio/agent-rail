@@ -34,17 +34,35 @@ const AGENT_TYPES = { 'general-purpose': 'General-purpose agent', fork: 'Forked 
 export const LABEL_MAX = 60;
 const AGENT_NAME_MAX = 40;
 
+/** Stage types a step can have; viewers color by them. */
+export const STAGES = ['plan', 'analyse', 'dev', 'fix', 'review'];
+const STAGE_PREFIX = /^\s*(?:\[(plan|analy[sz]e|dev|fix|review)\]|(plan|analy[sz]e|dev|fix|review)\s*:)\s*/i;
+
+/**
+ * Reads an agent-written stage prefix off a plan step title: "fix: build error" or "[review] diff".
+ * @param {string} title
+ * @returns {{title: string, stage: string|null}} the title without the prefix, and its stage
+ */
+export function splitStage(title) {
+  const m = STAGE_PREFIX.exec(title);
+  const rest = m ? title.slice(m[0].length).trim() : '';
+  if (!m || rest === '') return { title, stage: null };
+  const stage = (m[1] ?? m[2]).toLowerCase().replace('analyze', 'analyse');
+  return { title: rest, stage };
+}
+
 /**
  * One step of the work, as shown in the flow. Steps with the same `group` in a
  * row collapse into one pill (`groupLabel`).
  * @typedef {{
  *   label: string, fail: string, key: string,
- *   group: string|null, item: string|null, agentName?: string|null, agentType?: string|null, agentTask?: string|null
+ *   group: string|null, item: string|null, stage: string|null, agentName?: string|null, agentType?: string|null, agentTask?: string|null
  * }} Step
  *  `label`: human sentence, e.g. "Editing LoginView.swift". `fail`: what to show when it failed.
  *  `key`: what the retry counter counts (`Build`, `Test`, else the label).
  *  `group`: collapse family (`read`, `search`, `edit`, `dispatch`, `web`, or `=<label>` for exact repeats).
  *  `item`: the file / pattern / agent the step is about, for the collapsed count.
+ *  `stage`: inferred stage (`analyse`, `dev`, `review`, `plan`), null when the tool says nothing.
  *  `agentName`/`agentType`: for a dispatch, the name the new agent is shown under and its type.
  *  `agentTask`: for a dispatch, what the agent is asked to do: the first sentence of its prompt.
  */
@@ -74,7 +92,7 @@ export function describeTool(name, input) {
   if (tool === 'Read') return fileStep('Reading', 'read', args.file_path, 'Reading a file');
   if (tool === 'Grep' || tool === 'Glob') {
     const pat = text(args.pattern);
-    return step(pat ? `Searching for '${clipText(pat, 32)}'` : 'Searching the code', { group: 'search', item: pat, fail: 'Search failed' });
+    return step(pat ? `Searching for '${clipText(pat, 32)}'` : 'Searching the code', { group: 'search', item: pat, fail: 'Search failed', stage: 'analyse' });
   }
   if (SHELL_TOOLS.has(tool)) return shellStep(args);
   if (DISPATCH_TOOLS.has(tool)) {
@@ -83,7 +101,8 @@ export function describeTool(name, input) {
     const typeName = type ? agentTypeName(type) : null;
     const label = desc ? `Dispatched agent: ${desc}`
       : typeName ? `Dispatched ${lowerFirst(typeName)}` : 'Dispatched an agent';
-    return step(label, { group: 'dispatch', item: desc ?? typeName, fail: 'Agent dispatch failed', agentName: desc ? clipText(desc, AGENT_NAME_MAX) : typeName, agentType: type, agentTask: firstSentence(args.prompt) });
+    const stage = /review/i.test(`${type ?? ''} ${desc ?? ''}`) ? 'review' : null;
+    return step(label, { group: 'dispatch', item: desc ?? typeName, fail: 'Agent dispatch failed', stage, agentName: desc ? clipText(desc, AGENT_NAME_MAX) : typeName, agentType: type, agentTask: firstSentence(args.prompt) });
   }
   if (tool === 'collaborationspawn_agent' || tool === 'spawn_agent') {
     const task = text(args.task_name) ?? text(args.name);
@@ -97,14 +116,14 @@ export function describeTool(name, input) {
   }
   if (tool === 'WebSearch' || tool === 'web_search') {
     const q = text(args.query);
-    return step(q ? `Searching the web: ${q}` : 'Searching the web', { group: 'web', item: q });
+    return step(q ? `Searching the web: ${q}` : 'Searching the web', { group: 'web', item: q, stage: 'analyse' });
   }
   if (tool === 'WebFetch') {
     let host = null;
     try { host = new URL(String(args.url)).host.replace(/^www\./, ''); } catch { /* not a URL */ }
-    return step(host ? `Reading ${host}` : 'Reading a web page', { group: 'web', item: host });
+    return step(host ? `Reading ${host}` : 'Reading a web page', { group: 'web', item: host, stage: 'analyse' });
   }
-  if (FIXED[tool]) return step(FIXED[tool]);
+  if (FIXED[tool]) return step(FIXED[tool], { stage: tool === 'EnterPlanMode' || tool === 'ExitPlanMode' ? 'plan' : null });
   const mcp = /^mcp__(.+?)__(.+)$/.exec(tool);
   if (mcp) {
     const label = mcpLabel(mcp[1], mcp[2]);
@@ -178,7 +197,7 @@ function shellStep(args) {
     : kind === 'Build' ? 'Build failed'
     : desc ? `${desc} failed`
     : cmd ? `\`${commandHead(cmd)}\` failed` : 'Command failed';
-  return step(label, { key: kind ?? undefined, fail });
+  return step(label, { key: kind ?? undefined, fail, stage: kind ? 'review' : null });
 }
 
 /** @param {unknown} c string, or an argv array (Codex) @returns {string|null} the script text */
@@ -242,12 +261,12 @@ function isAcronym(w) {
 function fileStep(verb, group, path, none) {
   const file = text(path);
   const base = file ? basename(file) : null;
-  return step(base ? `${verb} ${base}` : none, { group, item: base });
+  return step(base ? `${verb} ${base}` : none, { group, item: base, stage: group === 'edit' ? 'dev' : 'analyse' });
 }
 
 /**
  * @param {string} label
- * @param {{key?: string, fail?: string, group?: string|null, item?: string|null, agentName?: string|null, agentType?: string|null, agentTask?: string|null}} [o]
+ * @param {{key?: string, fail?: string, group?: string|null, item?: string|null, stage?: string|null, agentName?: string|null, agentType?: string|null, agentTask?: string|null}} [o]
  * @returns {Step}
  */
 function step(label, o = {}) {
@@ -260,6 +279,7 @@ function step(label, o = {}) {
     // No family: exact repeats of the same label still collapse.
     group: o.group ?? `=${l}`,
     item: o.item ?? null,
+    stage: o.stage ?? null,
   };
   if (o.agentName !== undefined) {
     s.agentName = o.agentName;
@@ -354,9 +374,12 @@ export function extractMeta(text) {
 export const MARKER_INSTRUCTION =
   'When you start a new task, begin your first reply with one line: "rail: <title, max 6 words> — <summary, max 2 sentences>". Do this once per task.';
 
+/** Asks for a stage prefix on each step, and one tool call per step so the rail can follow it. */
+const STAGE_NUDGE = ' Start each step title with its stage (plan:, analyse:, dev:, fix: or review:), and do each step in its own tool calls, not one long script.';
+
 const PLAN_NUDGE = {
-  claude: ' For work with more than two steps, create a task list (3–7 steps) with your task tool before starting, and keep each step\'s status updated as you go.',
-  codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.',
+  claude: ' For work with more than two steps, create a task list (3–7 steps) with your task tool before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
+  codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
 };
 
 /** Asks the main agent to have its subagents plan too, so each agent row has its own progress. */
@@ -366,7 +389,7 @@ const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep it
  * Injected into a Claude subagent on SubagentStart (hookSpecificOutput.additionalContext).
  */
 export const SUBAGENT_INSTRUCTION =
-  'For work with more than two steps, keep your own short task list (3–7 steps) with your task tool, and keep each step\'s status updated as you work.';
+  'For work with more than two steps, keep your own short task list (3–7 steps) with your task tool, and keep each step\'s status updated as you work.' + STAGE_NUDGE;
 
 /**
  * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge.

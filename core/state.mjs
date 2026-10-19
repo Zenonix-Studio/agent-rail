@@ -7,9 +7,10 @@ import { dirname, join } from 'node:path';
  * are the collector's internal bookkeeping: readers MUST ignore them, and any
  * field they do not know.
  * @typedef {'ok'|'warn'|'active'|'info'} PillKind
- * @typedef {{ label: string, kind: PillKind, _run?: object }} Pill `label` is a human step ("Editing LoginView.swift"); `_run` is the collapsed run behind it.
- * @typedef {{ milestone: string, pills: Pill[], attempt: number, file: string|null }} Now
- * @typedef {{ key: string, title: string, status: 'pending'|'active'|'done', _activeForm?: string }} Milestone
+ * @typedef {'plan'|'analyse'|'dev'|'fix'|'review'} Stage
+ * @typedef {{ label: string, kind: PillKind, stage?: Stage, _run?: object }} Pill `label` is a human step ("Editing LoginView.swift"); `_run` is the collapsed run behind it.
+ * @typedef {{ milestone: string, pills: Pill[], attempt: number, file: string|null, stage?: Stage|null }} Now
+ * @typedef {{ key: string, title: string, status: 'pending'|'active'|'done', stage?: Stage, startedAt?: string, endedAt?: string, _activeForm?: string, _fixedStage?: boolean, _stages?: Record<string, number> }} Milestone
  * @typedef {{
  *   id: string, seq: number, title: string, summary: string, prompt: string,
  *   status: 'planning'|'running'|'waiting'|'done'|'error',
@@ -18,7 +19,7 @@ import { dirname, join } from 'node:path';
  * }} Job
  * @typedef {{
  *   id: string, name: string, status: 'running'|'done'|'error'|'stale',
- *   activity: string, summary: string, milestones: Milestone[], steps: Pill[],
+ *   activity: string, summary: string, milestones: Milestone[], steps: Pill[], stage?: Stage|null,
  *   job: number|null, startedAt: string, updatedAt: string, endedAt: string|null,
  *   _type?: string|null, _open?: string[]
  * }} Agent `name`: the dispatch description, else the agent type. `job` is the seq of the job the agent started in.
@@ -95,7 +96,7 @@ export function writeSession(path, session) {
   }
 }
 
-export { progress, runningAgents, jobAgents } from './progress.mjs';
+export { progress, runningAgents, jobAgents, eta, stepDuration } from './progress.mjs';
 
 const LOCK_WAIT_MS = 400;
 const LOCK_STALE_MS = 2000;

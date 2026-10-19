@@ -33,3 +33,36 @@ export function jobAgents(session, seq) {
   const agents = session?.agents && typeof session.agents === 'object' ? Object.values(session.agents) : [];
   return agents.filter((a) => a && typeof a === 'object' && a.job === seq);
 }
+
+/**
+ * Rough time left: the average length of the finished steps times the steps still open,
+ * less what the active step already took.
+ * ponytail: naive average over all steps; weight by stage if estimates prove off.
+ * @param {Pick<import('./state.mjs').Job, 'milestones'>} job
+ * @param {number} [nowMs] current time, ms since epoch
+ * @returns {number|null} milliseconds; null before any step finished or once all are done
+ */
+export function eta(job, nowMs = Date.now()) {
+  const milestones = Array.isArray(job?.milestones) ? job.milestones : [];
+  const spans = milestones
+    .filter((m) => m?.status === 'done' && m.startedAt && m.endedAt)
+    .map((m) => Date.parse(m.endedAt) - Date.parse(m.startedAt))
+    .filter((d) => Number.isFinite(d) && d > 0);
+  const open = milestones.filter((m) => m?.status !== 'done');
+  if (spans.length === 0 || open.length === 0) return null;
+  const avg = spans.reduce((x, y) => x + y, 0) / spans.length;
+  const active = open.find((m) => m.status === 'active');
+  const spent = active?.startedAt ? Math.max(0, nowMs - Date.parse(active.startedAt)) : 0;
+  return Math.max(0, Math.round(avg * open.length - Math.min(spent, avg)));
+}
+
+/**
+ * @param {Pick<import('./state.mjs').Milestone, 'startedAt'|'endedAt'>} m
+ * @param {number} [nowMs]
+ * @returns {number|null} how long a step took (or has taken so far), ms; null before it started
+ */
+export function stepDuration(m, nowMs = Date.now()) {
+  if (!m?.startedAt) return null;
+  const d = (m.endedAt ? Date.parse(m.endedAt) : nowMs) - Date.parse(m.startedAt);
+  return Number.isFinite(d) ? Math.max(0, d) : null;
+}

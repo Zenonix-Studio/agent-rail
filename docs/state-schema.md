@@ -10,6 +10,14 @@ The directory is created with mode `0700` and each file is written atomically
 (temp file + rename) with mode `0600`. A reader may see the old file or the new
 one, never a half-written one.
 
+## Stage
+
+`'plan' | 'analyse' | 'dev' | 'fix' | 'review'`: the kind of work, for coloring.
+Inferred from the tool (reading and searching: `analyse`; editing: `dev`; builds and
+tests: `review`; plan tools: `plan`; a review agent dispatch: `review`). An edit after a
+failed step is `fix` until a build or test passes. An agent-written title prefix wins.
+Viewers use one palette: plan violet, analyse blue, dev orange, fix red, review teal.
+
 ## Rules for readers
 
 - Readers **MUST ignore every field whose name starts with `_`**. These are the
@@ -109,6 +117,9 @@ are appended.
 | `key` | `string` | Stable id: the Claude task id, or the Codex plan step text. |
 | `title` | `string` | Label to show. |
 | `status` | `'pending' \| 'active' \| 'done'` | `active` is the milestone the agent works on. |
+| `stage` | `Stage` (optional) | The agent's own stage from a title prefix (`fix: …`, `[review] …`, stripped from `title`); else the stage seen most while the step was active. Missing until known. |
+| `startedAt` | `string` (optional) | When the step first became `active` (or `done`). |
+| `endedAt` | `string` (optional) | When it became `done`. A step's duration is `endedAt − startedAt` (`stepDuration`), and the job's time left is `eta()` in `core/progress.mjs`. |
 
 ## Now
 
@@ -124,6 +135,7 @@ and the internal retry bookkeeping start fresh.
 | `pills` | `Pill[]` | The last 4 meaningful steps, oldest first (see Pill). |
 | `attempt` | `number` | Retry counter for the latest action. Repeats count only for build and test commands, or for any step after it failed. `1` (or `0` before any action) means "no retry"; viewers show `↻ n` only for `n ≥ 2`. |
 | `file` | `string \| null` | Last file path a main-agent tool touched. |
+| `stage` | `Stage \| null` | What kind of work the main agent is doing now: the active step's own stage, else the latest step's. |
 
 ## Pill
 
@@ -131,6 +143,7 @@ and the internal retry bookkeeping start fresh.
 |---|---|---|
 | `label` | `string` | Human-readable description of the step, at most 60 characters (longer ones end in `…`). Viewers show it verbatim. |
 | `kind` | `'ok' \| 'warn' \| 'active' \| 'info'` | `active`: in progress. `ok`: succeeded. `warn`: failed. `info`: finished, outcome unknown, or a marker such as the milestone being started. |
+| `stage` | `Stage` (optional) | The step's stage. Missing when the tool says nothing about it. |
 
 Labels prefer the agent's own words, so they are in the agent's language:
 
@@ -172,6 +185,7 @@ was seen for it. Ids with an `agent_type` are always listed.
 | `name` | `string` | Display name: the description the main agent gave when it dispatched the agent (`Review the popover UI`), else its humanized type (`General-purpose agent`, `Code reviewer agent`); `'agent'` when unknown. Exact links: the Claude Agent call's response, and the background tasks a Claude stop lists. Until then (and for Codex) the only open dispatch of the agent's type in the job is assumed; with several differently named ones, the type name shows. |
 | `status` | `'running' \| 'done' \| 'error' \| 'stale'` | `stale`: it never reported back. Either it was still running when its job finished or the session ended, or a Claude main-agent stop no longer listed it among the running background tasks. |
 | `activity` | `string` | One line: its current step. With its own plan, the active milestone's in-progress form (`Writing adim-3`, else its title), or the next pending one; without a plan, or once every milestone is done, its latest step (the last entry of `steps`, e.g. `Reading 3 files`). |
+| `stage` | `Stage \| null` | The agent's current stage, as `Now.stage`. |
 | `summary` | `string` | What it was asked to do: the first sentence of the dispatch prompt (Claude Agent `prompt`, Codex spawn `message`), at most 100 characters; else the dispatch description. `''` when unknown. May equal `name`. |
 | `milestones` | `Milestone[]` | The agent's own plan, in plan order; empty when it made none. Its `done / total` is its own progress, never the job's. |
 | `steps` | `Pill[]` | The agent's own story: its last 6 steps, oldest first, with the same labels, collapsing and plan steps (`Planned 6 steps`, a finished task's title as `ok`) as `Now.pills`. |

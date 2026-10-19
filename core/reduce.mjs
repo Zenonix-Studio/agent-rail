@@ -1,5 +1,5 @@
 import { basename } from 'node:path';
-import { agentTypeName, clipText, extractMeta, groupLabel, LABEL_MAX } from './flow.mjs';
+import { agentTypeName, clipText, extractMeta, groupLabel, LABEL_MAX, splitStage, STAGES } from './flow.mjs';
 import { SCHEMA_VERSION } from './state.mjs';
 import { runningAgents } from './progress.mjs';
 
@@ -18,6 +18,7 @@ const JOB_STATUS = new Set(['planning', 'running', 'waiting', 'done', 'error']);
 const MILESTONE_STATUS = new Set(['pending', 'active', 'done']);
 const AGENT_STATUS = new Set(['running', 'done', 'error', 'stale']);
 const PILL_KINDS = new Set(['ok', 'warn', 'active', 'info']);
+const STAGE_SET = new Set(STAGES);
 const MAX_PILLS = 4;
 const MAX_AGENT_STEPS = 6; // story steps kept per subagent
 const SUMMARY_MAX = 100;
@@ -202,7 +203,7 @@ function onMilestones(s, e, at) {
   const prevKey = activeKey(job);
   const known = job.milestones.length;
   const isNewTask = e.type === 'task-create' && !job.milestones.some((m) => m.key === e.key);
-  const changed = changeMilestones(job, e);
+  const changed = changeMilestones(job, e, at);
   if (changed || e.type === 'plan') {
     // Done jobs are only reopened by a prompt; a stray late update must not.
     if (job.status !== 'done') job.status = 'running';
@@ -215,12 +216,25 @@ function onMilestones(s, e, at) {
     const left = job.milestones.find((m) => m.key === job.now?.milestone);
     // Its own start pill ("Planning the change") is superseded by the ✓.
     const startOf = `@${left?.key}`;
-    job.now = { ...emptyNow(key), pills: job.now.pills.filter((p) => !(left?.status === 'done' && p._run?.g === startOf)) };
+    job.now = { ...emptyNow(key), stage: job.now.stage ?? null, pills: job.now.pills.filter((p) => !(left?.status === 'done' && p._run?.g === startOf)) };
     if (left?.status === 'done') pushPill(nowOf(job, key), donePill(left), MAX_PILLS);
   }
   if (!changed) return;
   planPills(nowOf(job, key), e, known, isNewTask, job.milestones, MAX_PILLS);
   if (key !== prevKey) startPill(nowOf(job, key), e, job.milestones, key, MAX_PILLS);
+  nowOf(job, key).stage = planStage(job.milestones, e, known, isNewTask, job.now?.stage ?? null);
+}
+
+/**
+ * The stage after a plan change: the active step's own stage, else `plan` while the plan is being made.
+ * @param {import('./state.mjs').Milestone[]} milestones @param {Record<string, any>} e
+ * @param {number} known milestones before the event @param {boolean} isNewTask @param {string|null} prev
+ * @returns {string|null}
+ */
+function planStage(milestones, e, known, isNewTask, prev) {
+  const active = milestones.find((m) => m.status === 'active');
+  if (active?.stage) return active.stage;
+  return isNewTask || (e.type === 'plan' && known === 0) ? 'plan' : prev;
 }
 
 /**
@@ -234,7 +248,7 @@ function onAgentMilestones(s, agentId, e, at) {
   const known = a.milestones.length;
   const wasDone = new Set(a.milestones.filter((m) => m.status === 'done').map((m) => m.key));
   const isNewTask = e.type === 'task-create' && !a.milestones.some((m) => m.key === e.key);
-  if (!changeMilestones(a, e)) return;
+  if (!changeMilestones(a, e, at)) return;
   const story = { pills: a.steps, _open: a._open };
   planPills(story, e, known, isNewTask, a.milestones, MAX_AGENT_STEPS);
   // A finished step of its plan becomes a step of its story, replacing its own start step.
@@ -247,6 +261,7 @@ function onAgentMilestones(s, agentId, e, at) {
   if (key !== prevKey) startPill(story, e, a.milestones, key, MAX_AGENT_STEPS);
   a.steps = story.pills;
   a.activity = agentActivity(a);
+  a.stage = planStage(a.milestones, e, known, isNewTask, a.stage ?? null);
 }
 
 /**
@@ -277,7 +292,7 @@ function startPill(story, e, milestones, started, max) {
 
 /** @param {import('./state.mjs').Milestone} m @returns {Pill} "<title> ✓" */
 function donePill(m) {
-  return newPill({ label: clipText(m.title, LABEL_MAX), group: null, item: null }, 'ok', null);
+  return newPill({ label: clipText(m.title, LABEL_MAX), group: null, item: null, stage: m.stage ?? null }, 'ok', null);
 }
 
 /**
@@ -326,19 +341,29 @@ function isDisjoint(job, e) {
 }
 
 /** @param {{milestones: import('./state.mjs').Milestone[]}} job a job, or a subagent's own plan @param {Record<string, any>} e @returns {boolean} true when milestones changed */
-function changeMilestones(job, e) {
+function changeMilestones(job, e, at) {
+  const changed = editMilestones(job, e);
+  if (changed) stampMilestones(job.milestones, at);
+  return changed;
+}
+
+/** @param {{milestones: import('./state.mjs').Milestone[]}} job @param {Record<string, any>} e @returns {boolean} */
+function editMilestones(job, e) {
   if (e.type === 'plan') {
-    job.milestones = planItems(e);
+    // Plans are snapshots: a step kept by key keeps its times and stage counts.
+    const old = new Map(job.milestones.map((m) => [m.key, m]));
+    job.milestones = planItems(e).map((m) => carryMilestone(m, old.get(m.key)));
     return true;
   }
   const key = str(e.key);
   if (!key) return false;
   const i = job.milestones.findIndex((m) => m.key === key);
   if (e.type === 'task-create') {
-    const title = str(e.title) ?? key;
+    const { title, stage } = splitStage(str(e.title) ?? key);
     if (i < 0) job.milestones.push({ key, title, status: 'pending' });
     const m = job.milestones[i < 0 ? job.milestones.length - 1 : i];
     m.title = title;
+    if (stage) setStage(m, stage);
     if (str(e.activeForm)) m._activeForm = e.activeForm;
     return true;
   }
@@ -349,16 +374,65 @@ function changeMilestones(job, e) {
   return true;
 }
 
+/** @param {import('./state.mjs').Milestone} m @param {string} stage the agent's own stage for the step */
+function setStage(m, stage) {
+  m.stage = stage;
+  m._fixedStage = true;
+}
+
+/** @param {import('./state.mjs').Milestone} m @param {import('./state.mjs').Milestone|undefined} old */
+function carryMilestone(m, old) {
+  if (!old) return m;
+  for (const k of ['startedAt', 'endedAt', '_stages', '_activeForm']) if (old[k] !== undefined && m[k] === undefined) m[k] = old[k];
+  if (!m._fixedStage && old.stage) {
+    m.stage = old.stage;
+    if (old._fixedStage) m._fixedStage = true;
+  }
+  return m;
+}
+
+/**
+ * Per-step time: `startedAt` the first time a step is active (or done), `endedAt` when it is done.
+ * @param {import('./state.mjs').Milestone[]} milestones @param {string} at
+ */
+function stampMilestones(milestones, at) {
+  for (const m of milestones) {
+    if (m.status !== 'pending' && !m.startedAt) m.startedAt = at;
+    if (m.status === 'done') m.endedAt ??= at;
+    else delete m.endedAt;
+  }
+}
+
+/**
+ * Counts a step's stage on the active milestone; without an agent-written stage, the
+ * milestone's stage is the one seen most.
+ * @param {import('./state.mjs').Milestone[]} milestones @param {string|null} stage
+ * @returns {string|null} the stage to show now: the active step's own stage wins
+ */
+function noteStage(milestones, stage) {
+  const m = milestones.find((x) => x.status === 'active');
+  if (!m) return stage;
+  if (stage) {
+    const c = (m._stages ??= {});
+    c[stage] = (c[stage] ?? 0) + 1;
+    if (!m._fixedStage) m.stage = Object.entries(c).sort((x, y) => y[1] - x[1])[0][0];
+  }
+  return m._fixedStage ? m.stage : stage;
+}
+
 /** @param {Record<string, any>} e @returns {import('./state.mjs').Milestone[]} */
 function planItems(e) {
   if (!Array.isArray(e.items)) return [];
   return e.items
     .filter((it) => isObj(it) && str(it.key))
-    .map((it) => ({
-      key: it.key,
-      title: str(it.title) ?? it.key,
-      status: MILESTONE_STATUS.has(it.status) ? it.status : 'pending',
-    }));
+    .map((it) => {
+      const { title, stage } = splitStage(str(it.title) ?? it.key);
+      /** @type {import('./state.mjs').Milestone} */
+      const m = { key: it.key, title, status: MILESTONE_STATUS.has(it.status) ? it.status : 'pending' };
+      if (stage) setStage(m, stage);
+      else if (STAGE_SET.has(it.stage)) setStage(m, it.stage);
+      return m;
+    });
 }
 
 /**
@@ -388,7 +462,9 @@ function onTool(s, agentId, e, at) {
   const ck = step.key;
   if (step.group === 'dispatch') noteDispatch(s, e, id);
 
-  if (storyTool(now, e, step, id, MAX_PILLS)) counts[ck] = (counts[ck] ?? 0) + 1;
+  const stage = storyTool(now, e, step, id, MAX_PILLS);
+  if (stage.counted) counts[ck] = (counts[ck] ?? 0) + 1;
+  if (e.phase === 'pre') now.stage = noteStage(job.milestones, stage.stage) ?? now.stage ?? null;
   // R18: a failure starts a retry count for steps that do not always count.
   if (e.phase !== 'pre' && e.ok === false && !RETRY_KEYS.has(ck) && !(ck in now._retryBase)) now._retryBase[ck] = (counts[ck] ?? 1) - 1;
   const n = counts[ck] ?? 1;
@@ -403,10 +479,16 @@ function onTool(s, agentId, e, at) {
  * @param {{pills: Pill[], _open: string[]}} story mutated in place
  * @param {Record<string, any>} e @param {StepIn} step @param {string|null} id
  * @param {number} max pills kept
- * @returns {boolean} true when the call counts as a new occurrence of its step
+ * @returns {{counted: boolean, stage: string|null}} `counted`: the call is a new occurrence of its
+ *   step; `stage`: its stage, `fix` for work after a failure until a build or test passes
  */
 function storyTool(story, e, step, id, max) {
   let counted = true;
+  if (step.stage === 'dev' && story._failed) step = { ...step, stage: 'fix' };
+  if (e.phase !== 'pre') {
+    if (e.ok === false) story._failed = true;
+    else if (e.ok === true && step.stage === 'review') story._failed = false;
+  }
   if (e.phase === 'pre') {
     const last = story.pills[story.pills.length - 1];
     if (mergeable(last, step)) {
@@ -458,16 +540,18 @@ function storyTool(story, e, step, id, max) {
     counted = i < 0 && !opened;
   }
   story.pills = story.pills.slice(-max);
-  return counted;
+  return { counted, stage: step.stage };
 }
 
 /** A subagent's tool call: a step of its own story, built like the main flow; `activity` is its latest step. */
 function onAgentTool(s, agentId, e, step, id, at) {
   const a = agent(s, agentId, at);
-  const story = { pills: a.steps, _open: a._open };
-  storyTool(story, e, step, id, MAX_AGENT_STEPS);
+  const story = { pills: a.steps, _open: a._open, _failed: a._failed === true };
+  const { stage } = storyTool(story, e, step, id, MAX_AGENT_STEPS);
   a.steps = story.pills;
   a._open = story._open;
+  a._failed = story._failed;
+  if (e.phase === 'pre') a.stage = noteStage(a.milestones, stage) ?? a.stage ?? null;
   a.activity = agentActivity(a);
   // M3: only the main agent's activity clears a permission 'waiting'. R19: after a
   // main-agent Stop, a working subagent of the job means the job still runs.
@@ -481,18 +565,18 @@ function onAgentTool(s, agentId, e, step, id, at) {
 /**
  * @typedef {{g: string|null, items: string[], n: number, one: string, ids: string[]}} Run
  *  A collapsed run of steps: group, their items, how many, the first step's label, open call ids.
- * @typedef {{label: string, fail: string, key: string, group: string|null, item: string|null}} StepIn
+ * @typedef {{label: string, fail: string, key: string, group: string|null, item: string|null, stage: string|null}} StepIn
  */
 
 /** @param {Record<string, any>} e @returns {StepIn} */
 function stepOf(e) {
   const label = str(e.label) ?? str(e.name) ?? 'Working';
-  return { label, fail: str(e.fail) ?? `Failed: ${label}`, key: str(e.key) ?? label, group: str(e.group), item: str(e.item) };
+  return { label, fail: str(e.fail) ?? `Failed: ${label}`, key: str(e.key) ?? label, group: str(e.group), item: str(e.item), stage: STAGE_SET.has(e.stage) ? e.stage : null };
 }
 
 /** @param {Pill|undefined} p @param {StepIn} step */
 function mergeable(p, step) {
-  return !!p && p.kind !== 'warn' && !!p._run && p._run.g !== null && p._run.g !== 'plan' && p._run.g === step.group;
+  return !!p && p.kind !== 'warn' && !!p._run && p._run.g !== null && p._run.g !== 'plan' && p._run.g === step.group && (p.stage ?? null) === step.stage;
 }
 
 /** @param {Pill} p @param {StepIn} step @param {string|null} id */
@@ -504,14 +588,20 @@ function addToRun(p, step, id) {
   p.label = groupLabel(run.g, run.items, run.n, run.one);
 }
 
-/** @param {Pick<StepIn, 'label'|'group'|'item'>} step @param {import('./state.mjs').PillKind} kind @param {string|null} id @returns {Pill} */
+/** @param {Pick<StepIn, 'label'|'group'|'item'> & {stage?: string|null}} step @param {import('./state.mjs').PillKind} kind @param {string|null} id @returns {Pill} */
 function newPill(step, kind, id) {
-  return { label: step.label, kind, _run: { g: step.group, items: step.item ? [step.item] : [], n: 1, one: step.label, ids: id ? [id] : [] } };
+  return withStage({ label: step.label, kind, _run: { g: step.group, items: step.item ? [step.item] : [], n: 1, one: step.label, ids: id ? [id] : [] } }, step.stage);
 }
 
 /** @param {StepIn} step @returns {Pill} */
 function failPill(step) {
-  return { label: step.fail, kind: 'warn', _run: { g: step.group, items: step.item ? [step.item] : [], n: 1, one: step.label, ids: [] } };
+  return withStage({ label: step.fail, kind: 'warn', _run: { g: step.group, items: step.item ? [step.item] : [], n: 1, one: step.label, ids: [] } }, step.stage);
+}
+
+/** @param {Pill} p @param {string|null|undefined} stage @returns {Pill} */
+function withStage(p, stage) {
+  if (stage) p.stage = stage;
+  return p;
 }
 
 /**
@@ -784,7 +874,7 @@ function activeKey(job) {
  *   `_retryBase[key]` is the count before that step key's first failure (R18).
  */
 function emptyNow(milestone) {
-  return { milestone, pills: [], attempt: 0, file: null, _counts: {}, _open: [], _retryBase: {} };
+  return { milestone, pills: [], attempt: 0, file: null, stage: null, _counts: {}, _open: [], _retryBase: {} };
 }
 
 // --- Defensive copy of stored state -------------------------------------
@@ -849,6 +939,11 @@ function fixMilestones(list) {
     .map((m) => {
       const out = { key: m.key, title: str(m.title) ?? m.key, status: MILESTONE_STATUS.has(m.status) ? m.status : 'pending' };
       if (str(m._activeForm)) out._activeForm = m._activeForm;
+      if (STAGE_SET.has(m.stage)) out.stage = m.stage;
+      if (m._fixedStage === true && out.stage) out._fixedStage = true;
+      if (str(m.startedAt)) out.startedAt = m.startedAt;
+      if (str(m.endedAt)) out.endedAt = m.endedAt;
+      if (isObj(m._stages)) out._stages = Object.fromEntries(Object.entries(m._stages).filter(([k, v]) => STAGE_SET.has(k) && Number.isFinite(v)));
       return out;
     });
 }
@@ -858,7 +953,7 @@ function fixPills(list) {
   if (!Array.isArray(list)) return [];
   return list
     .filter((x) => isObj(x) && typeof x.label === 'string' && PILL_KINDS.has(x.kind))
-    .map((x) => ({ label: x.label, kind: x.kind, _run: fixRun(x._run, x.label, x._id) }));
+    .map((x) => withStage({ label: x.label, kind: x.kind, _run: fixRun(x._run, x.label, x._id) }, STAGE_SET.has(x.stage) ? x.stage : null));
 }
 
 function fixNow(n) {
@@ -873,7 +968,9 @@ function fixNow(n) {
     pills: fixPills(n.pills),
     attempt: Number.isFinite(n.attempt) ? n.attempt : 0,
     file: str(n.file),
+    stage: STAGE_SET.has(n.stage) ? n.stage : null,
     _counts: nums(n._counts),
+    _failed: n._failed === true,
     _open: Array.isArray(n._open) ? n._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
     _retryBase: nums(n._retryBase),
   };
@@ -912,6 +1009,8 @@ function fixAgent(id, a, at) {
     summary: typeof a.summary === 'string' ? a.summary : '',
     milestones: fixMilestones(a.milestones),
     steps: fixPills(a.steps).slice(-MAX_AGENT_STEPS),
+    stage: STAGE_SET.has(a.stage) ? a.stage : null,
+    _failed: a._failed === true,
     _type: str(a._type),
     _open: Array.isArray(a._open) ? a._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
   };
