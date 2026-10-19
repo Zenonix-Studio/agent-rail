@@ -305,7 +305,10 @@ const STEP_KEY = 'step:';
 function onAgentSteps(s, agentId, steps, stopped, at) {
   const a = agent(s, agentId, at);
   if (a.milestones.some((m) => !m.key.startsWith(STEP_KEY))) return;
-  const items = steps.filter((t) => str(t)).map((t, i, all) => ({ key: STEP_KEY + t, title: t, status: stopped || i < all.length - 1 ? 'done' : 'active' }));
+  // Only the transcript's tail is read: in long runs early `step:` lines fall out of it, so keep the steps already known.
+  const known = a.milestones.map((m) => m.key.slice(STEP_KEY.length));
+  const all = [...known, ...steps.filter((t) => str(t) && !known.includes(t))];
+  const items = all.map((t, i) => ({ key: STEP_KEY + t, title: t, status: stopped || i < all.length - 1 ? 'done' : 'active' }));
   if (items.length === 0) return;
   const same = items.length === a.milestones.length && items.every((it, i) => a.milestones[i].key === it.key && a.milestones[i].status === it.status);
   if (!same) onAgentMilestones(s, agentId, { type: 'plan', items, explanation: null, fromSteps: true }, at);
