@@ -44,7 +44,8 @@ final class JobNotifier {
     private static func body(for job: Job) -> String? {
         switch job.status {
         case .done:
-            return job.progress.isEmpty ? L10n.notifyDone : "\(L10n.notifyDone) · \(job.progress)"
+            let first = firstSentence(job.progress)
+            return first.isEmpty ? L10n.notifyDone : "\(L10n.notifyDone) · \(first)"
         case .waiting:
             return L10n.notifyWaiting
         case .error:
@@ -53,6 +54,16 @@ final class JobNotifier {
         case .planning, .running, .unknown:
             return nil
         }
+    }
+
+    /// A banner has room for about one sentence; the full summary stays in the popover.
+    private static func firstSentence(_ text: String) -> String {
+        var first = ""
+        text.enumerateSubstrings(in: text.startIndex..., options: .bySentences) { sentence, _, _, stop in
+            first = sentence?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            stop = true
+        }
+        return first
     }
 }
 

@@ -382,7 +382,8 @@ const PLAN_NUDGE = {
   codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
 };
 
-const PROGRESS_TEXT = '<at most 2 short sentences on the work itself so far, your agents\' included: what was found, changed or verified, and what is left — not the step titles>';
+// Shown as-is in the rail and in the done notification: plain words a non-engineer can read.
+const PROGRESS_TEXT = '<one short plain sentence (two at most) in the language the user writes in, on the work itself so far, your agents\' included: what is done and what is left — no file names, code, commit ids or step titles>';
 
 /**
  * Asks the main agent for its own running summary of the whole job. Claude passes it in the task
