@@ -56,7 +56,7 @@ struct JobHeaderView: View {
                 if item.job.status == .waiting {
                     Text("● waiting for you")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Theme.warn)
+                        .foregroundStyle(Theme.waiting)
                         .lineLimit(1)
                 } else if item.job.status == .error {
                     Text(verbatim: "● " + L10n.notifyFailing)

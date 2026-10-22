@@ -156,21 +156,38 @@ struct PopoverView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 14) {
-            Button { show(.history) } label: { Text("Done today: \(store.doneTodayCount)") }
-                .help(String(localized: "History"))
+        HStack(spacing: 10) {
+            // Looks like a button on purpose: as plain text it read as a label.
+            Button { show(.history) } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "clock.arrow.circlepath")
+                    Text("Done today: \(store.doneTodayCount)")
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold))
+                }
+                .foregroundStyle(page == .history ? Theme.onAccent : Theme.text)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(page == .history ? Theme.accent : Theme.raised, in: Capsule())
+                .overlay(Capsule().strokeBorder(page == .history ? Theme.accent : Theme.line, lineWidth: 1))
+                .contentShape(Capsule())
+                .fixedSize()
+            }
+            .help(String(localized: "History"))
             Button { show(.legend) } label: { Image(systemName: "questionmark.circle") }
                 .help(String(localized: "Colors"))
                 .accessibilityLabel(String(localized: "Colors"))
             Spacer()
             Toggle(L10n.notifications, isOn: $notificationsEnabled)
                 .toggleStyle(.checkbox)
+                .fixedSize()
                 .onChange(of: notificationsEnabled) { _, on in
                     if on { JobNotifier.requestAuthorization() }
                 }
             Button("Open folder") { NSWorkspace.shared.open(store.root) }
+                .fixedSize()
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
+                .fixedSize()
         }
         .buttonStyle(.plain)
         .font(.system(size: 12))

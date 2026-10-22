@@ -8,8 +8,10 @@ enum Theme {
     static let done = dynamic(light: 0x1F7A42, dark: 0x5CB87A)
     static let accent = dynamic(light: 0x9A4519, dark: 0xE08A5C)
     static let warn = dynamic(light: 0x7F5A0C, dark: 0xD6A64A)
-    /// A quiet agent: a clearer yellow than `warn`, so it does not read as "needs you".
-    static let quiet = dynamic(light: 0x7A6A00, dark: 0xF2D541)
+    /// A job waiting for the user: a clear yellow, apart from the amber `warn` of failed steps.
+    static let waiting = dynamic(light: 0x7A6A00, dark: 0xF2D541)
+    /// A quiet agent: near-white (near-black in light mode), so it does not read as "needs you".
+    static let quiet = dynamic(light: 0x3E3D38, dark: 0xF1F0EA)
     /// A failing job (status `error`); the same red as the fix stage.
     static let error = fix
     static let codex = dynamic(light: 0x3550C8, dark: 0x8FA8FF)
