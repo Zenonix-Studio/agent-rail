@@ -165,6 +165,20 @@ function applyEvent(s, input, at) {
         const a = agent(s, agentId, at);
         a.status = e.ok === false ? 'error' : 'done';
         a.endedAt = at;
+        // Codex does not wake its main agent when a subagent ends, so no later Stop decides the job:
+        // the last one ending after the main turn did decides it (Claude's main agent is woken instead).
+        const job = current(s);
+        if (s.source === 'codex' && job && a.job === job.seq && job._mainStopped && job.status === 'running' && runningAgents(s, job.seq) === 0) {
+          job.updatedAt = at;
+          if (job.milestones.some((m) => m.status !== 'done')) {
+            job.status = 'waiting';
+          } else {
+            job.status = 'done';
+            job.endedAt = at;
+            delete job._prevEndedAt;
+            delete job._mainStopped;
+          }
+        }
       }
       break;
     case 'waiting': {
