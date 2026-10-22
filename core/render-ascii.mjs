@@ -172,8 +172,12 @@ function railLines(milestones, w, isDone, now, nowMs) {
     to = Math.min(milestones.length, Math.max(from + RAIL_AHEAD, anchor + 1));
     if (from > 0) lines.push([seg('✓', 'done'), seg(` ${from} done`, 'dim')]);
   }
+  // Each step's stage as a short colored bar, like the menubar; steps without one keep the column.
+  const staged = milestones.some((m) => stageOf(m?.stage));
   for (let i = from; i < to; i++) {
     const m = milestones[i];
+    const tone = stageOf(m?.stage);
+    const bar = !staged ? '' : tone ? '━━ ' : '   ';
     const status = m?.status;
     const active = status === 'active' && !isDone;
     const glyph = status === 'done' ? seg('✓', 'done')
@@ -181,8 +185,8 @@ function railLines(milestones, w, isDone, now, nowMs) {
     const title = str(m?.title) || str(m?.key) || '?';
     const ms = status === 'done' || active ? stepDuration(m, nowMs) : null;
     const dur = ms === null ? '' : `  ${duration(ms)}`;
-    lines.push([glyph, seg(' ', 'plain'), seg(clip(title, w - 2 - dur.length), active ? 'bold' : status === 'active' ? 'plain' : 'dim'),
-      seg(dur, 'dim')]);
+    lines.push([glyph, seg(' ', 'plain'), seg(bar, tone ?? 'plain'),
+      seg(clip(title, w - 2 - bar.length - dur.length), active ? 'bold' : status === 'active' ? 'plain' : 'dim'), seg(dur, 'dim')]);
     if (now && i === anchor) lines.push(...nowLines(now, w, GUTTER));
   }
   if (to < milestones.length) lines.push([seg(`  +${milestones.length - to} more`, 'dim')]);

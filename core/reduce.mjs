@@ -888,6 +888,8 @@ function splitJob(s, job, at) {
   const next = newJob(s, job.seq + 1, s._pendingPrompt ?? '', 'running', at);
   s.jobs.push(next);
   s._pendingPrompt = null;
+  // Viewers show a session's latest job: agents still running move along, or they would vanish.
+  for (const a of Object.values(s.agents)) if (a.job === job.seq && a.status === 'running') a.job = next.seq;
   return next;
 }
 

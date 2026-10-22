@@ -14,13 +14,17 @@ struct PopoverView: View {
     }
 
     @State private var expansion: Expansion
+    /// The live jobs, the finished-jobs history, or the color legend.
+    enum Page { case jobs, history, legend }
+    @State private var page: Page = .jobs
     @AppStorage(JobNotifier.enabledKey) private var notificationsEnabled = true
 
-    init(store: SessionStore, agentExpansion: AgentExpansion, scrollable: Bool = true, expandedJobID: String? = nil) {
+    init(store: SessionStore, agentExpansion: AgentExpansion, scrollable: Bool = true, expandedJobID: String? = nil, page: Page = .jobs) {
         self.store = store
         self.agentExpansion = agentExpansion
         self.scrollable = scrollable
         _expansion = State(initialValue: expandedJobID.map(Expansion.job) ?? .automatic)
+        _page = State(initialValue: page)
     }
 
     private static let width: CGFloat = 408
@@ -29,18 +33,18 @@ struct PopoverView: View {
     var body: some View {
         let items = store.items
         VStack(alignment: .leading, spacing: 0) {
-            header
-            if items.isEmpty {
+            if page == .jobs { header } else { pageHeader }
+            if page == .jobs && items.isEmpty {
                 emptyState
             } else if scrollable {
                 ScrollView {
-                    list(items)
+                    content(items)
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .frame(maxHeight: Self.maxListHeight)
                 .fixedSize(horizontal: false, vertical: true)
             } else {
-                list(items)
+                content(items)
             }
             footer
         }
@@ -66,6 +70,39 @@ struct PopoverView: View {
         .padding(.horizontal, 8)
         .padding(.top, 6)
         .padding(.bottom, 10)
+    }
+
+    @ViewBuilder private func content(_ items: [JobItem]) -> some View {
+        switch page {
+        case .jobs: list(items)
+        case .history: HistoryView(store: store, agentExpansion: agentExpansion)
+        case .legend: LegendView()
+        }
+    }
+
+    /// History and legend: a back button and the page's name.
+    private var pageHeader: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Button { show(.jobs) } label: {
+                Label("Jobs", systemImage: "chevron.left").font(.system(size: 12))
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(Theme.muted)
+            Text(page == .history ? String(localized: "History") : String(localized: "Colors"))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.text)
+            Spacer()
+            if page == .history {
+                Text("Last 48 hours").font(.system(size: 12)).foregroundStyle(Theme.muted)
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 6)
+        .padding(.bottom, 10)
+    }
+
+    private func show(_ next: Page) {
+        withAnimation(.snappy(duration: 0.2)) { page = page == next ? .jobs : next }
     }
 
     private func list(_ items: [JobItem]) -> some View {
@@ -120,7 +157,11 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 14) {
-            Text("Done today: \(store.doneTodayCount)")
+            Button { show(.history) } label: { Text("Done today: \(store.doneTodayCount)") }
+                .help(String(localized: "History"))
+            Button { show(.legend) } label: { Image(systemName: "questionmark.circle") }
+                .help(String(localized: "Colors"))
+                .accessibilityLabel(String(localized: "Colors"))
             Spacer()
             Toggle(L10n.notifications, isOn: $notificationsEnabled)
                 .toggleStyle(.checkbox)

@@ -58,6 +58,17 @@ enum L10n {
         }
     }
 
+    /// What a stage means, for the color legend.
+    static func stageMeaning(_ stage: Stage) -> String {
+        switch stage {
+        case .plan: String(localized: "Planning the work")
+        case .analyse: String(localized: "Reading and searching")
+        case .dev: String(localized: "Writing code")
+        case .fix: String(localized: "Fixing after a failure")
+        case .review: String(localized: "Building, testing, reviewing")
+        }
+    }
+
     /// Rough time left after the step count: "~4 min left".
     static func timeLeft(_ interval: TimeInterval) -> String {
         String(localized: "~\(formatDuration(interval)) left")

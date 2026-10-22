@@ -124,7 +124,7 @@ struct JobHeaderView: View {
     }
 }
 
-private struct SourceTag: View {
+struct SourceTag: View {
     let source: Source
 
     var body: some View {

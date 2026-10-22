@@ -588,6 +588,186 @@
           }
         }
       }
+    },
+    "Stages": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aşamalar"
+          }
+        }
+      }
+    },
+    "States": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durumlar"
+          }
+        }
+      }
+    },
+    "Bordered step": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çerçeveli adım"
+          }
+        }
+      }
+    },
+    "A finished plan step, in its stage color": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biten plan adımı, aşamasının renginde"
+          }
+        }
+      }
+    },
+    "Builds or tests failed 3 times in a row": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Derleme veya test üst üste 3 kez başarısız"
+          }
+        }
+      }
+    },
+    "Waiting for your answer or a permission": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cevabını ya da iznini bekliyor"
+          }
+        }
+      }
+    },
+    "quiet": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sessiz"
+          }
+        }
+      }
+    },
+    "An agent sent nothing for 5 min": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajan 5 dakikadır hiçbir şey göndermedi"
+          }
+        }
+      }
+    },
+    "Every step finished": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bütün adımlar bitti"
+          }
+        }
+      }
+    },
+    "No finished jobs yet": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Henüz biten iş yok"
+          }
+        }
+      }
+    },
+    "Planning the work": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İşi planlıyor"
+          }
+        }
+      }
+    },
+    "Reading and searching": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Okuyor ve arıyor"
+          }
+        }
+      }
+    },
+    "Writing code": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kod yazıyor"
+          }
+        }
+      }
+    },
+    "Fixing after a failure": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hatadan sonra düzeltiyor"
+          }
+        }
+      }
+    },
+    "Building, testing, reviewing": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Derliyor, test ediyor, inceliyor"
+          }
+        }
+      }
+    },
+    "History": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçmiş"
+          }
+        }
+      }
+    },
+    "Colors": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renkler"
+          }
+        }
+      }
+    },
+    "Last 48 hours": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 48 saat"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

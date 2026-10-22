@@ -81,6 +81,14 @@ func visibleJobs(_ sessions: [Session], now: Date) -> [JobItem] {
     }
 }
 
+/// Finished jobs across sessions, newest first: the popover's history (as far back as the loader reads).
+func recentJobs(_ sessions: [Session], limit: Int = 50) -> [JobItem] {
+    let done = sessions.flatMap { session in
+        session.jobs.filter { $0.status == .done }.map { JobItem(session: session, job: $0) }
+    }
+    return Array(done.sorted { ($0.job.endedAt ?? $0.job.updatedAt) > ($1.job.endedAt ?? $1.job.updatedAt) }.prefix(limit))
+}
+
 func doneToday(_ sessions: [Session], now: Date, calendar: Calendar = .current) -> Int {
     sessions.reduce(0) { total, session in
         total + session.jobs.filter { job in

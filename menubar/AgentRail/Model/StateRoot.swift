@@ -19,7 +19,8 @@ enum StateRoot {
 
 /// Lists and decodes session files, caching each by (filename, mtime) so unchanged files are not decoded again.
 struct SessionLoader {
-    static let maxAge: TimeInterval = 24 * 60 * 60
+    /// The history goes back this far; live cards still hide after 24 h (`hiddenAfter`).
+    static let maxAge: TimeInterval = 48 * 60 * 60
 
     let directory: URL
     private var cache: [String: (mtime: Date, session: Session?)] = [:]
