@@ -8,6 +8,12 @@ enum L10n {
     static func agentsRunning(_ n: Int) -> String {
         n > 0 ? String(localized: "Agents · \(n) running") : String(localized: "Agents")
     }
+    // Notification bodies and the footer toggle.
+    static let notifyDone = String(localized: "Done")
+    static let notifyWaiting = String(localized: "Needs you")
+    static let notifyFailing = String(localized: "Failing")
+    static let notifications = String(localized: "Notifications")
+
     static func moreAgents(_ n: Int) -> String { String(localized: "+\(n) more") }
 
     /// The locale of the language the UI strings resolved to (not the system region's formats).

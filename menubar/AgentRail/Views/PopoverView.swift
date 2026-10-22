@@ -14,6 +14,7 @@ struct PopoverView: View {
     }
 
     @State private var expansion: Expansion
+    @AppStorage(JobNotifier.enabledKey) private var notificationsEnabled = true
 
     init(store: SessionStore, agentExpansion: AgentExpansion, scrollable: Bool = true, expandedJobID: String? = nil) {
         self.store = store
@@ -121,6 +122,11 @@ struct PopoverView: View {
         HStack(spacing: 14) {
             Text("Done today: \(store.doneTodayCount)")
             Spacer()
+            Toggle(L10n.notifications, isOn: $notificationsEnabled)
+                .toggleStyle(.checkbox)
+                .onChange(of: notificationsEnabled) { _, on in
+                    if on { JobNotifier.requestAuthorization() }
+                }
             Button("Open folder") { NSWorkspace.shared.open(store.root) }
             Button("Quit") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")

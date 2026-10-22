@@ -9,7 +9,11 @@ struct AgentRailApp: App {
     init() {
         // Debug flags (e.g. --dump) print and exit before any UI or store starts.
         DebugCommands.run(arguments: CommandLine.arguments)
-        _store = State(initialValue: SessionStore())
+        let store = SessionStore()
+        let notifier = JobNotifier()
+        store.onTransition = { notifier.notify($0) }
+        JobNotifier.requestAuthorization()
+        _store = State(initialValue: store)
     }
 
     var body: some Scene {

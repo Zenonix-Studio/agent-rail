@@ -12,6 +12,7 @@
 		173451016198E1370E657742 /* StateModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 794CEAA74D22171BD23873F4 /* StateModels.swift */; };
 		25BB4E371AA8845C3E2486C3 /* NowBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D1971ACA87B097057541204 /* NowBlockView.swift */; };
 		2C30776D78114D16A3C38A89 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 222015DD39B97F91F71F2C3A /* SessionStore.swift */; };
+		384469475F0D1177D6364FD3 /* JobNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08E103524CC41605F1A8B741 /* JobNotifier.swift */; };
 		3F38090D20C94C55808AB90C /* DebugCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02E650C8994758EEDED5A2E /* DebugCommands.swift */; };
 		4C1FE95B724D53C927F8CC70 /* StateRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845804CA23A1A0D141769DC7 /* StateRoot.swift */; };
 		79CABB374A54BAF54427657F /* Derivations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85410834CAD890C2E50AF983 /* Derivations.swift */; };
@@ -27,6 +28,7 @@
 
 /* Begin PBXFileReference section */
 		057A4D9D2852B9AB7625241F /* PopoverView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopoverView.swift; sourceTree = "<group>"; };
+		08E103524CC41605F1A8B741 /* JobNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobNotifier.swift; sourceTree = "<group>"; };
 		0E59A1DA6A86F891F04E676B /* AgentRail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentRail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1469638E9F117411394819F7 /* AgentsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsSectionView.swift; sourceTree = "<group>"; };
 		222015DD39B97F91F71F2C3A /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
@@ -50,6 +52,7 @@
 			isa = PBXGroup;
 			children = (
 				85410834CAD890C2E50AF983 /* Derivations.swift */,
+				08E103524CC41605F1A8B741 /* JobNotifier.swift */,
 				222015DD39B97F91F71F2C3A /* SessionStore.swift */,
 				794CEAA74D22171BD23873F4 /* StateModels.swift */,
 				845804CA23A1A0D141769DC7 /* StateRoot.swift */,
@@ -185,6 +188,7 @@
 				3F38090D20C94C55808AB90C /* DebugCommands.swift in Sources */,
 				79CABB374A54BAF54427657F /* Derivations.swift in Sources */,
 				C4FA198CFB35C1474000D135 /* JobDetailView.swift in Sources */,
+				384469475F0D1177D6364FD3 /* JobNotifier.swift in Sources */,
 				E04B865F52B773F1D1956333 /* JobRowView.swift in Sources */,
 				04FAADE5F23FF3127A8CBE74 /* L10n.swift in Sources */,
 				25BB4E371AA8845C3E2486C3 /* NowBlockView.swift in Sources */,

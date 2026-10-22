@@ -22,6 +22,11 @@ final class SessionStore {
     @ObservationIgnored private var debounce: Task<Void, Never>?
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var lastReload = Date()
+    /// Last seen status per job id. Never pruned, so a file that briefly fails to decode mid-write
+    /// does not make its jobs look new (and silent) when it comes back.
+    @ObservationIgnored private var lastStatus: [String: JobStatus] = [:]
+    /// Called on the main actor for each job that moved to done, waiting or error since the last load.
+    @ObservationIgnored var onTransition: ((JobTransition) -> Void)?
 
     private static let debounceDelay: Duration = .milliseconds(150)
     /// Elapsed time shows in minutes and staleness starts at 10 min, so `now` needs no finer tick.
@@ -37,6 +42,8 @@ final class SessionStore {
         sessions = loader.load(now: Date())
         signature = loader.signature
         worker = LoadWorker(loader: loader)
+        // Seeds the status memory silently: jobs already done, waiting or failing at launch never notify.
+        _ = recordTransitions(in: sessions)
         openWatcher()
         let timer = Timer(timeInterval: Self.tick, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
@@ -114,12 +121,36 @@ final class SessionStore {
             signature = result.signature
             sessions = result.sessions
             now = date
+            for transition in recordTransitions(in: result.sessions) { onTransition?(transition) }
         }
         if reloadPending {
             reloadPending = false
             reload()
         }
     }
+
+    // MARK: Transitions
+
+    /// Updates `lastStatus` and returns the jobs that moved into a notifiable status.
+    /// A job seen for the first time only records its status.
+    private func recordTransitions(in sessions: [Session]) -> [JobTransition] {
+        var transitions: [JobTransition] = []
+        for session in sessions {
+            for job in session.jobs {
+                let previous = lastStatus.updateValue(job.status, forKey: job.id)
+                guard let previous, previous != job.status,
+                      [.done, .waiting, .error].contains(job.status) else { continue }
+                transitions.append(JobTransition(item: JobItem(session: session, job: job), from: previous))
+            }
+        }
+        return transitions
+    }
+}
+
+/// A job whose status changed between two loads; `item.job.status` is the new status.
+struct JobTransition: Sendable {
+    let item: JobItem
+    let from: JobStatus
 }
 
 struct LoadResult: Sendable {

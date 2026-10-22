@@ -8,6 +8,8 @@ enum Theme {
     static let done = dynamic(light: 0x1F7A42, dark: 0x5CB87A)
     static let accent = dynamic(light: 0x9A4519, dark: 0xE08A5C)
     static let warn = dynamic(light: 0x7F5A0C, dark: 0xD6A64A)
+    /// A failing job (status `error`); the same red as the fix stage.
+    static let error = fix
     static let codex = dynamic(light: 0x3550C8, dark: 0x8FA8FF)
     static let muted = dynamic(light: 0x5E5D56, dark: 0xAAA99F)
     /// Text on an `accent` fill (the active pill): white on the dark terracotta, dark on the light one.

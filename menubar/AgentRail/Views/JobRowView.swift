@@ -58,6 +58,11 @@ struct JobHeaderView: View {
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Theme.warn)
                         .lineLimit(1)
+                } else if item.job.status == .error {
+                    Text(verbatim: "● " + L10n.notifyFailing)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.error)
+                        .lineLimit(1)
                 } else if expanded, let staleText {
                     Text(verbatim: staleText)
                         .font(.system(size: 11))
