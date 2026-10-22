@@ -98,7 +98,7 @@ With no milestones there is no %: viewers show "Planning · 0/?".
 - `done`: the main agent stopped with every milestone done (or with no plan)
   and no subagent of the job still running, or the session ended. `endedAt` is
   set.
-- `error`: reserved; not written by this version.
+- `error`: builds or tests of the job (main agent or one of its agents) failed 3 times in a row. A passing build or test sets it back to `running`; a main-agent stop decides `waiting` / `done` as usual.
 
 Prompts that Claude Code injects to hand a background agent's result back to
 the main agent (`<task-notification>…`) are not user prompts: they never start,

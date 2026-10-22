@@ -523,6 +523,7 @@ function onTool(s, agentId, e, at) {
 
   const stage = storyTool(now, e, step, id, MAX_PILLS);
   if (stage.counted) counts[ck] = (counts[ck] ?? 0) + 1;
+  markFailing(job, now._fails ?? 0, at);
   if (e.phase === 'pre') now.stage = noteStage(job.milestones, stage.stage) ?? now.stage ?? null;
   // R18: a failure starts a retry count for steps that do not always count.
   if (e.phase !== 'pre' && e.ok === false && !RETRY_KEYS.has(ck) && !(ck in now._retryBase)) now._retryBase[ck] = (counts[ck] ?? 1) - 1;
@@ -547,6 +548,9 @@ function storyTool(story, e, step, id, max) {
   if (e.phase !== 'pre') {
     if (e.ok === false) story._failed = true;
     else if (e.ok === true && step.stage === 'review') story._failed = false;
+    // Builds and tests that failed in a row, for the job's `error` status.
+    if (step.stage === 'review' && e.ok === false) story._fails = (story._fails ?? 0) + 1;
+    else if (step.stage === 'review' && e.ok === true) story._fails = 0;
   }
   if (e.phase === 'pre') {
     const last = story.pills[story.pills.length - 1];
@@ -602,14 +606,31 @@ function storyTool(story, e, step, id, max) {
   return { counted, stage: step.stage };
 }
 
+/** Builds or tests failing this many times in a row mark the job `error`. */
+const FAILS_FOR_ERROR = 3;
+
+/**
+ * A running job whose builds or tests failed 3 times in a row is `error`; a passing one runs again.
+ * @param {Job} job @param {number} fails failures in a row of the story that just changed @param {string} at
+ */
+function markFailing(job, fails, at) {
+  if (fails >= FAILS_FOR_ERROR && job.status === 'running') job.status = 'error';
+  else if (fails === 0 && job.status === 'error') job.status = 'running';
+  else return;
+  job.updatedAt = at;
+}
+
 /** A subagent's tool call: a step of its own story, built like the main flow; `activity` is its latest step. */
 function onAgentTool(s, agentId, e, step, id, at) {
   const a = agent(s, agentId, at);
-  const story = { pills: a.steps, _open: a._open, _failed: a._failed === true };
+  const story = { pills: a.steps, _open: a._open, _failed: a._failed === true, _fails: a._fails ?? 0 };
   const { stage } = storyTool(story, e, step, id, MAX_AGENT_STEPS);
   a.steps = story.pills;
   a._open = story._open;
   a._failed = story._failed;
+  a._fails = story._fails;
+  const own = s.jobs.find((j) => j.seq === a.job);
+  if (own) markFailing(own, a._fails, at);
   if (e.phase === 'pre') a.stage = noteStage(a.milestones, stage) ?? a.stage ?? null;
   a.activity = agentActivity(a);
   // M3: only the main agent's activity clears a permission 'waiting'. R19: after a
@@ -1030,6 +1051,7 @@ function fixNow(n) {
     stage: STAGE_SET.has(n.stage) ? n.stage : null,
     _counts: nums(n._counts),
     _failed: n._failed === true,
+    _fails: Number.isInteger(n._fails) ? n._fails : 0,
     _open: Array.isArray(n._open) ? n._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
     _retryBase: nums(n._retryBase),
   };
@@ -1071,6 +1093,7 @@ function fixAgent(id, a, at) {
     stage: STAGE_SET.has(a.stage) ? a.stage : null,
     progress: typeof a.progress === 'string' ? a.progress : '',
     _failed: a._failed === true,
+    _fails: Number.isInteger(a._fails) ? a._fails : 0,
     _type: str(a._type),
     _open: Array.isArray(a._open) ? a._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
   };
