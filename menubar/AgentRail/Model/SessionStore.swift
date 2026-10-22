@@ -7,9 +7,18 @@ final class SessionStore {
     private(set) var sessions: [Session] = []
     var now: Date = Date()
 
-    var items: [JobItem] { visibleJobs(sessions, now: now) }
+    /// Jobs closed from a stale card (`ClosedJobs`); the person's choice, not the state's.
+    private(set) var closed: [String: Date] = ClosedJobs.load()
+
+    var items: [JobItem] { visibleJobs(sessions, now: now).filter { !ClosedJobs.isClosed($0, in: closed) } }
     var summary: (jobs: Int, agents: Int, avgPct: Int?, attention: Bool) { menubarSummary(items, now: now) }
     var doneTodayCount: Int { doneToday(sessions, now: now) }
+
+    /// Hides a stale job's card and its agents until its session moves again; history lists it as closed.
+    func closeJob(_ item: JobItem) {
+        closed[item.id] = Date()
+        ClosedJobs.save(closed, now: Date())
+    }
 
     /// The state root (`$AGENT_RAIL_HOME` or `~/.agent-rail`); the popover opens it in Finder.
     @ObservationIgnored let root: URL

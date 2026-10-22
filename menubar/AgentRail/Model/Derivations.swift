@@ -84,10 +84,10 @@ func visibleJobs(_ sessions: [Session], now: Date) -> [JobItem] {
 
 /// The last `limit` finished jobs across sessions, newest first: the popover's history.
 /// Session files are kept for 30 days (the collector's sweep), so that is as far back as it goes.
-func recentJobs(_ sessions: [Session], limit: Int = 50) -> [JobItem] {
+func recentJobs(_ sessions: [Session], closed: [String: Date] = [:], limit: Int = 50) -> [JobItem] {
     let done = sessions.flatMap { session in
-        session.jobs.filter { $0.status == .done }
-            .map { JobItem(session: session, job: $0) }
+        session.jobs.map { JobItem(session: session, job: $0) }
+            .filter { $0.job.status == .done || ClosedJobs.isClosed($0, in: closed) }
     }
     return Array(done.sorted { ($0.job.endedAt ?? $0.job.updatedAt) > ($1.job.endedAt ?? $1.job.updatedAt) }.prefix(limit))
 }
@@ -229,4 +229,23 @@ func tokenStats(_ sessions: [Session], limit: WeeklyLimit?, now: Date) -> TokenS
         },
         last: [3, 10, 25, 50].map { n in (n, min(n, items.count), sum(items.prefix(n))) }
     )
+}
+
+/// Jobs closed from a stale card, by id, with when: kept in UserDefaults, the state files untouched.
+/// A job stays closed until its session moves again.
+enum ClosedJobs {
+    static let key = "closedJobs"
+    private static let keepFor: TimeInterval = 30 * 24 * 60 * 60
+
+    static func load(_ defaults: UserDefaults = .standard) -> [String: Date] {
+        (defaults.dictionary(forKey: key) as? [String: Date]) ?? [:]
+    }
+
+    static func save(_ closed: [String: Date], now: Date, _ defaults: UserDefaults = .standard) {
+        defaults.set(closed.filter { now.timeIntervalSince($0.value) < keepFor }, forKey: key)
+    }
+
+    static func isClosed(_ item: JobItem, in closed: [String: Date]) -> Bool {
+        closed[item.id].map { item.session.updatedAt <= $0 } ?? false
+    }
 }

@@ -67,7 +67,7 @@ struct HistoryView: View {
     @State private var expandedID: String?
 
     var body: some View {
-        let items = recentJobs(store.sessions)
+        let items = recentJobs(store.sessions, closed: store.closed)
         if items.isEmpty {
             Text("No finished jobs yet")
                 .font(.system(size: 12))
@@ -109,6 +109,9 @@ private struct HistoryRowView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
+                if job.status != .done {
+                    Text("closed").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize()
+                }
                 Spacer(minLength: 4)
                 Text(verbatim: ended.formatted(.relative(presentation: .named)))
                     .font(.system(size: 11))

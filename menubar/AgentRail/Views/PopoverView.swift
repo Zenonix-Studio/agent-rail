@@ -117,6 +117,21 @@ struct PopoverView: View {
                         JobRowView(item: item, now: store.now)
                     }
                     .buttonStyle(.plain)
+                    .overlay(alignment: .topTrailing) {
+                        // A stale job may never end on its own: closing hides it here, the session is not touched.
+                        if isStale(item, now: store.now) {
+                            Button { withAnimation(.snappy(duration: 0.2)) { store.closeJob(item) } } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(Theme.muted)
+                                    .background(Circle().fill(Theme.surface))
+                            }
+                            .buttonStyle(.plain)
+                            .help(String(localized: "Close: hide this job here (the session is not stopped)"))
+                            .accessibilityLabel(String(localized: "Close"))
+                            .offset(x: 5, y: -5)
+                        }
+                    }
                 }
             }
         }

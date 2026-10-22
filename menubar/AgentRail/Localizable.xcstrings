@@ -868,6 +868,36 @@
           }
         }
       }
+    },
+    "Close": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapat"
+          }
+        }
+      }
+    },
+    "Close: hide this job here (the session is not stopped)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapat: bu işi burada gizler (oturum durdurulmaz)"
+          }
+        }
+      }
+    },
+    "closed": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kapatıldı"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
