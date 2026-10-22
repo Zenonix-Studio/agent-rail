@@ -79,7 +79,7 @@ private struct PillView: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(isActive ? tint ?? Theme.accent : Theme.surface, in: Capsule())
-            .overlay(Capsule().strokeBorder(isActive ? tint ?? Theme.accent : tint?.opacity(0.6) ?? Theme.line, lineWidth: 1))
+            .overlay(Capsule().strokeBorder(isActive ? tint ?? Theme.accent : tint ?? Theme.line, lineWidth: tint == nil ? 1 : 2))
     }
 
     private var foreground: Color {
