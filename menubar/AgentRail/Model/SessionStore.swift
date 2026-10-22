@@ -25,6 +25,8 @@ final class SessionStore {
     /// Last seen status per job id. Never pruned, so a file that briefly fails to decode mid-write
     /// does not make its jobs look new (and silent) when it comes back.
     @ObservationIgnored private var lastStatus: [String: JobStatus] = [:]
+    /// The end time each done job was last seen or announced with.
+    @ObservationIgnored private var doneEnd: [String: Date?] = [:]
     /// Called on the main actor for each job that moved to done, waiting or error since the last load.
     @ObservationIgnored var onTransition: ((JobTransition) -> Void)?
 
@@ -138,8 +140,15 @@ final class SessionStore {
         for session in sessions {
             for job in session.jobs {
                 let previous = lastStatus.updateValue(job.status, forKey: job.id)
+                if previous == nil, job.status == .done { doneEnd[job.id] = job.endedAt }
                 guard let previous, previous != job.status,
                       [.done, .waiting, .error].contains(job.status) else { continue }
+                // A follow-up prompt reopens a done job until its plan shows it is a new job; the old job
+                // then closes again with its old end time. One banner per finish.
+                if job.status == .done {
+                    if doneEnd[job.id] == job.endedAt { continue }
+                    doneEnd[job.id] = job.endedAt
+                }
                 transitions.append(JobTransition(item: JobItem(session: session, job: job), from: previous))
             }
         }

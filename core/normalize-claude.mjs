@@ -103,7 +103,8 @@ function toolEvent(p, phase, ok) {
 
   if (name === 'TodoWrite') return phase === 'post' && ok ? todoPlan(input) : null;
   if (name === DESKTOP_PLAN) return phase === 'post' && ok ? withProgress(desktopPlan(input), input) : null;
-  if (name === DESKTOP_WRAP_UP) return phase === 'post' && ok ? { type: 'plan-step', finish: true } : null;
+  // Its recap says how the turn ended: a better job summary than the progress written when the last step began.
+  if (name === DESKTOP_WRAP_UP) return phase === 'post' && ok ? withProgress({ type: 'plan-step', finish: true }, { progress: input.recap }) : null;
   if (TASK_TOOLS.has(name)) {
     if (phase !== 'post' || !ok) return null;
     if (name === 'TaskCreate') return withProgress(taskCreate(p, input), input);
