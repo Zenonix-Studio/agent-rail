@@ -25,6 +25,7 @@ const SUMMARY_MAX = 100;
 const MAX_OPEN = 20; // open call ids kept for pre/post pairing
 const MAX_ITEMS = 20; // items kept per collapsed run
 const MAX_DISPATCH = 10; // recent Agent calls kept to name the agents they start
+const MAX_CURSORS = 200; // transcripts whose read position is kept (the main one and its agents')
 const TITLE_MAX = 48;
 // R18: these step keys count every repeat as a retry; others only after they failed.
 const RETRY_KEYS = new Set(['Build', 'Test']);
@@ -71,11 +72,38 @@ export function fallbackTitle(prompt) {
 
 /** @param {Session} s @param {Record<string, any>} input @param {string} at */
 function apply(s, input, at) {
+  const usage = Array.isArray(input.event?.usage) ? input.event.usage.filter(isObj) : [];
+  // The main agent's usage belongs to the job it was spent in: fold it before a prompt starts the next one;
+  // an agent's after this event, which may be the one that lists it.
+  addUsage(s, usage.filter((u) => !str(u.agent)));
   applyEvent(s, input, at);
+  addUsage(s, usage.filter((u) => str(u.agent)));
   // The main agent's own `progress:` line: its 1–2 sentence summary of the whole job.
   const e = input.event;
   const job = current(s);
   if (job && isObj(e) && !str(input.agentId) && str(e.progress)) job.progress = e.progress;
+}
+
+/**
+ * Adds transcript usage (the collector's `event.usage`) to the current job or the agent, and keeps each
+ * transcript's read position. An agent not listed (yet) keeps none, so its usage is read again once it is.
+ * @param {Session} s @param {Record<string, any>[]} list
+ */
+function addUsage(s, list) {
+  for (const u of list) {
+    if (!str(u.path) || !isObj(u.cursor) || !Number.isInteger(u.cursor.offset)) continue;
+    const target = str(u.agent) ? s.agents[u.agent] : current(s);
+    if (str(u.agent) && !isObj(target)) continue;
+    delete s._usage[u.path];
+    s._usage[u.path] = { offset: u.cursor.offset, ids: Array.isArray(u.cursor.ids) ? u.cursor.ids.filter((x) => str(x)) : [] };
+    if (target && isObj(u.tokens)) {
+      const t = fixTokens(target.tokens);
+      for (const k of TOKEN_KEYS) t[k] += fixTokens(u.tokens)[k];
+      target.tokens = t;
+    }
+  }
+  const paths = Object.keys(s._usage);
+  for (const p of paths.slice(0, Math.max(0, paths.length - MAX_CURSORS))) delete s._usage[p];
 }
 
 /** @param {Session} s @param {Record<string, any>} input @param {string} at */
@@ -940,6 +968,10 @@ function sanitize(prev, input, at) {
         .map((d) => ({ id: d.id, name: str(d.name), task: str(d.task), type: str(d.type), agent: str(d.agent), claimed: str(d.claimed), job: Number.isInteger(d.job) ? d.job : null }))
         .slice(-MAX_DISPATCH)
       : [],
+    _usage: isObj(p._usage)
+      ? Object.fromEntries(Object.entries(p._usage).filter(([, c]) => isObj(c) && Number.isInteger(c.offset))
+        .map(([k, c]) => [k, { offset: c.offset, ids: Array.isArray(c.ids) ? c.ids.filter((x) => str(x)) : [] }]))
+      : {},
   };
 }
 
@@ -962,6 +994,7 @@ function fixJob(j, i, source, sessionId, at) {
   };
   if ('_prevEndedAt' in j) job._prevEndedAt = str(j._prevEndedAt);
   if (j._mainStopped !== true) delete job._mainStopped;
+  if ('tokens' in j) job.tokens = fixTokens(j.tokens);
   return job;
 }
 
@@ -1048,5 +1081,14 @@ function fixAgent(id, a, at) {
     _failed: a._failed === true,
     _type: str(a._type),
     _open: Array.isArray(a._open) ? a._open.filter((x) => str(x)).slice(-MAX_OPEN) : [],
+    ...('tokens' in a ? { tokens: fixTokens(a.tokens) } : {}),
   };
+}
+
+const TOKEN_KEYS = /** @type {const} */ (['input', 'cacheRead', 'cacheWrite', 'output']);
+
+/** @param {unknown} t @returns {{input: number, cacheRead: number, cacheWrite: number, output: number}} */
+function fixTokens(t) {
+  const o = isObj(t) ? t : {};
+  return Object.fromEntries(TOKEN_KEYS.map((k) => [k, Number.isFinite(o[k]) && o[k] > 0 ? o[k] : 0]));
 }

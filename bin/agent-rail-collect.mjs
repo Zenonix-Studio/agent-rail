@@ -5,6 +5,7 @@ import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSe
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce, fallbackTitle } from '../core/reduce.mjs';
+import { readUsage } from '../core/usage.mjs';
 import { railInstruction, extractMeta, findMarkerInTranscript, findProgressInTranscript, findStepsInTranscript, agentTranscriptPath, SUBAGENT_INSTRUCTION } from '../core/flow.mjs';
 
 const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
@@ -80,6 +81,14 @@ async function main() {
         || (typeof prev?._turnPrompt === 'string' && job?._beforeTurn))) {
       const found = findMarkerInTranscript(input.transcript_path);
       if (found) event.event = { ...event.event, marker: found };
+    }
+    // Token usage since the last hook: only the transcripts' new bytes, from cursors kept in the session.
+    if (source === 'claude') {
+      const cursors = prev?._usage && typeof prev._usage === 'object' ? prev._usage : {};
+      const read = (p, agent) => { const u = readUsage(p, cursors[p], agent === null); return u ? [{ ...u, agent }] : []; };
+      const usage = [...read(input.transcript_path, null),
+        ...(event.agentId ? read(input.agent_transcript_path ?? agentTranscriptPath(input.transcript_path, event.agentId), event.agentId) : [])];
+      if (usage.length) event.event = { ...event.event, usage };
     }
     writeSession(path, reduce(prev, { source, ...event }, new Date()));
   }, logError);

@@ -77,6 +77,8 @@ holds several jobs over time (spec §5.1a).
 Progress is derived, not stored: `done / total` milestones (`core/progress.mjs`).
 With no milestones there is no %: viewers show "Planning · 0/?".
 
+#| `tokens` | `Tokens` (optional) | The main agent's API token usage during the job (Claude only), read from its transcript. A job's total is this plus its agents' `tokens`. Missing until usage is seen. |
+
 ### Job status
 
 - `planning`: the prompt arrived but the main agent has not used a tool or
@@ -110,6 +112,22 @@ only when the agent's next plan event is new work: a Codex plan that shares no
 step with the current milestones, or a Claude task created when every current
 milestone is already done. Otherwise the same job continues and new milestones
 are appended.
+
+## Tokens
+
+API token usage summed from a Claude transcript: each assistant `message.usage`,
+counted once per `message.id`. The collector keeps each transcript's read
+position, so a hook reads only the bytes added since the last one. Codex
+sessions have none.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `input` | `number` | `input_tokens`: uncached input. |
+| `cacheRead` | `number` | `cache_read_input_tokens`. |
+| `cacheWrite` | `number` | `cache_creation_input_tokens`. |
+| `output` | `number` | `output_tokens`. |
+
+Viewers show the sum of all four, compact (`64k tok`, `1.2M tok`).
 
 ## Milestone
 
@@ -203,11 +221,15 @@ was seen for it. Ids with an `agent_type` are always listed.
 | `startedAt` | `string` | When the agent was first seen (its start, or its first event). Viewers list a job's agents running first, then in this order. Older files lack it: use `updatedAt`. |
 | `updatedAt` | `string` | Last event from this agent. |
 | `endedAt` | `string \| null` | When it stopped or was marked `stale`; `null` while running. |
+| `tokens` | `Tokens` (optional) | The agent's API token usage, read from its own transcript (Claude only). Missing until usage is seen. |
+
+A running agent whose `updatedAt` is more than 5 minutes old is shown as quiet
+(`quiet 7m`, amber): viewers compute this from the clock; nothing is stored.
 
 ## Internal fields (ignore)
 
 Listed only so readers know they are expected: `Session._pendingPrompt`, `Session._turnPrompt`, `Job._beforeTurn`,
-`Session._dispatch`, `Job._prevEndedAt`, `Job._mainStopped`, `Job._summaryFromPlan`,
+`Session._dispatch`, `Session._usage` (a read position per transcript), `Job._prevEndedAt`, `Job._mainStopped`, `Job._summaryFromPlan`,
 `Milestone._activeForm`, `Now._counts`, `Now._open`, `Now._retryBase`, `Pill._run`
 (older files: `Pill._id`), `Agent._type`, `Agent._open` (older files: `Agent._run`).
 

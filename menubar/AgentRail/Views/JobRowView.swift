@@ -41,7 +41,7 @@ struct JobHeaderView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                 // Only the step title truncates; the step count and the time left stay whole.
-                let subtitle = expanded ? (detailSubtitle, nil) : rowSubtitle(p)
+                let subtitle = expanded ? detailSubtitle : rowSubtitle(p)
                 HStack(spacing: 0) {
                     Text(verbatim: subtitle.0)
                         .lineLimit(1)
@@ -96,9 +96,10 @@ struct JobHeaderView: View {
     /// "▸ <step>" and " · <done>/<total> · ~4 min left"; one part alone when there is no step or count.
     private func rowSubtitle(_ p: (done: Int, total: Int, pct: Int?)) -> (String, String?) {
         if let staleText { return (staleText, nil) }
-        guard p.total > 0 else { return (String(localized: "Planning · 0/?"), nil) }
+        guard p.total > 0 else { return (String(localized: "Planning · 0/?") + tokenTail, nil) }
         var count = "\(p.done)/\(p.total)"
         if let left = eta(item.job, now: now) { count += " · " + L10n.timeLeft(left) }
+        count += tokenTail
         // Name the milestone only when the rail marks one active, so the row and the rail agree.
         guard let key = activeMilestoneKey(item.job),
               let current = item.job.milestones.first(where: { $0.key == key })
@@ -106,8 +107,15 @@ struct JobHeaderView: View {
         return ("▸ " + current.title, " · " + count)
     }
 
-    private var detailSubtitle: String {
-        String(localized: "\(item.session.project) · \(formatElapsed(from: item.job.startedAt, to: now))")
+    /// "<project>" and " · 9 min · 467k tok": only the project name truncates.
+    private var detailSubtitle: (String, String?) {
+        (item.session.project, " · " + formatElapsed(from: item.job.startedAt, to: now) + tokenTail)
+    }
+
+    /// " · 480k tok", or "" before any usage is seen.
+    private var tokenTail: String {
+        let n = jobTokens(item)
+        return n > 0 ? " · " + L10n.tokens(n) : ""
     }
 }
 
