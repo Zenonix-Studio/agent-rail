@@ -134,7 +134,7 @@ export const register: Register = on => {
     const cols = e.props.bodyColumns
     const goNow = () => void update($, page, () => ({ name: 'now' }) as RailPage)
     const tabs = (
-      <Box flexDirection="row" gap={1}>
+      <Box flexDirection="row" gap={1} marginTop={1} marginBottom={1}>
         <Button key="tab-now" hotkey="n" variant={current.name === 'now' ? 'primary' : undefined} onPress={goNow}>Now</Button>
         <Button key="tab-history" hotkey="h" variant={current.name === 'now' ? undefined : 'primary'} onPress={() => void showHistory($)}>History</Button>
       </Box>
