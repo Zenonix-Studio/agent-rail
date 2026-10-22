@@ -81,11 +81,11 @@ func visibleJobs(_ sessions: [Session], now: Date) -> [JobItem] {
     }
 }
 
-/// Finished jobs of the last 48 h across sessions, newest first: the popover's history.
-/// A session file the loader reads can hold older jobs too; they are left out.
-func recentJobs(_ sessions: [Session], now: Date, limit: Int = 50) -> [JobItem] {
+/// The last `limit` finished jobs across sessions, newest first: the popover's history.
+/// Session files are kept for 30 days (the collector's sweep), so that is as far back as it goes.
+func recentJobs(_ sessions: [Session], limit: Int = 50) -> [JobItem] {
     let done = sessions.flatMap { session in
-        session.jobs.filter { $0.status == .done && now.timeIntervalSince($0.endedAt ?? $0.updatedAt) <= SessionLoader.maxAge }
+        session.jobs.filter { $0.status == .done }
             .map { JobItem(session: session, job: $0) }
     }
     return Array(done.sorted { ($0.job.endedAt ?? $0.job.updatedAt) > ($1.job.endedAt ?? $1.job.updatedAt) }.prefix(limit))

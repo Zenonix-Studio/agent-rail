@@ -759,12 +759,12 @@
         }
       }
     },
-    "Last 48 hours": {
+    "Last 50 jobs": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Son 48 saat"
+            "value": "Son 50 iş"
           }
         }
       }

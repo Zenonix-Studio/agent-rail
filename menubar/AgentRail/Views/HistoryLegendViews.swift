@@ -67,7 +67,7 @@ struct HistoryView: View {
     @State private var expandedID: String?
 
     var body: some View {
-        let items = recentJobs(store.sessions, now: store.now)
+        let items = recentJobs(store.sessions)
         if items.isEmpty {
             Text("No finished jobs yet")
                 .font(.system(size: 12))

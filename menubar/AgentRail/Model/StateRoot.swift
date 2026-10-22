@@ -19,8 +19,6 @@ enum StateRoot {
 
 /// Lists and decodes session files, caching each by (filename, mtime) so unchanged files are not decoded again.
 struct SessionLoader {
-    /// The history goes back this far; live cards still hide after 24 h (`hiddenAfter`).
-    static let maxAge: TimeInterval = 48 * 60 * 60
 
     let directory: URL
     private var cache: [String: (mtime: Date, session: Session?)] = [:]
@@ -35,8 +33,7 @@ struct SessionLoader {
         var fresh: [String: (mtime: Date, session: Session?)] = [:]
         var loaded: [(name: String, session: Session)] = []
         for url in files where url.pathExtension == "json" {
-            guard let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
-                  now.timeIntervalSince(mtime) <= Self.maxAge else { continue }
+            guard let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate else { continue }
             let key = url.lastPathComponent
             let entry: (mtime: Date, session: Session?)
             if let cached = cache[key], cached.mtime == mtime {

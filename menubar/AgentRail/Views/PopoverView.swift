@@ -93,7 +93,7 @@ struct PopoverView: View {
                 .foregroundStyle(Theme.text)
             Spacer()
             if page == .history {
-                Text("Last 48 hours").font(.system(size: 12)).foregroundStyle(Theme.muted)
+                Text("Last 50 jobs").font(.system(size: 12)).foregroundStyle(Theme.muted)
             }
         }
         .padding(.horizontal, 8)
