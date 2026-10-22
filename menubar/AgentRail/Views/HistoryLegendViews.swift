@@ -110,7 +110,7 @@ private struct HistoryRowView: View {
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
                 if job.status != .done {
-                    Text("closed").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize()
+                    Text("hidden").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize()
                 }
                 Spacer(minLength: 4)
                 Text(verbatim: ended.formatted(.relative(presentation: .named)))

@@ -106,6 +106,10 @@ struct PopoverView: View {
         withAnimation(.snappy(duration: 0.2)) { page = page == next ? .jobs : next }
     }
 
+    private func hide(_ item: JobItem) {
+        withAnimation(.snappy(duration: 0.2)) { store.closeJob(item) }
+    }
+
     private func list(_ items: [JobItem]) -> some View {
         let expandedID = resolvedExpansion(items)
         return VStack(spacing: 8) {
@@ -117,19 +121,26 @@ struct PopoverView: View {
                         JobRowView(item: item, now: store.now)
                     }
                     .buttonStyle(.plain)
-                    .overlay(alignment: .topTrailing) {
-                        // A stale job may never end on its own: closing hides it here, the session is not touched.
+                    .overlay(alignment: .trailing) {
+                        // A stale job may never end on its own: hiding it here does not stop its session.
                         if isStale(item, now: store.now) {
-                            Button { withAnimation(.snappy(duration: 0.2)) { store.closeJob(item) } } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(Theme.muted)
-                                    .background(Circle().fill(Theme.surface))
+                            Button { hide(item) } label: {
+                                Text("Hide")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(Theme.text)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 3)
+                                    .background(Theme.raised, in: Capsule())
+                                    .overlay(Capsule().strokeBorder(Theme.line, lineWidth: 1))
                             }
                             .buttonStyle(.plain)
-                            .help(String(localized: "Close: hide this job here (the session is not stopped)"))
-                            .accessibilityLabel(String(localized: "Close"))
-                            .offset(x: 5, y: -5)
+                            .help(String(localized: "Hide this job here; its session is not stopped"))
+                            .padding(.trailing, 10)
+                        }
+                    }
+                    .contextMenu {
+                        if isStale(item, now: store.now) {
+                            Button("Hide (the session is not stopped)") { hide(item) }
                         }
                     }
                 }

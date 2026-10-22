@@ -869,32 +869,42 @@
         }
       }
     },
-    "Close": {
+    "Hide": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kapat"
+            "value": "Gizle"
           }
         }
       }
     },
-    "Close: hide this job here (the session is not stopped)": {
+    "Hide this job here; its session is not stopped": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kapat: bu işi burada gizler (oturum durdurulmaz)"
+            "value": "Bu işi burada gizler; oturumu durdurmaz"
           }
         }
       }
     },
-    "closed": {
+    "Hide (the session is not stopped)": {
       "localizations": {
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "kapatıldı"
+            "value": "Gizle (oturum durdurulmaz)"
+          }
+        }
+      }
+    },
+    "hidden": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "gizlendi"
           }
         }
       }

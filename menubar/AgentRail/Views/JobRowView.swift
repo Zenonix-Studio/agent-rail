@@ -82,10 +82,13 @@ struct JobHeaderView: View {
                 .padding(.vertical, 1.5)
                 .overlay(Capsule().strokeBorder(Theme.line, lineWidth: 1))
                 .fixedSize()
+            // A stale collapsed card gives this spot to its Hide button (PopoverView).
+            let hideRoom = !expanded && isStale(item, now: now)
             Text(verbatim: p.pct.map(L10n.percent) ?? "—")
                 .font(.system(size: 12, weight: expanded ? .semibold : .regular).monospacedDigit())
                 .foregroundStyle(expanded ? Theme.text : Theme.muted)
-                .frame(minWidth: 30, alignment: .trailing)
+                .frame(minWidth: hideRoom ? 54 : 30, alignment: .trailing)
+                .opacity(hideRoom ? 0 : 1)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 9)
