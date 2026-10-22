@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, appendFileSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, appendFileSync, lstatSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { EVENTS, MARKER, PROMPT_MARKER, backup, collectorPath, configPath, hooksPath, isOurs, loadHooks, oldPromptPath, railSkill, saveHooks, skillPath } from './codex-hooks-lib.mjs';
+import { EVENTS, MARKER, LINKS, PROMPT_MARKER, backup, linkDir, collectorPath, configPath, hooksPath, isOurs, loadHooks, oldPromptPath, railSkill, saveHooks, skillPath } from './codex-hooks-lib.mjs';
 
 const args = process.argv.slice(2);
 
@@ -77,4 +77,16 @@ if (existsSync(skillPath()) && !readFileSync(skillPath(), 'utf8').includes(PROMP
   console.log('skills/rail: added $rail (opens the live rail in a split)');
 }
 console.log(`Note: Codex may ask you to review/trust the new hooks (marker: ${MARKER}).`);
-console.log(`Tip: start Codex with the rail beside it in iTerm2 or tmux: alias codex-rail='${join(dirname(collectorPath), 'codex-rail')}'`);
+// `rail` and `codex-rail` on PATH: a command of that name that is not ours is left alone.
+const { dir, onPath } = linkDir();
+mkdirSync(dir, { recursive: true });
+for (const [name, target] of Object.entries(LINKS)) {
+  const link = join(dir, name);
+  let current = null;
+  try { current = lstatSync(link).isSymbolicLink() ? readlinkSync(link) : 'not a link'; } catch { /* absent */ }
+  if (current !== null && current !== target) { console.log(`${link}: exists, left untouched (run ${target} instead)`); continue; }
+  if (current === null) symlinkSync(target, link);
+  console.log(`${link}: linked`);
+}
+if (!onPath) console.log(`Add ${dir} to your PATH to use \`rail\` and \`codex-rail\`.`);
+console.log('Live view: run `rail` in a terminal split, or start Codex with `codex-rail` to open it beside Codex.');

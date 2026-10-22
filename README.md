@@ -48,24 +48,33 @@ cd menubar && xcodegen generate
 
 `/agent-rail:history` lists the last 50 finished jobs across sessions, newest first, in the terminal and the desktop app. `/agent-rail:history <number>` shows one of them in full: its steps, agents and closing summary. The menubar's **Done today** button shows the same list. `/agent-rail:history stats`, the pane's **Stats** tab (`/rail stats`) and the menubar's chart button show the tokens spent since the weekly limit reset: the last 1, 3 and 5 days and the last 3, 10, 25 and 50 jobs.
 
-## Live view in a terminal split
+## Codex
 
-Codex runs no Claude Code mod, so it has no pane. The easiest way: start Codex with `bin/codex-rail` instead of `codex` (it takes the same arguments). It opens the rail in a split beside it in iTerm2 or tmux, then starts Codex:
-
-```bash
-alias codex-rail="$HOME/Projects/agent-rail/bin/codex-rail"   # once, in ~/.zshrc
-codex-rail --full-auto
-```
-
-Inside a running Codex, type **`$rail`** in Codex, or pick "rail" under `/skills` (the Codex installer adds the skill): it opens the rail in a split beside Codex, in iTerm2 or tmux, or in a new Terminal window elsewhere. Codex may ask to run it outside its sandbox, since opening a split needs AppleScript. Or run it in a split by hand:
+Codex has no pane, so the rail opens in a terminal split beside it. Set it up once:
 
 ```bash
-node ~/Projects/agent-rail/bin/agent-rail-watch.mjs           # the most recent Codex session
-node ~/Projects/agent-rail/bin/agent-rail-watch.mjs claude    # the most recent Claude Code session (or `any`)
-node ~/Projects/agent-rail/bin/agent-rail-watch.mjs 01a1652f  # one session, by the start of its id
+node ~/Projects/agent-rail/scripts/install-codex.mjs
 ```
 
-It redraws the session's current job each second, as the pane draws it, and follows a newer session of the same source when one starts. `--agents` expands every agent row; Ctrl+C quits.
+Then start Codex with the rail beside it (iTerm2 or tmux):
+
+```bash
+codex-rail
+```
+
+That is all. Already in Codex? Type `rail` in another split, or `$rail` in Codex itself.
+
+<details>
+<summary>More</summary>
+
+- `codex-rail` takes the same arguments as `codex` (`codex-rail --full-auto`).
+- `rail claude` shows the latest Claude Code session instead, `rail <id>` one session by the start of its id, `rail --agents` every agent row expanded. Ctrl+C quits.
+- The installer adds the agent-rail hooks to `~/.codex/hooks.json`, turns on `update_plan` in `~/.codex/config.toml` (both backed up first), adds the `$rail` skill, and links `rail` and `codex-rail` into `~/.local/bin` (or the first writable folder of your PATH). Codex asks you to trust the new hooks on its next start.
+- `$rail` runs from inside Codex, so Codex asks to run it outside its sandbox: approve it.
+- Codex jobs also show in the menubar; their tokens are not counted yet.
+- Undo it all: `node ~/Projects/agent-rail/scripts/uninstall-codex.mjs`.
+
+</details>
 
 ## Status line
 

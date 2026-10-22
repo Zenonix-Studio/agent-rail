@@ -1,8 +1,13 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readlinkSync, rmSync, unlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { dirname } from 'node:path';
-import { PROMPT_MARKER, hooksPath, isOurs, loadHooks, oldPromptPath, saveHooks, skillPath } from './codex-hooks-lib.mjs';
+import { LINKS, PROMPT_MARKER, hooksPath, linkDir, isOurs, loadHooks, oldPromptPath, saveHooks, skillPath } from './codex-hooks-lib.mjs';
 
+for (const [name, target] of Object.entries(LINKS)) {
+  const link = join(linkDir().dir, name);
+  try { if (lstatSync(link).isSymbolicLink() && readlinkSync(link) === target) { unlinkSync(link); console.log(`removed ${link}`); } } catch { /* absent */ }
+}
 for (const p of [skillPath(), oldPromptPath()]) {
   if (!existsSync(p) || !readFileSync(p, 'utf8').includes(PROMPT_MARKER)) continue;
   rmSync(p === skillPath() ? dirname(p) : p, { recursive: true });

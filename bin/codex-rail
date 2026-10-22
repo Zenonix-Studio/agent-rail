@@ -2,5 +2,7 @@
 # Codex with the live rail beside it: opens agent-rail-watch in an iTerm2 or tmux split, then
 # starts codex with the given arguments. It runs in your own shell, outside Codex's sandbox.
 # The rail follows the newest Codex session, so it switches to this one once it starts.
-node "$(dirname "$0")/agent-rail-open.mjs" codex >/dev/null || true
+# Resolve the link the installer put on PATH, to find the scripts beside this one.
+here=$(dirname "$(readlink -f "$0")")
+node "$here/agent-rail-open.mjs" codex >/dev/null || true
 exec codex "$@"

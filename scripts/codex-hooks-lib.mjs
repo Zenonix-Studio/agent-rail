@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { accessSync, constants, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +29,20 @@ Run this one shell command now with \`sandbox_permissions\` set to \`require_esc
 node "${openerPath}" codex
 \`\`\`
 `;
+
+/** Short commands the installer links onto PATH: `rail` (the live view here), `codex-rail` (Codex with it beside). */
+export const LINKS = { rail: resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-watch.mjs'), 'codex-rail': resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'codex-rail') };
+
+/** The first writable PATH folder of the usual user ones, else ~/.local/bin (created). */
+export function linkDir() {
+  const path = (process.env.PATH ?? '').split(':');
+  const candidates = [join(homedir(), '.local', 'bin'), '/opt/homebrew/bin', '/usr/local/bin'];
+  for (const d of candidates) {
+    if (!path.includes(d) || !existsSync(d)) continue;
+    try { accessSync(d, constants.W_OK); return { dir: d, onPath: true }; } catch { /* not writable */ }
+  }
+  return { dir: candidates[0], onPath: path.includes(candidates[0]) };
+}
 
 export function backup(path) {
   if (existsSync(path) && !existsSync(`${path}.agent-rail.bak`)) copyFileSync(path, `${path}.agent-rail.bak`);
