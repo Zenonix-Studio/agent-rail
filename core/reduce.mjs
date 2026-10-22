@@ -252,7 +252,8 @@ function onMilestones(s, e, at) {
   const changed = changeMilestones(job, e, at);
   if (changed || e.type === 'plan') {
     // Done jobs are only reopened by a prompt; a stray late update must not.
-    if (job.status !== 'done') job.status = 'running';
+    // A failing job stays `error` until a build or test passes, whatever step it moves to.
+    if (job.status !== 'done' && job.status !== 'error') job.status = 'running';
     job.updatedAt = at;
   }
   const key = activeKey(job);
@@ -262,7 +263,8 @@ function onMilestones(s, e, at) {
     const left = job.milestones.find((m) => m.key === job.now?.milestone);
     // Its own start pill ("Planning the change") is superseded by the ✓.
     const startOf = `@${left?.key}`;
-    job.now = { ...emptyNow(key), stage: job.now.stage ?? null, pills: job.now.pills.filter((p) => !(left?.status === 'done' && p._run?.g === startOf)) };
+    const { _failed, _fails } = job.now;
+    job.now = { ...emptyNow(key), stage: job.now.stage ?? null, _failed, _fails, pills: job.now.pills.filter((p) => !(left?.status === 'done' && p._run?.g === startOf)) };
     if (left?.status === 'done') pushPill(nowOf(job, key), donePill(left), MAX_PILLS);
   }
   if (!changed) return;

@@ -23,7 +23,7 @@ struct PopoverView: View {
         _expansion = State(initialValue: expandedJobID.map(Expansion.job) ?? .automatic)
     }
 
-    private static let width: CGFloat = 340
+    private static let width: CGFloat = 408
     private static let maxListHeight: CGFloat = 560
 
     var body: some View {

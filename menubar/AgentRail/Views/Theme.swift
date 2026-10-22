@@ -99,11 +99,12 @@ struct StageDot: View {
     let stage: Stage?
     var size: CGFloat = 6
 
+    // A short bar rather than a dot: at dot size review (teal) and fix (red) were hard to tell apart.
     var body: some View {
         if let stage {
-            Circle()
+            Capsule()
                 .fill(Theme.stage(stage))
-                .frame(width: size, height: size)
+                .frame(width: size * 3, height: size)
                 .accessibilityLabel(L10n.stageName(stage))
         }
     }
