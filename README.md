@@ -44,6 +44,10 @@ The Xcode project is generated from `menubar/project.yml`. After changing it, re
 cd menubar && xcodegen generate
 ```
 
+## History command
+
+`/agent-rail:history` lists the last 50 finished jobs across sessions, newest first, in the terminal and the desktop app. `/agent-rail:history <number>` shows one of them in full: its steps, agents and closing summary. The menubar's **Done today** button shows the same list.
+
 ## Status line
 
 `bin/agent-rail-statusline.mjs` prints one line for the current session's job in Claude Code's status line: stage, current step, progress, elapsed time, time left (once a step has finished) and running agents.
