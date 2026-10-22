@@ -815,9 +815,12 @@ function applyNames(s, names) {
  * @param {string[]|null} [background] ids Claude's Stop lists as still running; null when unknown
  */
 function finish(s, lastMessage, at, final, background = null) {
+  const meta = extractMeta(lastMessage);
+  let job = current(s);
+  // A follow-up's marker that reached the transcript only after its tool calls: the turn was another task.
+  if (job && s._pendingPrompt !== null && meta && meta.title !== job.title) job = splitJob(s, job, at);
   s._pendingPrompt = null;
   s._turnPrompt = null;
-  const job = current(s);
   if (job) delete job._beforeTurn;
   if (job && job.status !== 'done') {
     // R19: the Stop's own list is authoritative; a "running" agent missing from it never reported back.
@@ -840,7 +843,6 @@ function finish(s, lastMessage, at, final, background = null) {
   if (final) closeAgents(s, at, null);
   else if (job?.status === 'done') closeAgents(s, at, job.seq);
   if (!job) return;
-  const meta = extractMeta(lastMessage);
   if (meta) {
     if (job.title === fallbackTitle(job.prompt)) job.title = meta.title;
     // The agent's own marker wins over a plan-derived stand-in summary.
