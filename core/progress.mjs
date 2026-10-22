@@ -34,26 +34,39 @@ export function jobAgents(session, seq) {
   return agents.filter((a) => a && typeof a === 'object' && a.job === seq);
 }
 
+/** Finished steps needed before a time-left estimate. */
+const ETA_MIN_DONE = 2;
+
 /**
- * Rough time left: the average length of the finished steps times the steps still open,
- * less what the active step already took.
- * ponytail: naive average over all steps; weight by stage if estimates prove off.
+ * Rough time left: each open step is estimated by the finished steps of its stage (else all
+ * finished steps), less what the active step already took. Needs two finished steps.
+ * ponytail: this job's steps only; history from earlier jobs if estimates stay off.
  * @param {Pick<import('./state.mjs').Job, 'milestones'>} job
  * @param {number} [nowMs] current time, ms since epoch
- * @returns {number|null} milliseconds; null before any step finished or once all are done
+ * @returns {number|null} milliseconds; null before two steps finished or once all are done
  */
 export function eta(job, nowMs = Date.now()) {
   const milestones = Array.isArray(job?.milestones) ? job.milestones : [];
   const spans = milestones
     .filter((m) => m?.status === 'done' && m.startedAt && m.endedAt)
-    .map((m) => Date.parse(m.endedAt) - Date.parse(m.startedAt))
-    .filter((d) => Number.isFinite(d) && d > 0);
+    .map((m) => ({ stage: m.stage ?? null, ms: Date.parse(m.endedAt) - Date.parse(m.startedAt) }))
+    .filter((x) => Number.isFinite(x.ms) && x.ms > 0);
   const open = milestones.filter((m) => m?.status !== 'done');
-  if (spans.length === 0 || open.length === 0) return null;
-  const avg = spans.reduce((x, y) => x + y, 0) / spans.length;
-  const active = open.find((m) => m.status === 'active');
-  const spent = active?.startedAt ? Math.max(0, nowMs - Date.parse(active.startedAt)) : 0;
-  return Math.max(0, Math.round(avg * open.length - Math.min(spent, avg)));
+  // One finished step says too little: no estimate before two.
+  if (spans.length < ETA_MIN_DONE || open.length === 0) return null;
+  const mean = (xs) => xs.reduce((a, x) => a + x.ms, 0) / xs.length;
+  const avg = mean(spans);
+  /** @type {Record<string, number>} */
+  const byStage = {};
+  for (const st of new Set(spans.map((x) => x.stage).filter(Boolean))) byStage[st] = mean(spans.filter((x) => x.stage === st));
+  // Each open step takes as long as finished steps of its stage, else the overall average.
+  let left = 0;
+  for (const m of open) {
+    const est = (m.stage && byStage[m.stage]) || avg;
+    const spent = m.status === 'active' && m.startedAt ? Math.max(0, nowMs - Date.parse(m.startedAt)) : 0;
+    left += est - Math.min(spent, est);
+  }
+  return Math.max(0, Math.round(left));
 }
 
 /**

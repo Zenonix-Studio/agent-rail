@@ -1,4 +1,4 @@
-import { chmodSync, closeSync, mkdirSync, openSync, readFileSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, closeSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, statSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
@@ -51,6 +51,32 @@ export function sessionPath(source, sessionId) {
 }
 
 let rootLocked = false;
+
+/** Session files untouched this long are deleted. */
+const KEEP_DAYS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Deletes session files not written for 30 days, at most once a day (a marker file's mtime).
+ * Best effort: never throws.
+ * @param {number} [nowMs]
+ */
+export function sweepOldSessions(nowMs = Date.now()) {
+  try {
+    const marker = join(stateRoot(), 'last-sweep');
+    let last = 0;
+    try { last = statSync(marker).mtimeMs; } catch { /* first sweep */ }
+    if (nowMs - last < DAY_MS) return;
+    writeFileSync(marker, '', { mode: 0o600 });
+    utimesSync(marker, nowMs / 1000, nowMs / 1000);
+    const dir = join(stateRoot(), 'sessions');
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.json')) continue;
+      const file = join(dir, name);
+      try { if (nowMs - statSync(file).mtimeMs > KEEP_DAYS * DAY_MS) unlinkSync(file); } catch { /* raced or gone */ }
+    }
+  } catch { /* cleanup must never break a hook */ }
+}
 
 /**
  * Creates `dir` (and parents) owner-only, and once per process tightens the

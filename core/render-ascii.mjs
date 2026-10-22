@@ -107,6 +107,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
     return [
       [seg(clip(title, w - hintLen), 'bold'), ...hint],
       [seg('▸ ', isDone ? 'done' : stageOf(job?.now?.stage) ?? 'active'), seg(name, 'plain'), seg(info, 'dim'), ...tail],
+      ...narrowAgentsLine(list, w),
     ].map((l) => fit(l, w));
   }
 
@@ -326,6 +327,28 @@ function agentRow(a, w, open) {
       seg('█'.repeat(filled), 'done'), seg('░'.repeat(MINI_BAR - filled), 'dim'), seg(` ${count}`, 'dim'));
   }
   return row;
+}
+
+/**
+ * The narrow layout's agents, one line: `● Şehir 3/4 · ✓ Meyve`, the glyph in its stage or status tone.
+ * @param {RenderableAgent[]} list @param {number} w @returns {Line[]}
+ */
+function narrowAgentsLine(list, w) {
+  if (list.length === 0) return [];
+  /** @type {Line} */
+  const line = [];
+  let room = w;
+  for (const a of list) {
+    const [glyph, tone] = AGENT_GLYPH[/** @type {keyof typeof AGENT_GLYPH} */ (a.status)] ?? AGENT_GLYPH.running;
+    const ms = Array.isArray(a.milestones) ? a.milestones : [];
+    const count = ms.length ? ` ${ms.filter((m) => m?.status === 'done').length}/${ms.length}` : '';
+    const sep = line.length ? ' · ' : '';
+    const name = clip(str(a.name) || 'agent', Math.max(1, room - sep.length - 2 - count.length));
+    if (room < sep.length + 2 + name.length + count.length) break;
+    line.push(seg(sep, 'dim'), seg(glyph, a.status === 'running' ? stageOf(a.stage) ?? tone : tone), seg(` ${name}${count}`, 'dim'));
+    room -= sep.length + 2 + name.length + count.length;
+  }
+  return line.length ? [line] : [];
 }
 
 /**

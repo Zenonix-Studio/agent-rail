@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock } from '../core/state.mjs';
+import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock, sweepOldSessions } from '../core/state.mjs';
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce, fallbackTitle } from '../core/reduce.mjs';
@@ -83,6 +83,7 @@ async function main() {
     }
     writeSession(path, reduce(prev, { source, ...event }, new Date()));
   }, logError);
+  sweepOldSessions();
   // Stdout carries hook context only, never anything else. UserPromptSubmit: ask the main agent
   // for the title/summary marker and a plan (spike Q5 shape, both tools).
   if (event.event?.type === 'prompt' && !event.agentId) {
