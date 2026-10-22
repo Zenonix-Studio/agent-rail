@@ -12,3 +12,7 @@
 ## The app's `scope` is not the rail's job boundary
 - Desktop `update_plan` scope `continuation` means "builds on this conversation", not "same job". A whole new plan after every step was done is a new job, whatever the scope says.
 - Do not rely on the agent writing a `rail:` line or picking the right scope: infer the split from the plan itself as well.
+
+## Never chain a release onto an unverified edit
+- Pattern: an Edit sent in parallel with a bump-and-install command failed (file not read), and the command still bumped, committed and installed a release without the change. The bump also skipped the user's per-version OK.
+- Rule: make the edit, check it landed (grep or type-check), and only then bump. Every plugin bump waits for the user's yes, even for a one-line change.
