@@ -46,15 +46,17 @@ export type RailAgent = {
   /** Absent until usage is seen. */
   tokens?: RailTokens;
 };
-/** A finished job of any session, for the pane's history page: newest first, ended in ms since the epoch. */
+/** A job of any session, for the pane's History and Stats tabs: `ended` is `endedAt`, else `updatedAt`, in ms. */
 export type RailHistoryItem = { id: string; project: string; ended: number; job: RailJob; agents: RailAgent[] };
 /** The pane's page: this session's job, the history list, or one history job (`picked`, its id). */
-export type RailPage = { name: 'now' } | { name: 'history' } | { name: 'job'; picked: string };
+export type RailPage = { name: 'now' } | { name: 'history' } | { name: 'stats' } | { name: 'job'; picked: string };
+/** The weekly rate-limit window: when it resets (ISO) and how much of it is used, 0 to 100. */
+export type RailLimit = { resetsAt?: string; percentUsed: number } | null;
 /** The current job, the clock it was read at (ms since the epoch), and the subagents that started in it. */
 export type RailView = { job: RailJob | null; at: number; agents: RailAgent[] };
 
 declare module 'claude-code' {
   interface PluginState {
-    'agent-rail': { view: RailView; isPaneShown: boolean; expandAll: boolean; page: RailPage; history: RailHistoryItem[] };
+    'agent-rail': { view: RailView; isPaneShown: boolean; expandAll: boolean; page: RailPage; history: RailHistoryItem[]; limit: RailLimit };
   }
 }

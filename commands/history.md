@@ -1,6 +1,6 @@
 ---
-description: Show the last 50 finished agent-rail jobs, or one of them in full
-argument-hint: "[number]"
+description: Show the last 50 finished agent-rail jobs, one of them in full, or the tokens spent since the weekly reset (stats)
+argument-hint: "[number|stats]"
 allowed-tools: Bash(node:*)
 ---
 

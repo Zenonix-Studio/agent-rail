@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // The last 50 finished jobs across sessions, newest first, like the menubar's history.
-// `agent-rail-history.mjs` lists them numbered; `agent-rail-history.mjs <n>` shows job n in full.
-import { readdirSync } from 'node:fs';
+// `agent-rail-history.mjs` lists them numbered; `agent-rail-history.mjs <n>` shows job n in full;
+// `agent-rail-history.mjs stats` the tokens spent since the weekly limit reset.
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { jobAgents, readSession, stateRoot } from '../core/state.mjs';
 import { duration, formatTokens, jobTokens, renderJob } from '../core/render-ascii.mjs';
+import { tokenStats, windowStart } from '../core/stats.mjs';
 
 const LIMIT = 50;
 const dir = join(stateRoot(), 'sessions');
@@ -14,10 +16,10 @@ try { files = readdirSync(dir).filter((f) => f.endsWith('.json')); } catch { /* 
 const items = [];
 for (const f of files) {
   const s = readSession(join(dir, f));
-  for (const job of s?.jobs ?? []) if (job?.status === 'done') items.push({ s, job, ended: Date.parse(job.endedAt ?? job.updatedAt) || 0 });
+  for (const job of s?.jobs ?? []) if (job && typeof job === 'object') items.push({ s, job, ended: Date.parse(job.endedAt ?? job.updatedAt) || 0 });
 }
 items.sort((a, b) => b.ended - a.ended);
-const list = items.slice(0, LIMIT);
+const list = items.filter((i) => i.job.status === 'done').slice(0, LIMIT);
 
 const project = (s) => s.project || s.source || '';
 const title = (job) => job.title || job.prompt || 'Untitled job';
@@ -26,7 +28,22 @@ const when = (ms) => new Date(ms).toLocaleString(undefined, { month: 'short', da
 const firstSentence = (t) => (t ?? '').split(/(?<=[.!?])\s+(?=\p{Lu})/u)[0];
 
 const n = Number.parseInt(process.argv[2] ?? '', 10);
-if (list.length === 0) {
+if (process.argv[2] === 'stats') {
+  let sevenDay = null;
+  try { sevenDay = JSON.parse(readFileSync(join(stateRoot(), 'limits.json'), 'utf8')).sevenDay; } catch { /* no reading yet */ }
+  const now = Date.now();
+  const { since, fromReset } = windowStart(sevenDay, now);
+  const s = tokenStats(items.map((i) => ({ time: i.ended, tokens: jobTokens(i.job, jobAgents(i.s, i.job.seq)) })), { now, since });
+  const row = (label, tokens) => console.log(`${label.padEnd(18)}${formatTokens(tokens).padStart(7)}`);
+  console.log(fromReset
+    ? `Since the weekly reset · resets in ${duration(Date.parse(sevenDay.resetsAt) - now)} · ${sevenDay.percentUsed}% used\n`
+    : 'Last 7 days (no weekly limit reading yet)\n');
+  row(`Total · ${s.jobs} jobs`, s.total);
+  console.log('');
+  for (const d of s.days) row(`Last ${d.d} day${d.d > 1 ? 's' : ''}`, d.tokens);
+  console.log('');
+  for (const l of s.last) row(`Last ${l.n} jobs${l.count < l.n ? ` (${l.count})` : ''}`, l.tokens);
+} else if (list.length === 0) {
   console.log('No finished jobs yet.');
 } else if (Number.isInteger(n)) {
   const it = list[n - 1];

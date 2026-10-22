@@ -6,7 +6,8 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import { jobAgents } from '../core/progress.mjs'
 import { duration, formatTokens, jobTokens, renderJobSegments } from '../core/render-ascii.mjs'
-import type { RailAgent, RailHistoryItem, RailJob, RailPage, RailView } from './types'
+import { tokenStats, windowStart } from '../core/stats.mjs'
+import type { RailAgent, RailHistoryItem, RailJob, RailLimit, RailPage, RailView } from './types'
 
 const PANE = 'agent-rail'
 const TITLE = 'Agent rail'
@@ -19,7 +20,10 @@ const isPaneShown = atom({ plugin: 'agent-rail', key: 'isPaneShown' } as const, 
 /** `/rail agents` toggles it: every agent row shows its own steps, not only the first running one. */
 const expandAll = atom({ plugin: 'agent-rail', key: 'expandAll' } as const, false)
 const page = atom({ plugin: 'agent-rail', key: 'page' } as const, { name: 'now' } as RailPage)
+/** Every session's jobs, newest first, read when the History or Stats tab opens. */
 const history = atom({ plugin: 'agent-rail', key: 'history' } as const, [] as RailHistoryItem[])
+/** The weekly rate-limit window as the last response reported it; null off a subscription. */
+const limit = atom({ plugin: 'agent-rail', key: 'limit' } as const, null as RailLimit)
 
 const TONE: Record<string, { color?: string; dimColor?: boolean; weight?: 'bold' }> = {
   plain: {},
@@ -47,8 +51,8 @@ async function stateDir($: EngineInterface): Promise<string | null> {
     : null
 }
 
-/** Every session's finished jobs, newest first, the last HISTORY_LIMIT of them. */
-async function loadHistory($: EngineInterface): Promise<RailHistoryItem[]> {
+/** Every session's jobs, any status, newest first (`endedAt`, else `updatedAt`). */
+async function loadJobs($: EngineInterface): Promise<RailHistoryItem[]> {
   const dir = await stateDir($)
   if (dir === null) return []
   const entries = await $.fs.list(`${dir}/sessions`).catch(() => [])
@@ -58,24 +62,40 @@ async function loadHistory($: EngineInterface): Promise<RailHistoryItem[]> {
     try {
       const session = JSON.parse(await $.fs.read(`${dir}/sessions/${f.name}`))
       for (const job of Array.isArray(session?.jobs) ? session.jobs : []) {
-        if (job?.status !== 'done') continue
+        if (!job || typeof job !== 'object') continue
         const ended = Date.parse(job.endedAt ?? job.updatedAt) || 0
         items.push({ id: `${f.name}:${job.seq}`, project: session.project || session.source || '', ended, job, agents: jobAgents(session, job.seq) })
       }
     } catch { /* a half-written or corrupt file: left out */ }
   }
-  return items.sort((a, b) => b.ended - a.ended).slice(0, HISTORY_LIMIT)
+  return items.sort((a, b) => b.ended - a.ended)
 }
 
-async function showHistory($: EngineInterface): Promise<void> {
-  const items = await loadHistory($)
+/** Opens the History or Stats tab on a fresh read of every session. */
+async function showTab($: EngineInterface, name: 'history' | 'stats'): Promise<void> {
+  const items = await loadJobs($)
   await update($, history, () => items)
-  await update($, page, () => ({ name: 'history' }) as RailPage)
+  await update($, page, () => ({ name }) as RailPage)
+}
+
+let lastLimit = ''
+
+/** Keeps the weekly window in the pane's state and in limits.json, which the menubar reads. */
+async function readLimit($: EngineInterface, dir: string | null): Promise<void> {
+  const usage = await $.session.usage().catch(() => null)
+  const w = usage?.rateLimits.find(r => r.kind === 'seven_day')
+  const value: RailLimit = w ? { resetsAt: w.resetsAt, percentUsed: w.percentUsed } : null
+  const text = JSON.stringify(value)
+  if (value === null || text === lastLimit) return // no reading yet: keep the last one written
+  lastLimit = text
+  await update($, limit, () => value)
+  if (dir !== null) await $.fs.write(`${dir}/limits.json`, JSON.stringify({ sevenDay: value, at: new Date(await $.clock.now()).toISOString() }) + '\n').catch(() => undefined)
 }
 
 /** Reads this session's file; writes the view only when what it draws changed. */
 async function tick($: EngineInterface): Promise<void> {
   const [sessionId, dir] = await Promise.all([$.session.id(), stateDir($)])
+  await readLimit($, dir)
   // No state root to read (HOME unset): draw "No job yet" rather than read `undefined/...`.
   const text = dir === null
     ? ''
@@ -107,8 +127,8 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'rail',
-      description: 'Show the agent-rail progress pane; `/rail history` lists finished jobs, `/rail agents` expands every agent row',
-      argumentHint: '[history|agents]',
+      description: 'Show the agent-rail progress pane; `/rail history` lists finished jobs, `/rail stats` shows tokens since the weekly reset, `/rail agents` expands every agent row',
+      argumentHint: '[history|stats|agents]',
     })
     // Unasked, the pane is placed only on a wide terminal; the band covers the rest.
     void $.ui.open({ id: PANE, title: TITLE })
@@ -122,7 +142,8 @@ export const register: Register = on => {
       const all = await update($, expandAll, v => !v)
       return { text: all ? 'Agent rail: every agent row expanded.' : 'Agent rail: only the first running agent expanded.' }
     }
-    if (e.args.trim() === 'history') await showHistory($)
+    const tab = e.args.trim()
+    if (tab === 'history' || tab === 'stats') await showTab($, tab)
     else await update($, page, () => ({ name: 'now' }) as RailPage)
     const opened = await $.ui.open({ id: PANE, title: TITLE })
     return { text: opened.isPlaced ? 'Agent rail pane opened.' : `Agent rail pane waits: ${opened.reason}` }
@@ -136,7 +157,8 @@ export const register: Register = on => {
     const tabs = (
       <Box flexDirection="row" gap={1} marginTop={1} marginBottom={1}>
         <Button key="tab-now" hotkey="n" variant={current.name === 'now' ? 'primary' : undefined} onPress={goNow}>Now</Button>
-        <Button key="tab-history" hotkey="h" variant={current.name === 'now' ? undefined : 'primary'} onPress={() => void showHistory($)}>History</Button>
+        <Button key="tab-history" hotkey="h" variant={current.name === 'history' || current.name === 'job' ? 'primary' : undefined} onPress={() => void showTab($, 'history')}>History</Button>
+        <Button key="tab-stats" hotkey="s" variant={current.name === 'stats' ? 'primary' : undefined} onPress={() => void showTab($, 'stats')}>Stats</Button>
       </Box>
     )
     const draw = (job: RailJob, at: number, agents: RailAgent[], all: boolean) =>
@@ -155,8 +177,35 @@ export const register: Register = on => {
         </Box>
       )
     }
-    const items = await read($, history)
+    const all = await read($, history)
     const now = await $.clock.now()
+    if (current.name === 'stats') {
+      const w = await read($, limit)
+      const { since, fromReset } = windowStart(w, now)
+      const s = tokenStats(all.map(it => ({ time: it.ended, tokens: jobTokens(it.job, it.agents) })), { now, since })
+      const row = (label: string, tokens: number) => (
+        <Text wrap="truncate">{label.padEnd(18)}<Text weight="bold">{formatTokens(tokens).padStart(7)}</Text></Text>
+      )
+      const head = fromReset
+        ? `Since the weekly reset · resets in ${duration(Date.parse(w?.resetsAt ?? '') - now)}${w ? ` · ${w.percentUsed}% used` : ''}`
+        : 'Last 7 days (no weekly limit reading yet)'
+      return (
+        <Box flexDirection="column">
+          {tabs}
+          <Text dimColor wrap="truncate">{head}</Text>
+          <Box marginTop={1} flexDirection="column">
+            {row(`Total · ${s.jobs} jobs`, s.total)}
+          </Box>
+          <Box marginTop={1} flexDirection="column">
+            {s.days.map(d => row(`Last ${d.d} day${d.d > 1 ? 's' : ''}`, d.tokens))}
+          </Box>
+          <Box marginTop={1} flexDirection="column">
+            {s.last.map(l => row(`Last ${l.n} jobs${l.count < l.n ? ` (${l.count})` : ''}`, l.tokens))}
+          </Box>
+        </Box>
+      )
+    }
+    const items = all.filter(it => it.job.status === 'done').slice(0, HISTORY_LIMIT)
     if (current.name === 'job') {
       const it = items.find(i => i.id === current.picked)
       if (it) {
@@ -176,11 +225,18 @@ export const register: Register = on => {
         {items.length === 0 ? <Text dimColor>No finished jobs yet.</Text> : null}
         {items.map((it, i) => {
           const tok = jobTokens(it.job, it.agents)
-          const meta = [`${duration(now - it.ended)} ago`, it.project, tok > 0 ? formatTokens(tok) : null].filter(Boolean).join(' · ')
+          const took = duration(it.ended - (Date.parse(it.job.startedAt) || it.ended))
+          const meta = [`${duration(now - it.ended)} ago`, it.project, took, tok > 0 ? formatTokens(tok) : null].filter(Boolean).join(' · ')
+          const summary = (it.job.progress ?? '').split(/(?<=[.!?])\s+(?=\p{Lu})/u)[0]
+          // One block per job: the title to press, then what it was and how it ended, dim.
           return (
-            <Button key={it.id} plain onPress={() => void update($, page, () => ({ name: 'job', picked: it.id }) as RailPage)}>
-              {`${i + 1}. ${it.job.title || it.job.prompt || 'Untitled job'}  `}<Text dimColor>{meta}</Text>
-            </Button>
+            <Box key={it.id} flexDirection="column" marginBottom={1}>
+              <Button key={it.id} plain onPress={() => void update($, page, () => ({ name: 'job', picked: it.id }) as RailPage)}>
+                {`${String(i + 1).padStart(2)}. ${it.job.title || it.job.prompt || 'Untitled job'}`}
+              </Button>
+              <Text dimColor wrap="truncate">{`    ${meta}`}</Text>
+              {summary ? <Text dimColor wrap="truncate">{`    ${summary}`}</Text> : null}
+            </Box>
           )
         })}
       </Box>
