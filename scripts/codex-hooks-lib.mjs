@@ -13,11 +13,14 @@ export const hooksPath = () => join(codexDir(), 'hooks.json');
 export const configPath = () => join(codexDir(), 'config.toml');
 export const collectorPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-collect.mjs');
 export const openerPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-open.mjs');
-/** Codex's custom prompt behind `/prompts:rail`; ours when it names the opener. */
-export const promptPath = () => join(codexDir(), 'prompts', 'rail.md');
+/** Codex's skill behind `$rail` (also listed under /skills); ours when it names the opener. */
+export const skillPath = () => join(codexDir(), 'skills', 'rail', 'SKILL.md');
+/** Where 0.2.24's installer wrote it; Codex 0.162 reads no custom prompts, so it is removed. */
+export const oldPromptPath = () => join(codexDir(), 'prompts', 'rail.md');
 export const PROMPT_MARKER = 'agent-rail-open';
-export const railPrompt = () => `---
-description: Open the agent-rail live view in a split beside this terminal
+export const railSkill = () => `---
+name: rail
+description: Open the agent-rail live view (this session's job, steps and agents) in a terminal split beside Codex. Use when the user types $rail or asks to show the rail.
 ---
 
 Run this one shell command now, outside the sandbox (it opens a terminal split through tmux or AppleScript), then reply with its output only, nothing else:

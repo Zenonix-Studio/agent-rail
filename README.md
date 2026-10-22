@@ -50,7 +50,7 @@ cd menubar && xcodegen generate
 
 ## Live view in a terminal split
 
-Codex runs no Claude Code mod, so it has no pane. Type **`/prompts:rail`** in Codex (the Codex installer adds it): it opens the rail in a split beside Codex, in iTerm2 or tmux, or in a new Terminal window elsewhere. Codex may ask to run it outside its sandbox, since opening a split needs AppleScript. Or run it in a split by hand:
+Codex runs no Claude Code mod, so it has no pane. Type **`$rail`** in Codex, or pick "rail" under `/skills` (the Codex installer adds the skill): it opens the rail in a split beside Codex, in iTerm2 or tmux, or in a new Terminal window elsewhere. Codex may ask to run it outside its sandbox, since opening a split needs AppleScript. Or run it in a split by hand:
 
 ```bash
 node ~/Projects/agent-rail/bin/agent-rail-watch.mjs           # the most recent Codex session

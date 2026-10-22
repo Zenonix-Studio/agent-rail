@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, unlinkSync } from 'node:fs';
-import { PROMPT_MARKER, hooksPath, isOurs, loadHooks, promptPath, saveHooks } from './codex-hooks-lib.mjs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { PROMPT_MARKER, hooksPath, isOurs, loadHooks, oldPromptPath, saveHooks, skillPath } from './codex-hooks-lib.mjs';
 
-if (existsSync(promptPath()) && readFileSync(promptPath(), 'utf8').includes(PROMPT_MARKER)) {
-  unlinkSync(promptPath());
-  console.log('prompts/rail.md: removed /prompts:rail');
+for (const p of [skillPath(), oldPromptPath()]) {
+  if (!existsSync(p) || !readFileSync(p, 'utf8').includes(PROMPT_MARKER)) continue;
+  rmSync(p === skillPath() ? dirname(p) : p, { recursive: true });
+  console.log(`removed ${p === skillPath() ? '$rail skill' : 'old /prompts:rail'}`);
 }
 
 if (!existsSync(hooksPath())) { console.log('no hooks.json, nothing to do'); process.exit(0); }

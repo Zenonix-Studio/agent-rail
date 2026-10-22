@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Opens agent-rail-watch beside the terminal it runs in, then exits: Codex's /prompts:rail runs it.
+// Opens agent-rail-watch beside the terminal it runs in, then exits: Codex's $rail runs it.
 // tmux: a split to the right. iTerm2: a vertical split of the current session, the focus kept
 // where it was. Anything else: a new Terminal.app window. Arguments go to the watcher.
 import { execFileSync } from 'node:child_process';
