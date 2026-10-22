@@ -822,9 +822,11 @@ function finish(s, lastMessage, at, final, background = null) {
   if (job && job.status !== 'done') {
     // R19: the Stop's own list is authoritative; a "running" agent missing from it never reported back.
     if (!final && background) closeAgents(s, at, job.seq, new Set(background));
-    const busy = !final && runningAgents(s, job.seq) > 0;
+    // A background command it waits on (a long sleep, a server) keeps it busy too: its result wakes the agent.
+    const busy = !final && (runningAgents(s, job.seq) > 0 || (background?.length ?? 0) > 0);
     if (busy || (!final && job.milestones.some((m) => m.status !== 'done'))) {
-      job.status = busy ? 'running' : 'waiting';
+      // A failing job stays `error` until a build or test passes (see markFailing).
+      if (job.status !== 'error') job.status = busy ? 'running' : 'waiting';
       job._prevEndedAt = at; // where the job ends if a follow-up splits off a new one
       job._mainStopped = true;
     } else {
