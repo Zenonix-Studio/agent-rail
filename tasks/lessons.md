@@ -8,3 +8,7 @@
 ## A "summary" means the work, not the step titles
 - Correction (2026-10-19): a Done/Left recap built from milestone titles only repeated what the rail already shows; the user wanted what was actually found, changed or verified, and what is left.
 - Rule: only the agent doing the work can write that. Get it from the agent (`progress:` lines), never by re-listing titles. Before building any "summary" UI, check that it says something the screen does not already show.
+
+## The app's `scope` is not the rail's job boundary
+- Desktop `update_plan` scope `continuation` means "builds on this conversation", not "same job". A whole new plan after every step was done is a new job, whatever the scope says.
+- Do not rely on the agent writing a `rail:` line or picking the right scope: infer the split from the plan itself as well.

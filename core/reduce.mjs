@@ -221,9 +221,11 @@ function onMilestones(s, e, at) {
     // once every milestone is done; a task-update on a known key continues.
     const decided = e.type !== 'task-update' || job.milestones.some((m) => m.key === e.key);
     if (decided) {
-      // The desktop app's plan says it itself: `scope` new_task splits, continuation never does.
+      // The desktop app's plan says it itself: `scope` new_task splits. Its continuation only means
+      // "builds on this conversation": a whole new plan after every step was done is still a new job.
+      const finished = job.milestones.length > 0 && job.milestones.every((m) => m.status === 'done');
       const split = e.type === 'plan'
-        ? e.scope === 'new_task' || (e.scope !== 'continuation' && isDisjoint(job, e))
+        ? e.scope === 'new_task' || ((e.scope !== 'continuation' || finished) && isDisjoint(job, e))
         : e.type === 'task-create' && job.milestones.every((m) => m.status === 'done');
       if (split) {
         job = splitJob(s, job, at);
