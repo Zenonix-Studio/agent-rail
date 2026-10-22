@@ -1,6 +1,6 @@
 {
   "name": "agent-rail",
-  "version": "0.2.20",
+  "version": "0.2.21",
   "description": "Per-session progress state for Claude Code, written to ~/.agent-rail/sessions/",
   "types": "./mod/types.d.ts"
 }
