@@ -96,7 +96,7 @@ private struct AgentRowView: View {
                     if let quiet {
                         Text(verbatim: L10n.quiet(quiet))
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(Theme.warn)
+                            .foregroundStyle(Theme.quiet)
                     }
                     if let tokens = agent.tokens?.total, tokens > 0 {
                         Text(verbatim: L10n.tokens(tokens))

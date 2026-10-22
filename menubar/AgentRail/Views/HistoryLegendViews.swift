@@ -18,7 +18,7 @@ struct LegendView: View {
             section(String(localized: "States")) {
                 LegendRow(title: L10n.notifyFailing, detail: String(localized: "Builds or tests failed 3 times in a row"), color: Theme.error)
                 LegendRow(title: L10n.notifyWaiting, detail: String(localized: "Waiting for your answer or a permission"), color: Theme.warn)
-                LegendRow(title: String(localized: "quiet"), detail: String(localized: "An agent sent nothing for 5 min"), color: Theme.warn)
+                LegendRow(title: String(localized: "quiet"), detail: String(localized: "An agent sent nothing for 5 min"), color: Theme.quiet)
                 LegendRow(title: L10n.notifyDone, detail: String(localized: "Every step finished"), color: Theme.done)
             }
         }
