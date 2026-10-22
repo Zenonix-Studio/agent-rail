@@ -7,7 +7,7 @@ import { describeTool, clipText, PROGRESS_MAX } from './flow.mjs';
  *  |{type:'task-create', key:string, title:string, description:string|null, activeForm:string|null}
  *  |{type:'task-update', key:string, status:'pending'|'active'|'done'|'deleted', activeForm:string|null}
  *  |({type:'tool', phase:'pre'|'post', name:string, file:string|null, ok:boolean|null, id:string|null, spawned?:string|null} & import('./flow.mjs').Step)
- *  |{type:'agent-start', name:string}|{type:'agent-stop', ok:boolean, names?:{id:string, description:string}[]}
+ *  |{type:'agent-start', name:string}|{type:'agent-stop', ok:boolean, names?:{id:string, description:string}[], lastMessage?:string|null}
  *  |{type:'waiting', idle?:boolean}|{type:'stop', lastMessage:string|null, background?:string[]|null, names?:{id:string, description:string}[]}|{type:'session-end'}} Event
  *  A tool event carries its human step (`label`, `fail`, `key`, `group`, `item`, see core/flow.mjs);
  *  `spawned`: the agent id a Claude Agent call's response names.
@@ -79,7 +79,7 @@ function toEvent(p) {
     case 'SubagentStart':
       return { type: 'agent-start', name: str(p.agent_type) ?? 'agent' };
     case 'SubagentStop':
-      return { type: 'agent-stop', ok: true, names: taskNames(p.background_tasks) };
+      return { type: 'agent-stop', ok: true, names: taskNames(p.background_tasks), lastMessage: str(p.last_assistant_message) };
     case 'Stop':
       return { type: 'stop', lastMessage: str(p.last_assistant_message), background: runningTasks(p.background_tasks), names: taskNames(p.background_tasks) };
     case 'SessionEnd':

@@ -94,6 +94,9 @@ function applyEvent(s, input, at) {
   if (agentId && Array.isArray(e.steps)) onAgentSteps(s, agentId, e.steps, e.type === 'agent-stop', at);
   // The agent's own `progress:` line: its 1–2 sentence summary of what is done and what is left.
   if (agentId && str(e.progress) && isObj(s.agents[agentId])) s.agents[agentId].progress = e.progress;
+  // Its final report says how it ended: that wins, and covers agents that never wrote a progress line.
+  const report = agentId && e.type === 'agent-stop' ? reportSummary(e.lastMessage) : '';
+  if (report && isObj(s.agents[agentId])) s.agents[agentId].progress = report;
   switch (e.type) {
     case 'plan-step': {
       const plan = stepPlan(agentId ? agent(s, agentId, at).milestones : ensureJob(s, at).milestones, e);
@@ -274,6 +277,28 @@ function onAgentMilestones(s, agentId, e, at) {
   a.steps = story.pills;
   a.activity = agentActivity(a);
   a.stage = planStage(a.milestones, e, known, isNewTask, a.stage ?? null);
+}
+
+/** Longest agent summary, in characters (as flow.mjs PROGRESS_MAX). */
+const REPORT_MAX = 200;
+
+/**
+ * The first two sentences of an agent's final report, as plain text: marker lines
+ * (`step:`, `progress:`, `rail:`), headings, emphasis and code fences dropped.
+ * @param {unknown} text @returns {string} '' when there is none
+ */
+function reportSummary(text) {
+  if (!str(text)) return '';
+  const plain = /** @type {string} */ (text)
+    .split('\n')
+    .filter((l) => !/^\s*(?:(?:step|progress|rail):|```|#)/i.test(l))
+    .map((l) => l.replace(/^\s*>\s*/, ''))
+    .join(' ')
+    .replace(/[*`]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const two = plain.split(/(?<=[.!?])\s+(?=\p{Lu})/u).slice(0, 2).join(' ');
+  return clipText(two, REPORT_MAX);
 }
 
 /** Keys of milestones made from an agent's `step:` lines. */
