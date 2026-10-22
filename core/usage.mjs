@@ -1,4 +1,4 @@
-import { closeSync, fstatSync, openSync, readSync } from 'node:fs';
+import { closeSync, fstatSync, openSync, readSync, statSync } from 'node:fs';
 
 /** Message ids kept per transcript to skip a message's later lines; one message spans a few lines. */
 const MAX_IDS = 50;
@@ -54,6 +54,16 @@ export function readUsage(path, cursor, isMain) {
     tokens.output += num(u.output_tokens);
   }
   return { path, cursor: { offset: offset + end, ids: ids.slice(-MAX_IDS) }, tokens };
+}
+
+/**
+ * A cursor at the end of a transcript, with no usage: where counting starts for a file seen mid-session.
+ * @param {string} path @returns {{ path: string, cursor: Cursor, tokens: Tokens } | null}
+ */
+export function usageStart(path) {
+  try {
+    return { path, cursor: { offset: statSync(path).size, ids: [] }, tokens: { input: 0, cacheRead: 0, cacheWrite: 0, output: 0 } };
+  } catch { return null; }
 }
 
 /** @param {unknown} v */

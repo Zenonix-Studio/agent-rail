@@ -5,7 +5,7 @@ import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSe
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
 import { reduce, fallbackTitle } from '../core/reduce.mjs';
-import { readUsage } from '../core/usage.mjs';
+import { readUsage, usageStart } from '../core/usage.mjs';
 import { railInstruction, extractMeta, findMarkerInTranscript, findProgressInTranscript, findStepsInTranscript, agentTranscriptPath, SUBAGENT_INSTRUCTION } from '../core/flow.mjs';
 
 const normalizers = { claude: normalizeClaude, codex: normalizeCodex };
@@ -85,7 +85,13 @@ async function main() {
     // Token usage since the last hook: only the transcripts' new bytes, from cursors kept in the session.
     if (source === 'claude') {
       const cursors = prev?._usage && typeof prev._usage === 'object' ? prev._usage : {};
-      const read = (p, agent) => { const u = readUsage(p, cursors[p], agent === null); return u ? [{ ...u, agent }] : []; };
+      // Hooks installed mid-session: the main transcript's earlier usage belongs to no job here, so start at its end.
+      const midSession = Array.isArray(prev?.jobs) && prev.jobs.length > 0;
+      const read = (p, agent) => {
+        const skip = agent === null && midSession && typeof p === 'string' && !cursors[p];
+        const u = skip ? usageStart(p) : readUsage(p, cursors[p], agent === null);
+        return u ? [{ ...u, agent }] : [];
+      };
       const usage = [...read(input.transcript_path, null),
         ...(event.agentId ? read(input.agent_transcript_path ?? agentTranscriptPath(input.transcript_path, event.agentId), event.agentId) : [])];
       if (usage.length) event.event = { ...event.event, usage };
