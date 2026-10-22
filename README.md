@@ -56,21 +56,20 @@ Codex has no pane, so the rail opens in a terminal split beside it. Set it up on
 node ~/Projects/agent-rail/scripts/install-codex.mjs
 ```
 
-Then start Codex with the rail beside it (iTerm2 or tmux):
+Then, in a split beside Codex:
 
 ```bash
-codex-rail
+node ~/Projects/agent-rail/bin/agent-rail-watch.mjs
 ```
 
-That is all. Already in Codex? Type `rail` in another split, or `$rail` in Codex itself.
+That is all: it follows the latest Codex session.
 
 <details>
 <summary>More</summary>
 
-- `codex-rail` takes the same arguments as `codex` (`codex-rail --full-auto`).
-- `rail claude` shows the latest Claude Code session instead, `rail <id>` one session by the start of its id, `rail --agents` every agent row expanded. Ctrl+C quits.
+- Shortcuts the installer puts on PATH: `rail` is the same command; `codex-rail` opens it in an iTerm2 or tmux split and starts Codex (same arguments as `codex`). Inside Codex, `$rail` opens the split too (approve running it outside the sandbox).
+- Add `claude` for the latest Claude Code session instead, an id prefix for one session, `--agents` to expand every agent row. Ctrl+C quits.
 - The installer adds the agent-rail hooks to `~/.codex/hooks.json`, turns on `update_plan` in `~/.codex/config.toml` (both backed up first), adds the `$rail` skill, and links `rail` and `codex-rail` into `~/.local/bin` (or the first writable folder of your PATH). Codex asks you to trust the new hooks on its next start.
-- `$rail` runs from inside Codex, so Codex asks to run it outside its sandbox: approve it.
 - Codex jobs also show in the menubar; their tokens are not counted yet.
 - Undo it all: `node ~/Projects/agent-rail/scripts/uninstall-codex.mjs`.
 
