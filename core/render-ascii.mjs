@@ -320,7 +320,7 @@ function agentRow(a, w, open, nowMs) {
   const tokens = tokenTotal(a.tokens);
   /** @type {Segment[][]} right-hand tags, two spaces apart */
   const tags = [];
-  if (running && age >= QUIET_MS) tags.push([seg(`quiet ${shortLeft(age)}`, 'warn')]);
+  if (running && age >= QUIET_MS) tags.push([seg(`quiet ${Math.floor(age / 60_000)}m`, 'warn')]); // whole minutes, like the menubar
   if (tokens > 0) tags.push([seg(formatTokens(tokens), 'dim')]);
   if (ms.length) tags.push([seg('█'.repeat(filled), 'done'), seg('░'.repeat(MINI_BAR - filled), 'dim'), seg(` ${count}`, 'dim')]);
   const tail = tags.flatMap((t, i) => (i > 0 ? [seg('  ', 'plain'), ...t] : t));
