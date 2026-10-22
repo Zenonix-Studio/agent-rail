@@ -43,7 +43,7 @@ const ETA_MIN_DONE = 2;
  * ponytail: this job's steps only; history from earlier jobs if estimates stay off.
  * @param {Pick<import('./state.mjs').Job, 'milestones'>} job
  * @param {number} [nowMs] current time, ms since epoch
- * @returns {number|null} milliseconds; null before two steps finished or once all are done
+ * @returns {number|null} milliseconds; null before two steps finished, once all are done, or once the open ones ran past their estimate
  */
 export function eta(job, nowMs = Date.now()) {
   const milestones = Array.isArray(job?.milestones) ? job.milestones : [];
@@ -66,7 +66,8 @@ export function eta(job, nowMs = Date.now()) {
     const spent = m.status === 'active' && m.startedAt ? Math.max(0, nowMs - Date.parse(m.startedAt)) : 0;
     left += est - Math.min(spent, est);
   }
-  return Math.max(0, Math.round(left));
+  // Every open step already ran past its estimate: no time left to promise, so none is shown.
+  return left >= 1000 ? Math.round(left) : null;
 }
 
 /**

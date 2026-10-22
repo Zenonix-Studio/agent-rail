@@ -48,7 +48,8 @@ func eta(_ job: Job, now: Date) -> TimeInterval? {
         let spent = m.status == .active ? m.startedAt.map { max(0, now.timeIntervalSince($0)) } ?? 0 : 0
         left += est - min(spent, est)
     }
-    return max(0, left)
+    // Every open step already ran past its estimate: no time left to promise, so none is shown.
+    return left >= 1 ? left : nil
 }
 
 /// How long a step took, or has taken so far (`stepDuration` in core/progress.mjs); nil before it started.

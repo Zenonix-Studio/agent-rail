@@ -48,6 +48,18 @@ cd menubar && xcodegen generate
 
 `/agent-rail:history` lists the last 50 finished jobs across sessions, newest first, in the terminal and the desktop app. `/agent-rail:history <number>` shows one of them in full: its steps, agents and closing summary. The menubar's **Done today** button shows the same list. `/agent-rail:history stats`, the pane's **Stats** tab (`/rail stats`) and the menubar's chart button show the tokens spent since the weekly limit reset: the last 1, 3 and 5 days and the last 3, 10, 25 and 50 jobs.
 
+## Live view in a terminal split
+
+Codex runs no Claude Code mod, so it has no pane. Run the rail in a split next to it instead:
+
+```bash
+node ~/Projects/agent-rail/bin/agent-rail-watch.mjs           # the most recent Codex session
+node ~/Projects/agent-rail/bin/agent-rail-watch.mjs claude    # the most recent Claude Code session (or `any`)
+node ~/Projects/agent-rail/bin/agent-rail-watch.mjs 01a1652f  # one session, by the start of its id
+```
+
+It redraws the session's current job each second, as the pane draws it, and follows a newer session of the same source when one starts. `--agents` expands every agent row; Ctrl+C quits.
+
 ## Status line
 
 `bin/agent-rail-statusline.mjs` prints one line for the current session's job in Claude Code's status line: stage, current step, progress, elapsed time, time left (once a step has finished) and running agents.
