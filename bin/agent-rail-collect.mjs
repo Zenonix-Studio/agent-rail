@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { appendFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock, sweepOldSessions } from '../core/state.mjs';
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
@@ -28,6 +29,21 @@ async function readStdin() {
   const chunks = [];
   for await (const c of process.stdin) chunks.push(c);
   return Buffer.concat(chunks).toString('utf8');
+}
+
+/** The nearest `claude` or `codex` ancestor of this hook: its pid and start time (pid reuse check). */
+function agentProcess() {
+  try {
+    let pid = process.ppid;
+    for (let i = 0; i < 6 && pid > 1; i++) {
+      const [ppid, ...comm] = execFileSync('ps', ['-o', 'ppid=,comm=', '-p', String(pid)], { encoding: 'utf8' }).trim().split(/\s+/);
+      if (/^(claude|codex)$/.test(comm.join(' ').split('/').pop() ?? '')) {
+        return { pid, start: execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], { encoding: 'utf8' }).trim() };
+      }
+      pid = Number(ppid);
+    }
+  } catch { /* no ps, or the process is gone: nothing to record */ }
+  return null;
 }
 
 async function main() {
@@ -63,6 +79,11 @@ async function main() {
   if (!event.agentId && !event.event?.progress && ['plan', 'plan-step', 'task-create', 'task-update', 'stop'].includes(mainType)) {
     const progress = findProgressInTranscript(input.transcript_path);
     if (progress) event.event = { ...event.event, progress };
+  }
+  // On a prompt, the agent process these hooks run under, so the menubar can stop the session.
+  if (event.event?.type === 'prompt' && !event.agentId) {
+    const proc = agentProcess();
+    if (proc) event.event = { ...event.event, proc };
   }
   const path = sessionPath(source, event.sessionId);
   withSessionLock(path, () => {

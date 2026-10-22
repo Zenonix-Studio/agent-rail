@@ -110,12 +110,43 @@ struct PopoverView: View {
         withAnimation(.snappy(duration: 0.2)) { store.closeJob(item) }
     }
 
+    /// Under an expanded stale job: hide it, or stop its session for real.
+    private func staleActions(_ item: JobItem) -> some View {
+        let running = SessionProcess.isRunning(item.session.proc)
+        return HStack(spacing: 8) {
+            Button("Hide") { hide(item) }
+                .help(String(localized: "Hide this job here; its session is not stopped"))
+            Button("Stop session…") { confirmStop(item) }
+                .disabled(!running)
+                .help(running ? String(localized: "Ends the whole session and its agents") : String(localized: "Process not found (already closed?)"))
+        }
+        .controlSize(.small)
+        .padding(.trailing, 4)
+    }
+
+    /// Stopping ends the session's process, so it asks first and says what is lost.
+    private func confirmStop(_ item: JobItem) {
+        guard let proc = item.session.proc else { return }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = String(localized: "Stop this session?")
+        alert.informativeText = String(localized: "\(displayTitle(item)): the whole \(L10n.sourceName(item.session.source)) session and its agents stop. Work it has not saved is lost.")
+        alert.addButton(withTitle: String(localized: "Stop")).hasDestructiveAction = true
+        alert.addButton(withTitle: String(localized: "Cancel"))
+        NSApp.activate()
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        if SessionProcess.stop(proc) { hide(item) }
+    }
+
     private func list(_ items: [JobItem]) -> some View {
         let expandedID = resolvedExpansion(items)
         return VStack(spacing: 8) {
             ForEach(items) { item in
                 if item.id == expandedID {
-                    JobDetailView(item: item, now: store.now, agentExpansion: agentExpansion) { toggle(item.id, current: expandedID) }
+                    VStack(alignment: .trailing, spacing: 6) {
+                        JobDetailView(item: item, now: store.now, agentExpansion: agentExpansion) { toggle(item.id, current: expandedID) }
+                        if isStale(item, now: store.now) { staleActions(item) }
+                    }
                 } else {
                     Button { toggle(item.id, current: expandedID) } label: {
                         JobRowView(item: item, now: store.now)
@@ -141,6 +172,8 @@ struct PopoverView: View {
                     .contextMenu {
                         if isStale(item, now: store.now) {
                             Button("Hide (the session is not stopped)") { hide(item) }
+                            Button("Stop session…") { confirmStop(item) }
+                                .disabled(!SessionProcess.isRunning(item.session.proc))
                         }
                     }
                 }

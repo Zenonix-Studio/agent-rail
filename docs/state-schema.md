@@ -50,6 +50,7 @@ The top-level object of a session file.
 | `sessionId` | `string` | The agent's own session (Claude) or thread (Codex) id. |
 | `cwd` | `string` | Working directory of the session's first event. |
 | `project` | `string` | Basename of `cwd`, for display. `''` when `cwd` is unknown. |
+| `proc` | `{pid, start}` \| `null` | The agent process (`claude` or `codex`) the hooks ran under on the last prompt: its pid and `ps -o lstart` start time, so a reused pid is told apart. The menubar's **Stop session** uses it. |
 | `updatedAt` | `string` | Time of the last event folded into this file. |
 | `jobs` | `Job[]` | Jobs in order of `seq`. The last one is the current job. |
 | `agents` | `Record<string, Agent>` | Subagents seen in this session, keyed by agent id. |

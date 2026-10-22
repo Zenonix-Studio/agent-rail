@@ -6,8 +6,9 @@ A live rail for your Claude Code and Codex jobs: progress, milestones and the ag
 
 A native macOS menubar app that shows your running jobs. It reads the session files in `~/.agent-rail/sessions/*.json`.
 
-- Read-only and local: it never writes to the state folder and sends nothing over the network.
+- Local: it never writes to the state folder and sends nothing over the network.
 - English and Turkish, following the system language.
+- A card with no activity can be hidden (**Hide**), or its session stopped (**Stop session…**, right-click or under the expanded card). Stopping ends the whole Claude Code or Codex session and its agents, after a confirmation; it is offered only while the process the hooks last ran under is still that one (same pid and start time).
 
 Requirements: macOS 14+ and Xcode 26.
 

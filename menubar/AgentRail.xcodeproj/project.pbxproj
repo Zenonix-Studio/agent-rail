@@ -18,6 +18,7 @@
 		6EF61933AB3F0C4D3CAD3D25 /* HistoryLegendViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3086B936289461861FF17C12 /* HistoryLegendViews.swift */; };
 		79CABB374A54BAF54427657F /* Derivations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85410834CAD890C2E50AF983 /* Derivations.swift */; };
 		8141938B7EAB0DC32D7C6C34 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 93D4BE17BA97288D99D927AC /* Localizable.xcstrings */; };
+		9A4B965A1A2F63A0BE1564BB /* SessionProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98A5B30FF275308FD402A271 /* SessionProcess.swift */; };
 		ADF1B75160B3023A7B129455 /* PopoverView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 057A4D9D2852B9AB7625241F /* PopoverView.swift */; };
 		C4FA198CFB35C1474000D135 /* JobDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CBCD95C88FF44D6989C3846 /* JobDetailView.swift */; };
 		C7F9F9C8DD374D4A63C7140B /* RailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D87377A9AEFC45DFC0806A /* RailView.swift */; };
@@ -42,6 +43,7 @@
 		845804CA23A1A0D141769DC7 /* StateRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateRoot.swift; sourceTree = "<group>"; };
 		85410834CAD890C2E50AF983 /* Derivations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Derivations.swift; sourceTree = "<group>"; };
 		93D4BE17BA97288D99D927AC /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		98A5B30FF275308FD402A271 /* SessionProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProcess.swift; sourceTree = "<group>"; };
 		9B8D33CA83CF78EA4049A549 /* JobRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRowView.swift; sourceTree = "<group>"; };
 		B2D87377A9AEFC45DFC0806A /* RailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RailView.swift; sourceTree = "<group>"; };
 		D5E71B443668F1BCBA97F02F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -55,6 +57,7 @@
 			children = (
 				85410834CAD890C2E50AF983 /* Derivations.swift */,
 				08E103524CC41605F1A8B741 /* JobNotifier.swift */,
+				98A5B30FF275308FD402A271 /* SessionProcess.swift */,
 				222015DD39B97F91F71F2C3A /* SessionStore.swift */,
 				794CEAA74D22171BD23873F4 /* StateModels.swift */,
 				845804CA23A1A0D141769DC7 /* StateRoot.swift */,
@@ -199,6 +202,7 @@
 				ADF1B75160B3023A7B129455 /* PopoverView.swift in Sources */,
 				C7F9F9C8DD374D4A63C7140B /* RailView.swift in Sources */,
 				F80CA3AB452F06BC8E81D150 /* RingIcon.swift in Sources */,
+				9A4B965A1A2F63A0BE1564BB /* SessionProcess.swift in Sources */,
 				2C30776D78114D16A3C38A89 /* SessionStore.swift in Sources */,
 				173451016198E1370E657742 /* StateModels.swift in Sources */,
 				4C1FE95B724D53C927F8CC70 /* StateRoot.swift in Sources */,

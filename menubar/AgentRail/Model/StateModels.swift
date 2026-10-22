@@ -236,6 +236,23 @@ struct Session: Decodable, Sendable {
     let updatedAt: Date
     let jobs: [Job]
     let agents: [String: Agent]
+    /// The agent process the collector saw on the last prompt; absent in older files.
+    let proc: SessionProc?
+}
+
+/// A session's agent process: its pid and `ps` start time, which tells a reused pid apart.
+struct SessionProc: Decodable, Sendable {
+    let pid: Int32
+    let start: String
+
+    // Lenient: a malformed value must not drop the whole session.
+    init(from decoder: Decoder) throws {
+        let c = try? decoder.container(keyedBy: CodingKeys.self)
+        pid = (try? c?.decode(Int32.self, forKey: .pid)) ?? 0
+        start = (try? c?.decode(String.self, forKey: .start)) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey { case pid, start }
 }
 
 struct JobItem: Identifiable, Sendable {

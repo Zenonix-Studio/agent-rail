@@ -83,6 +83,7 @@ function apply(s, input, at) {
   const e = input.event;
   const job = current(s);
   if (job && isObj(e) && !str(input.agentId) && str(e.progress)) job.progress = e.progress;
+  if (isObj(e) && !str(input.agentId) && isObj(e.proc) && Number.isInteger(e.proc.pid) && str(e.proc.start)) s.proc = { pid: e.proc.pid, start: e.proc.start };
 }
 
 /**
@@ -1040,6 +1041,8 @@ function sanitize(prev, input, at) {
     updatedAt: at,
     jobs: Array.isArray(p.jobs) ? p.jobs.filter(isObj).map((j, i) => fixJob(j, i, source, sessionId, at)) : [],
     agents,
+    // The agent process the hooks run under (collector, on each prompt): what the menubar can stop.
+    proc: isObj(p.proc) && Number.isInteger(p.proc.pid) && str(p.proc.start) ? { pid: p.proc.pid, start: p.proc.start } : null,
     _pendingPrompt: typeof p._pendingPrompt === 'string' ? p._pendingPrompt : null,
     _turnPrompt: typeof p._turnPrompt === 'string' ? p._turnPrompt : null,
     _dispatch: Array.isArray(p._dispatch)

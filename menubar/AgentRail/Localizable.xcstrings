@@ -908,6 +908,76 @@
           }
         }
       }
+    },
+    "Stop session…": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oturumu durdur…"
+          }
+        }
+      }
+    },
+    "Ends the whole session and its agents": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tüm oturumu ve ajanlarını kapatır"
+          }
+        }
+      }
+    },
+    "Process not found (already closed?)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Süreç bulunamadı (zaten kapanmış olabilir)"
+          }
+        }
+      }
+    },
+    "Stop this session?": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bu oturum durdurulsun mu?"
+          }
+        }
+      }
+    },
+    "%@: the whole %@ session and its agents stop. Work it has not saved is lost.": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: tüm %@ oturumu ve ajanları kapanır. Kaydedilmemiş iş kaybolur."
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Durdur"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vazgeç"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
