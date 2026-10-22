@@ -232,7 +232,7 @@ function onMilestones(s, e, at) {
         job = splitJob(s, job, at);
       } else {
         // Kept until the turn ends: a marker naming another task can still split it (see onMarker).
-        job._beforeTurn = { milestones: structuredClone(job.milestones), now: structuredClone(job.now), endedAt: job._prevEndedAt ?? null };
+        job._beforeTurn = { milestones: structuredClone(job.milestones), now: structuredClone(job.now), progress: job.progress, endedAt: job._prevEndedAt ?? null };
         delete job._prevEndedAt;
       }
       s._pendingPrompt = null;
@@ -888,9 +888,13 @@ function splitJob(s, job, at) {
   const next = newJob(s, job.seq + 1, s._pendingPrompt ?? '', 'running', at);
   s.jobs.push(next);
   s._pendingPrompt = null;
-  // Viewers show a session's latest job: agents still running move along, or they would vanish.
-  for (const a of Object.values(s.agents)) if (a.job === job.seq && a.status === 'running') a.job = next.seq;
+  moveRunningAgents(s, job, next);
   return next;
+}
+
+/** Viewers show a session's latest job: agents still running move along, or they would vanish. */
+function moveRunningAgents(s, from, to) {
+  for (const a of Object.values(s.agents)) if (a.job === from.seq && a.status === 'running') a.job = to.seq;
 }
 
 /**
@@ -912,9 +916,11 @@ function onMarker(s, text, at) {
     const next = newJob(s, job.seq + 1, s._turnPrompt, 'running', at);
     next.milestones = job.milestones;
     next.now = job.now;
-    Object.assign(job, { milestones: b.milestones, now: b.now, status: 'done', endedAt: b.endedAt ?? at, updatedAt: at });
+    next.progress = job.progress;
+    Object.assign(job, { milestones: b.milestones, now: b.now, progress: b.progress ?? job.progress, status: 'done', endedAt: b.endedAt ?? at, updatedAt: at });
     delete job._beforeTurn;
     s.jobs.push(next);
+    moveRunningAgents(s, job, next);
     job = next;
   } else if (job.title !== fallbackTitle(job.prompt)) {
     return;
