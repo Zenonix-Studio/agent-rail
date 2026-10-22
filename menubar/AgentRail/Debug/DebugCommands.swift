@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UserNotifications
 
 enum DebugCommands {
     /// Handles debug flags and exits; returns false when no flag is present.
@@ -19,6 +20,24 @@ enum DebugCommands {
             let agents = AgentExpansion(open: values("--expand-agent"), closed: values("--collapse-agent"))
             exit(snapshot(to: URL(fileURLWithPath: out), expandedJobID: expand, agents: agents,
                           light: arguments.contains("--light")) ? 0 : 1)
+        }
+        // `--notify-test`: asks for permission, prints the outcome and posts one test notification.
+        if arguments.contains("--notify-test") {
+            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
+                UNUserNotificationCenter.current().getNotificationSettings { settings in
+                    print("granted=\(granted) status=\(settings.authorizationStatus.rawValue) alert=\(settings.alertSetting.rawValue) error=\(error.map { "\($0)" } ?? "none")")
+                    let content = UNMutableNotificationContent()
+                    content.title = "AgentRail"
+                    content.body = "Test notification"
+                    UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "agentrail.test", content: content, trigger: nil)) { err in
+                        print("posted error=\(err.map { "\($0)" } ?? "none")")
+                        exit(0)
+                    }
+                }
+            }
+            RunLoop.main.run(until: Date().addingTimeInterval(60))
+            print("timed out waiting for the permission answer")
+            exit(1)
         }
         if let i = arguments.firstIndex(of: "--dump-after") {
             let seconds = arguments.dropFirst(i + 1).first.flatMap(Double.init) ?? 3

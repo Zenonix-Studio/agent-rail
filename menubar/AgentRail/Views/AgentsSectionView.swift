@@ -88,6 +88,24 @@ private struct AgentRowView: View {
     private func header(_ p: (done: Int, total: Int)) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             headerLine(p)
+            // Quiet time and tokens sit on their own line: in the header row they narrowed the
+            // ViewThatFits there, which flipped between one and two lines while the popover resized
+            // and crashed AppKit's layout (crash report 2026-10-22).
+            if quiet != nil || (agent.tokens?.total ?? 0) > 0 {
+                HStack(spacing: 8) {
+                    if let quiet {
+                        Text(verbatim: L10n.quiet(quiet))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Theme.warn)
+                    }
+                    if let tokens = agent.tokens?.total, tokens > 0 {
+                        Text(verbatim: L10n.tokens(tokens))
+                            .font(.system(size: 11).monospacedDigit())
+                            .foregroundStyle(Theme.muted)
+                    }
+                }
+                .padding(.leading, 34)
+            }
             // Its own summary once it wrote one; aligned under the name.
             if let note {
                 Text(verbatim: note)
@@ -128,18 +146,6 @@ private struct AgentRowView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if let quiet {
-                Text(verbatim: L10n.quiet(quiet))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Theme.warn)
-                    .fixedSize()
-            }
-            if let tokens = agent.tokens?.total, tokens > 0 {
-                Text(verbatim: L10n.tokens(tokens))
-                    .font(.system(size: 11).monospacedDigit())
-                    .foregroundStyle(Theme.muted)
-                    .fixedSize()
-            }
             if p.total > 0 {
                 MiniBar(fraction: Double(p.done) / Double(p.total))
                 Text(verbatim: "\(p.done)/\(p.total)")
