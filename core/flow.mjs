@@ -298,7 +298,8 @@ const ROLE_LINE = /^(?:you are|you're|your name is|act as|sen |siz |adın )/i;
  */
 export function firstSentence(prompt) {
   const t = text(prompt);
-  if (!t) return null;
+  // Codex sends a forked agent's message encrypted (a Fernet token, `gAAAAA…`): no words to show.
+  if (!t || /^gAAAAA[\w-]{40,}=*$/.test(t)) return null;
   // A sentence ends at . ! or ? followed by whitespace and a capital: "v1.2 fix" or "e.g. this" do not split.
   const sentences = t.split(/(?<=[.!?])\s+(?=\p{Lu})/u);
   // A role line ("You are "Ajan-1".") says who the agent is, not what it was asked to do.
