@@ -4,6 +4,19 @@ private let staleAfter: TimeInterval = 10 * 60
 /// A running job whose last pill is still `.active` has a tool in flight, which can legitimately be silent for long.
 private let staleAfterToolInFlight: TimeInterval = 60 * 60
 private let hiddenAfter: TimeInterval = 24 * 60 * 60
+/// A running agent with no event for this long is shown as quiet (`QUIET_MS` in core/render-ascii.mjs).
+private let quietAfter: TimeInterval = 5 * 60
+
+/// How long a running agent has been quiet; nil while it reports in (or once it stopped).
+func quietFor(_ agent: Agent, now: Date) -> TimeInterval? {
+    let age = now.timeIntervalSince(agent.updatedAt)
+    return agent.status == .running && age >= quietAfter ? age : nil
+}
+
+/// A job's tokens: its main agent's plus its agents' (`jobTokens` in core/render-ascii.mjs).
+func jobTokens(_ item: JobItem) -> Int {
+    agents(of: item).reduce(item.job.tokens?.total ?? 0) { $0 + ($1.tokens?.total ?? 0) }
+}
 
 func progress(_ job: Job) -> (done: Int, total: Int, pct: Int?) {
     let total = job.milestones.count

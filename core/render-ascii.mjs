@@ -17,11 +17,11 @@ import { eta, progress, stepDuration } from './progress.mjs';
  *   its palette color (plan violet, analyse blue, dev orange, fix red, review teal).
  * @typedef {{ text: string, tone: Tone }} Segment
  * @typedef {Segment[]} Line
- * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'> & {summary?: string, progress?: string}} RenderableJob
+ * @typedef {Pick<import('./state.mjs').Job, 'title'|'status'|'milestones'|'startedAt'|'endedAt'|'now'> & {summary?: string, progress?: string, tokens?: import('./state.mjs').Tokens}} RenderableJob
  *   `progress`: the main agent's own summary of the work done and left, shown at the bottom.
  * @typedef {Pick<import('./state.mjs').Agent, 'name'|'status'|'activity'> & {
  *   id?: string, startedAt?: string, updatedAt?: string, milestones?: import('./state.mjs').Milestone[], steps?: import('./state.mjs').Pill[],
- *   stage?: Stage|null, summary?: string, progress?: string
+ *   stage?: Stage|null, summary?: string, progress?: string, tokens?: import('./state.mjs').Tokens
  * }} RenderableAgent `milestones` / `steps` / `progress` are absent in files written before they existed.
  * @typedef {number|RenderableAgent[]} AgentsArg Running count only (title hint), or the job's
  *   subagents (`jobAgents` in core/progress.mjs): the hint plus an "Agents" block in the wide layout.
@@ -43,6 +43,8 @@ const OPEN_ALL_MAX = 3;
 const MINI_BAR = 6;
 const GUTTER = '│   ';
 const STAGES = ['plan', 'analyse', 'dev', 'fix', 'review'];
+/** A running agent with no event for this long is shown as quiet (the menubar uses the same). */
+const QUIET_MS = 5 * 60_000;
 
 /**
  * @param {RenderableJob} job
@@ -75,12 +77,14 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
   const { done, total, pct } = progress(job);
   const tail = statusTail(status);
   const hint = agentsHint(running, w < COMPACT_WIDTH);
-  const block = w < COMPACT_WIDTH ? [] : agentLines(list, w, opts?.expandAll === true);
+  const block = w < COMPACT_WIDTH ? [] : agentLines(list, w, opts?.expandAll === true, nowMs);
+  const tokens = jobTokens(job, list);
+  const tok = tokens > 0 ? ` · ${formatTokens(tokens)}` : '';
   const hintLen = tailLen(hint);
 
   if (total === 0) {
     // "Planning · 0/?" comes from the missing plan, whatever the status says.
-    const label = isDone ? `Done · ${elapsed(job, nowMs)}` : 'Planning · 0/?';
+    const label = `${isDone ? `Done · ${elapsed(job, nowMs)}` : 'Planning · 0/?'}${tok}`;
     const lead = `${clip(title, w - label.length - 2 - tailLen(tail) - hintLen)}  `;
     /** @type {Line[]} */
     const lines = [[seg(lead, 'bold'), seg(label, isDone ? 'done' : 'dim'), ...tail, ...hint]];
@@ -120,7 +124,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
   lines.push([seg(shownTitle, 'bold'), ...hint, seg(' '.repeat(gap), 'plain'), seg(pctText, 'bold')]);
 
   const left = isDone ? null : eta(job, nowMs);
-  const counts = `  ${done}/${total} · ${elapsed(job, nowMs)}${left === null ? '' : ` · ~${shortLeft(left)} left`}`;
+  const counts = `  ${done}/${total} · ${elapsed(job, nowMs)}${left === null ? '' : ` · ~${shortLeft(left)} left`}${tok}`;
   const barW = Math.max(BAR_MIN, Math.min(BAR_MAX, w - counts.length - tailLen(tail)));
   const filled = Math.round((barW * done) / total);
   lines.push([seg('█'.repeat(filled), 'done'), seg('░'.repeat(barW - filled), 'dim'), seg(counts, 'plain'), ...tail]);
@@ -282,7 +286,7 @@ const AGENT_GLYPH = { running: ['●', 'active'], done: ['✓', 'done'], stale: 
  * @param {boolean} expandAll
  * @returns {Line[]} none when there are no agents.
  */
-function agentLines(agents, w, expandAll) {
+function agentLines(agents, w, expandAll, nowMs) {
   if (!agents.length) return [];
   const sorted = sortAgents(agents);
   const shown = sorted.slice(0, AGENTS_SHOWN);
@@ -292,7 +296,7 @@ function agentLines(agents, w, expandAll) {
   shown.forEach((a, i) => {
     // A few agents: every one shows its own work. Many: the first running one.
     const open = expandAll || shown.length <= OPEN_ALL_MAX || (i === 0 && a.status === 'running');
-    lines.push(agentRow(a, w, open), ...agentProgressLine(a, w));
+    lines.push(agentRow(a, w, open, nowMs), ...agentProgressLine(a, w));
     if (open) lines.push(...agentBody(a, w));
   });
   if (shown.length < sorted.length) lines.push([seg(`+${sorted.length - shown.length} more`, 'dim')]);
@@ -300,10 +304,10 @@ function agentLines(agents, w, expandAll) {
 }
 
 /**
- * @param {RenderableAgent} a @param {number} w @param {boolean} open
- * @returns {Line} `▾ ● name  current step ……… ███░░░ 3/6`
+ * @param {RenderableAgent} a @param {number} w @param {boolean} open @param {number} nowMs
+ * @returns {Line} `▾ ● name  current step ……… quiet 7m  64k tok  ███░░░ 3/6`
  */
-function agentRow(a, w, open) {
+function agentRow(a, w, open, nowMs) {
   const [glyph, base] = AGENT_GLYPH[/** @type {keyof typeof AGENT_GLYPH} */ (a.status)] ?? ['·', 'dim'];
   const running = a.status === 'running';
   // A running agent's dot takes its stage color.
@@ -312,7 +316,15 @@ function agentRow(a, w, open) {
   const done = ms.filter((m) => m.status === 'done').length;
   const count = ms.length ? `${done}/${ms.length}` : '';
   const filled = ms.length ? Math.round((MINI_BAR * done) / ms.length) : 0;
-  const right = ms.length ? MINI_BAR + 1 + count.length : 0;
+  const age = nowMs - Date.parse(a.updatedAt ?? '');
+  const tokens = tokenTotal(a.tokens);
+  /** @type {Segment[][]} right-hand tags, two spaces apart */
+  const tags = [];
+  if (running && age >= QUIET_MS) tags.push([seg(`quiet ${shortLeft(age)}`, 'warn')]);
+  if (tokens > 0) tags.push([seg(formatTokens(tokens), 'dim')]);
+  if (ms.length) tags.push([seg('█'.repeat(filled), 'done'), seg('░'.repeat(MINI_BAR - filled), 'dim'), seg(` ${count}`, 'dim')]);
+  const tail = tags.flatMap((t, i) => (i > 0 ? [seg('  ', 'plain'), ...t] : t));
+  const right = tailLen(tail);
   const room = w - 4 - (right ? right + 2 : 0);
   const name = clip(str(a.name) || 'agent', Math.max(8, Math.min(room, Math.ceil(room * 0.55))));
   const step = currentStep(a, ms) || (running ? 'starting…' : '');
@@ -323,8 +335,7 @@ function agentRow(a, w, open) {
   if (stepText) row.push(seg('  ', 'plain'), seg(stepText, 'dim'));
   if (right) {
     const used = 4 + name.length + (stepText ? 2 + stepText.length : 0);
-    row.push(seg(' '.repeat(Math.max(2, w - used - right)), 'plain'),
-      seg('█'.repeat(filled), 'done'), seg('░'.repeat(MINI_BAR - filled), 'dim'), seg(` ${count}`, 'dim'));
+    row.push(seg(' '.repeat(Math.max(2, w - used - right)), 'plain'), ...tail);
   }
   return row;
 }
@@ -548,6 +559,28 @@ function agentsHint(n, compact) {
   if (!Number.isInteger(n) || n <= 0) return [];
   const noun = n === 1 ? 'agent' : 'agents';
   return [seg(compact ? ` · ${n} ${noun}` : ` · ${n} ${noun} running`, 'dim')];
+}
+
+/** @param {unknown} t a stored `Tokens` @returns {number} input, cache and output tokens together */
+export function tokenTotal(t) {
+  if (!t || typeof t !== 'object') return 0;
+  const o = /** @type {Record<string, unknown>} */ (t);
+  return ['input', 'cacheRead', 'cacheWrite', 'output'].reduce((n, k) => n + (Number.isFinite(o[k]) ? /** @type {number} */ (o[k]) : 0), 0);
+}
+
+/**
+ * A job's tokens: its main agent's plus its agents'.
+ * @param {{tokens?: unknown}|null|undefined} job @param {{tokens?: unknown}[]} agents @returns {number}
+ */
+export function jobTokens(job, agents) {
+  return agents.reduce((n, a) => n + tokenTotal(a?.tokens), tokenTotal(job?.tokens));
+}
+
+/** @param {number} n @returns {string} e.g. `820 tok`, `64k tok`, `1.2M tok` */
+export function formatTokens(n) {
+  if (n < 1000) return `${n} tok`;
+  if (n < 999_500) return `${Math.round(n / 1000)}k tok`;
+  return `${(n / 1e6).toFixed(n < 99_950_000 ? 1 : 0)}M tok`;
 }
 
 /** @param {Segment[]} tail */

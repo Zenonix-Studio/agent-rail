@@ -63,6 +63,18 @@ enum L10n {
         String(localized: "~\(formatDuration(interval)) left")
     }
 
+    /// "820 tok", "64k tok", "1.2M tok" (`formatTokens` in core/render-ascii.mjs).
+    static func tokens(_ n: Int) -> String {
+        if n < 1000 { return "\(n) tok" }
+        if n < 999_500 { return "\(Int((Double(n) / 1000).rounded()))k tok" }
+        return String(format: n < 99_950_000 ? "%.1fM tok" : "%.0fM tok", Double(n) / 1e6)
+    }
+
+    /// "quiet 7m": a running agent with no event for a while.
+    static func quiet(_ interval: TimeInterval) -> String {
+        String(localized: "quiet \(Int(interval / 60))m")
+    }
+
     static func agentStatus(_ status: AgentStatus) -> String {
         switch status {
         case .running: String(localized: "running")

@@ -112,6 +112,34 @@ struct Now: Decodable, Sendable {
     }
 }
 
+/// API token usage read from a transcript; `total` counts all four.
+struct Tokens: Decodable, Sendable {
+    let input: Int
+    let cacheRead: Int
+    let cacheWrite: Int
+    let output: Int
+
+    var total: Int { input + cacheRead + cacheWrite + output }
+
+    private enum CodingKeys: String, CodingKey { case input, cacheRead, cacheWrite, output }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func count(_ key: CodingKeys) -> Int { max(0, ((try? c.decodeIfPresent(Int.self, forKey: key)) ?? nil) ?? 0) }
+        input = count(.input)
+        cacheRead = count(.cacheRead)
+        cacheWrite = count(.cacheWrite)
+        output = count(.output)
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// A `Tokens` field: nil when missing or malformed, never failing the whole file.
+    func decodeTokens(forKey key: Key) -> Tokens? {
+        (try? decodeIfPresent(Tokens.self, forKey: key)) ?? nil
+    }
+}
+
 struct Job: Decodable, Sendable {
     let id: String
     let seq: Int
@@ -126,9 +154,11 @@ struct Job: Decodable, Sendable {
     let now: Now?
     /// The main agent's own 1-2 sentence summary of the work done and left; `""` until it writes one.
     let progress: String
+    /// The main agent's token usage during the job; nil until seen (and for Codex).
+    let tokens: Tokens?
 
     private enum CodingKeys: String, CodingKey {
-        case id, seq, title, summary, prompt, status, milestones, startedAt, updatedAt, endedAt, now, progress
+        case id, seq, title, summary, prompt, status, milestones, startedAt, updatedAt, endedAt, now, progress, tokens
     }
 
     init(from decoder: Decoder) throws {
@@ -145,6 +175,7 @@ struct Job: Decodable, Sendable {
         endedAt = try c.decodeIfPresent(Date.self, forKey: .endedAt)
         now = try c.decodeIfPresent(Now.self, forKey: .now)
         progress = (try? c.decodeIfPresent(String.self, forKey: .progress)) ?? ""
+        tokens = c.decodeTokens(forKey: .tokens)
     }
 }
 
@@ -168,10 +199,12 @@ struct Agent: Decodable, Sendable {
     let stage: Stage?
     /// Its own 1-2 sentence summary of what is done and left; `""` until it writes one.
     let progress: String
+    /// Its token usage; nil until seen.
+    let tokens: Tokens?
 
     private enum CodingKeys: String, CodingKey {
         case id, name, status, activity, job, startedAt, updatedAt, endedAt, summary, milestones, steps, stage
-        case progress
+        case progress, tokens
     }
 
     init(from decoder: Decoder) throws {
@@ -190,6 +223,7 @@ struct Agent: Decodable, Sendable {
         steps = try c.decodeIfPresent([Pill].self, forKey: .steps) ?? []
         stage = c.decodeStage(forKey: .stage)
         progress = (try? c.decodeIfPresent(String.self, forKey: .progress)) ?? ""
+        tokens = c.decodeTokens(forKey: .tokens)
     }
 }
 

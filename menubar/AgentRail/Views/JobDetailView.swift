@@ -29,7 +29,7 @@ struct JobDetailView: View {
                 RailView(job: item.job, clock: now)
                 let subagents = agents(of: item)
                 if !subagents.isEmpty {
-                    AgentsSectionView(agents: subagents, expansion: agentExpansion).padding(.top, 2)
+                    AgentsSectionView(agents: subagents, now: now, expansion: agentExpansion).padding(.top, 2)
                 }
                 if !item.job.progress.isEmpty {
                     JobProgressView(text: item.job.progress).padding(.top, 10)

@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
  * field they do not know.
  * @typedef {'ok'|'warn'|'active'|'info'} PillKind
  * @typedef {'plan'|'analyse'|'dev'|'fix'|'review'} Stage
+ * @typedef {{ input: number, cacheRead: number, cacheWrite: number, output: number }} Tokens API token usage read from a transcript.
  * @typedef {{ label: string, kind: PillKind, stage?: Stage, _run?: object }} Pill `label` is a human step ("Editing LoginView.swift"); `_run` is the collapsed run behind it.
  * @typedef {{ milestone: string, pills: Pill[], attempt: number, file: string|null, stage?: Stage|null }} Now
  * @typedef {{ key: string, title: string, status: 'pending'|'active'|'done', stage?: Stage, startedAt?: string, endedAt?: string, _activeForm?: string, _fixedStage?: boolean, _stages?: Record<string, number> }} Milestone
@@ -15,20 +16,21 @@ import { dirname, join } from 'node:path';
  *   id: string, seq: number, title: string, summary: string, prompt: string,
  *   status: 'planning'|'running'|'waiting'|'done'|'error',
  *   milestones: Milestone[], startedAt: string, updatedAt: string,
- *   endedAt: string|null, now: Now|null
- * }} Job
+ *   endedAt: string|null, now: Now|null, tokens?: Tokens
+ * }} Job `tokens`: the main agent's usage during the job; viewers add the job's agents'.
  * @typedef {{
  *   id: string, name: string, status: 'running'|'done'|'error'|'stale',
  *   activity: string, summary: string, milestones: Milestone[], steps: Pill[], stage?: Stage|null,
  *   job: number|null, startedAt: string, updatedAt: string, endedAt: string|null,
- *   _type?: string|null, _open?: string[]
+ *   tokens?: Tokens, _type?: string|null, _open?: string[]
  * }} Agent `name`: the dispatch description, else the agent type. `job` is the seq of the job the agent started in.
  *   `startedAt`: when it was first seen; agents are listed in this order.
  *   `summary`: what it was asked to do. `milestones`: its own plan. `steps`: its own story, the last 6 pills.
  * @typedef {{
  *   schema: 1, source: 'claude'|'codex', sessionId: string, cwd: string,
  *   project: string, updatedAt: string, jobs: Job[],
- *   agents: Record<string, Agent>, _pendingPrompt: string|null, _turnPrompt?: string|null, _dispatch?: object[]
+ *   agents: Record<string, Agent>, _pendingPrompt: string|null, _turnPrompt?: string|null, _dispatch?: object[],
+ *   _usage?: Record<string, {offset: number, ids: string[]}>
  * }} Session
  */
 

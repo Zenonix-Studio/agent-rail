@@ -13,6 +13,8 @@ export type RailMilestone = {
   startedAt?: string;
   endedAt?: string;
 };
+/** API token usage read from a transcript; a total counts all four. */
+export type RailTokens = { input: number; cacheRead: number; cacheWrite: number; output: number };
 export type RailJob = {
   seq: number;
   title: string;
@@ -24,6 +26,8 @@ export type RailJob = {
   startedAt: string;
   endedAt: string | null;
   now: { milestone: string; pills: RailPill[]; attempt: number; file: string | null; stage?: RailStage | null } | null;
+  /** The main agent's usage during the job (Claude only); absent until seen. */
+  tokens?: RailTokens;
 };
 /** `summary`, `milestones`, `steps`, `stage` and `progress` are absent in files written before they existed. */
 export type RailAgent = {
@@ -37,6 +41,8 @@ export type RailAgent = {
   stage?: RailStage | null;
   /** The agent's own 1-2 sentence summary; '' when none. */
   progress?: string;
+  /** Absent until usage is seen. */
+  tokens?: RailTokens;
 };
 /** The current job, the clock it was read at (ms since the epoch), and the subagents that started in it. */
 export type RailView = { job: RailJob | null; at: number; agents: RailAgent[] };

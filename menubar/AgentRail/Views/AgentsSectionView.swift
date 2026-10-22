@@ -28,6 +28,7 @@ final class AgentExpansion {
 /// "Agents · N running": one bordered, expandable row per subagent of the job (agents-expand mockup).
 struct AgentsSectionView: View {
     let agents: [Agent]
+    let now: Date
     let expansion: AgentExpansion
 
     private static let maxShown = 6
@@ -49,7 +50,7 @@ struct AgentsSectionView: View {
                 .accessibilityAddTraits(.isHeader)
             ForEach(shown, id: \.id) { agent in
                 let open = openAll || agent.id == firstRunning
-                AgentRowView(agent: agent, expanded: expansion.isExpanded(agent.id, byDefault: open)) {
+                AgentRowView(agent: agent, quiet: quietFor(agent, now: now), expanded: expansion.isExpanded(agent.id, byDefault: open)) {
                     withAnimation(.snappy(duration: 0.2)) { expansion.toggle(agent.id, byDefault: open) }
                 }
             }
@@ -65,6 +66,8 @@ struct AgentsSectionView: View {
 
 private struct AgentRowView: View {
     let agent: Agent
+    /// How long it has been quiet while running; nil while it reports in.
+    let quiet: TimeInterval?
     let expanded: Bool
     let toggle: () -> Void
 
@@ -125,6 +128,18 @@ private struct AgentRowView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if let quiet {
+                Text(verbatim: L10n.quiet(quiet))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.warn)
+                    .fixedSize()
+            }
+            if let tokens = agent.tokens?.total, tokens > 0 {
+                Text(verbatim: L10n.tokens(tokens))
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize()
+            }
             if p.total > 0 {
                 MiniBar(fraction: Double(p.done) / Double(p.total))
                 Text(verbatim: "\(p.done)/\(p.total)")
@@ -184,7 +199,9 @@ private struct AgentRowView: View {
     /// "<name>, <status>, <current step>, <n> of <m> steps"
     private func accessibilityLabel(_ p: (done: Int, total: Int)) -> String {
         var parts = [agent.name, L10n.agentStatus(agent.status), currentStep]
+        if let quiet { parts.append(L10n.quiet(quiet)) }
         if p.total > 0 { parts.append(String(localized: "\(p.done) of \(p.total) steps")) }
+        if let tokens = agent.tokens?.total, tokens > 0 { parts.append(L10n.tokens(tokens)) }
         if let note { parts.append(note) }
         return parts.joined(separator: ", ")
     }
