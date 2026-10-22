@@ -1,7 +1,8 @@
 import AppKit
 
 enum RingIcon {
-    private static let accent = NSColor(srgbRed: 0xe0 / 255, green: 0x8a / 255, blue: 0x5c / 255, alpha: 1)
+    /// A job waits for the user: the popover's "needs you" yellow.
+    private static let accent = NSColor(Theme.waiting)
 
     /// 18x18 pt progress ring. `pct == nil` draws the track only. A template image unless `attention`.
     static func image(pct: Int?, attention: Bool) -> NSImage {
