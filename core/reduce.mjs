@@ -683,7 +683,7 @@ function onAgentTool(s, agentId, e, step, id, at) {
   // M3: only the main agent's activity clears a permission 'waiting'. R19: after a
   // main-agent Stop, a working subagent of the job means the job still runs.
   const job = current(s);
-  if (job && job.status === 'waiting' && job._mainStopped && a.job === job.seq) {
+  if (job && job.status === 'waiting' && job._mainStopped && a.job === job.seq && s.source !== 'codex') {
     job.status = 'running';
     job.updatedAt = at;
   }
@@ -840,8 +840,11 @@ function finish(s, lastMessage, at, final, background = null) {
     // R19: the Stop's own list is authoritative; a "running" agent missing from it never reported back.
     if (!final && background) closeAgents(s, at, job.seq, new Set(background));
     // A background command it waits on (a long sleep, a server) keeps it busy too: its result wakes the agent.
-    const busy = !final && (runningAgents(s, job.seq) > 0 || (background?.length ?? 0) > 0);
-    if (busy || (!final && job.milestones.some((m) => m.status !== 'done'))) {
+    const open = job.milestones.some((m) => m.status !== 'done');
+    // Codex never wakes its main agent for a subagent: a turn that ended with steps left waits on
+    // the user, its agents running or not (Claude's main agent waits on them and stops again).
+    const busy = !final && (runningAgents(s, job.seq) > 0 || (background?.length ?? 0) > 0) && !(s.source === 'codex' && open);
+    if (busy || (!final && open)) {
       // A failing job stays `error` until a build or test passes (see markFailing).
       if (job.status !== 'error') job.status = busy ? 'running' : 'waiting';
       job._prevEndedAt = at; // where the job ends if a follow-up splits off a new one
