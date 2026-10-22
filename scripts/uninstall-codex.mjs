@@ -1,6 +1,11 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from 'node:fs';
-import { hooksPath, isOurs, loadHooks, saveHooks } from './codex-hooks-lib.mjs';
+import { existsSync, readFileSync, unlinkSync } from 'node:fs';
+import { PROMPT_MARKER, hooksPath, isOurs, loadHooks, promptPath, saveHooks } from './codex-hooks-lib.mjs';
+
+if (existsSync(promptPath()) && readFileSync(promptPath(), 'utf8').includes(PROMPT_MARKER)) {
+  unlinkSync(promptPath());
+  console.log('prompts/rail.md: removed /prompts:rail');
+}
 
 if (!existsSync(hooksPath())) { console.log('no hooks.json, nothing to do'); process.exit(0); }
 const j = loadHooks();

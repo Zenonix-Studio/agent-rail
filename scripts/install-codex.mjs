@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync, appendFileSync } from 'node:fs';
+import { existsSync, readFileSync, appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { EVENTS, MARKER, backup, collectorPath, configPath, hooksPath, isOurs, loadHooks, saveHooks } from './codex-hooks-lib.mjs';
+import { EVENTS, MARKER, PROMPT_MARKER, backup, collectorPath, configPath, hooksPath, isOurs, loadHooks, promptPath, railPrompt, saveHooks } from './codex-hooks-lib.mjs';
 
 const args = process.argv.slice(2);
 
@@ -65,5 +66,13 @@ if (/^\s*\[tools\.update_plan\]/m.test(toml) || /update_plan/.test(toml)) {
   console.log('config.toml: enabled [tools.update_plan]');
 } else {
   console.log('config.toml: update_plan not enabled (jobs will show status "planning" without milestones)');
+}
+// `/prompts:rail` opens the live view in a split; a prompt of the same name the user wrote is kept.
+if (existsSync(promptPath()) && !readFileSync(promptPath(), 'utf8').includes(PROMPT_MARKER)) {
+  console.log(`prompts/rail.md: a prompt of that name exists, left untouched (no /prompts:rail from agent-rail)`);
+} else {
+  mkdirSync(dirname(promptPath()), { recursive: true });
+  writeFileSync(promptPath(), railPrompt());
+  console.log('prompts/rail.md: added /prompts:rail (opens the live rail in a split)');
 }
 console.log(`Note: Codex may ask you to review/trust the new hooks (marker: ${MARKER}).`);

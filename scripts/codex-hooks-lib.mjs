@@ -12,6 +12,20 @@ export const codexDir = () => process.env.CODEX_HOME || join(homedir(), '.codex'
 export const hooksPath = () => join(codexDir(), 'hooks.json');
 export const configPath = () => join(codexDir(), 'config.toml');
 export const collectorPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-collect.mjs');
+export const openerPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-open.mjs');
+/** Codex's custom prompt behind `/prompts:rail`; ours when it names the opener. */
+export const promptPath = () => join(codexDir(), 'prompts', 'rail.md');
+export const PROMPT_MARKER = 'agent-rail-open';
+export const railPrompt = () => `---
+description: Open the agent-rail live view in a split beside this terminal
+---
+
+Run this one shell command now, outside the sandbox (it opens a terminal split through tmux or AppleScript), then reply with its output only, nothing else:
+
+\`\`\`
+node "${openerPath}" codex
+\`\`\`
+`;
 
 export function backup(path) {
   if (existsSync(path) && !existsSync(`${path}.agent-rail.bak`)) copyFileSync(path, `${path}.agent-rail.bak`);
