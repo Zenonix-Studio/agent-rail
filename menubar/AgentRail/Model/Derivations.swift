@@ -178,3 +178,54 @@ func displayTitle(_ item: JobItem) -> String {
     }
     return String(localized: "Untitled job")
 }
+
+/// The weekly rate-limit window the pane mod last read (`limits.json`); nil before any reading.
+struct WeeklyLimit {
+    let resetsAt: Date?
+    let percentUsed: Double?
+
+    static func load(root: URL) -> WeeklyLimit? {
+        guard let data = try? Data(contentsOf: root.appendingPathComponent("limits.json")),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let seven = object["sevenDay"] as? [String: Any] else { return nil }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let raw = seven["resetsAt"] as? String
+        let reset = raw.flatMap { iso.date(from: $0) ?? ISO8601DateFormatter().date(from: $0) }
+        return WeeklyLimit(resetsAt: reset, percentUsed: (seven["percentUsed"] as? NSNumber)?.doubleValue)
+    }
+}
+
+/// Tokens since the weekly reset, the same rules as `core/stats.mjs`: every job of any status,
+/// timed by `endedAt ?? updatedAt`; without a future reset, the last 7 days.
+struct TokenStats {
+    let since: Date
+    let fromReset: Bool
+    let total: Int
+    let jobs: Int
+    let days: [(days: Int, tokens: Int)]
+    let last: [(n: Int, count: Int, tokens: Int)]
+}
+
+func tokenStats(_ sessions: [Session], limit: WeeklyLimit?, now: Date) -> TokenStats {
+    let week: TimeInterval = 7 * 24 * 60 * 60
+    let reset = limit?.resetsAt.flatMap { $0 > now ? $0 : nil }
+    let since = reset.map { $0.addingTimeInterval(-week) } ?? now.addingTimeInterval(-week)
+    let items = sessions.flatMap { session in
+        session.jobs.map { job in (time: job.endedAt ?? job.updatedAt, tokens: jobTokens(JobItem(session: session, job: job))) }
+    }
+    .filter { $0.time >= since }
+    .sorted { $0.time > $1.time }
+    let sum = { (list: ArraySlice<(time: Date, tokens: Int)>) in list.reduce(0) { $0 + $1.tokens } }
+    return TokenStats(
+        since: since,
+        fromReset: reset != nil,
+        total: sum(items[...]),
+        jobs: items.count,
+        days: [1, 3, 5].map { d in
+            let from = max(since, now.addingTimeInterval(-Double(d) * 24 * 60 * 60))
+            return (d, sum(items.filter { $0.time >= from }[...]))
+        },
+        last: [3, 10, 25, 50].map { n in (n, min(n, items.count), sum(items.prefix(n))) }
+    )
+}

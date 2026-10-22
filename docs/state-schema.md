@@ -235,3 +235,7 @@ Listed only so readers know they are expected: `Session._pendingPrompt`, `Sessio
 
 Files written before `summary`, `milestones` and `steps` existed lack them on
 agents: readers treat them as `''` and `[]`.
+
+## limits.json
+
+`~/.agent-rail/limits.json` holds the weekly rate-limit window as the pane mod last read it from the session's usage: `{ "sevenDay": { "resetsAt": "<ISO>", "percentUsed": <0-100> }, "at": "<ISO>" }`. It is rewritten when the reading changes and absent off a subscription. The Stats views count tokens from 7 days before `resetsAt`, or over the last 7 days without a future reset.

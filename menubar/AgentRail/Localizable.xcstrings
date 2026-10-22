@@ -768,6 +768,106 @@
           }
         }
       }
+    },
+    "Stats": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstatistikler"
+          }
+        }
+      }
+    },
+    "By day": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Güne göre"
+          }
+        }
+      }
+    },
+    "By job": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İşe göre"
+          }
+        }
+      }
+    },
+    "Last 1 day": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 1 gün"
+          }
+        }
+      }
+    },
+    "Last %lld days": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son %lld gün"
+          }
+        }
+      }
+    },
+    "Last %lld jobs": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son %lld iş"
+          }
+        }
+      }
+    },
+    "Last %lld jobs (%lld)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son %lld iş (%lld)"
+          }
+        }
+      }
+    },
+    "Last 7 days · %lld jobs (no weekly limit reading yet)": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Son 7 gün · %lld iş (haftalık limit henüz okunmadı)"
+          }
+        }
+      }
+    },
+    "Since the weekly reset · %lld jobs · resets %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haftalık sıfırlamadan beri · %lld iş · sıfırlanma %@"
+          }
+        }
+      }
+    },
+    "%lld%% used": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%%%lld kullanıldı"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

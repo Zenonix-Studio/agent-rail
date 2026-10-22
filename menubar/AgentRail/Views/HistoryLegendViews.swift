@@ -136,3 +136,74 @@ private struct HistoryRowView: View {
         .contentShape(Rectangle())
     }
 }
+
+/// Tokens since the weekly reset: by day and by the last jobs, read from every session file.
+struct StatsView: View {
+    let store: SessionStore
+
+    var body: some View {
+        let limit = WeeklyLimit.load(root: store.root)
+        let stats = tokenStats(store.sessions, limit: limit, now: store.now)
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: L10n.tokens(stats.total))
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Theme.text)
+                Text(verbatim: header(stats, limit))
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            section(String(localized: "By day")) {
+                ForEach(stats.days, id: \.days) { row in
+                    StatRow(title: row.days == 1 ? String(localized: "Last 1 day") : String(localized: "Last \(row.days) days"), tokens: row.tokens)
+                }
+            }
+            section(String(localized: "By job")) {
+                ForEach(stats.last, id: \.n) { row in
+                    StatRow(title: row.count < row.n ? String(localized: "Last \(row.n) jobs (\(row.count))") : String(localized: "Last \(row.n) jobs"),
+                            tokens: row.tokens)
+                }
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func header(_ stats: TokenStats, _ limit: WeeklyLimit?) -> String {
+        guard stats.fromReset, let reset = limit?.resetsAt else {
+            return String(localized: "Last 7 days · \(stats.jobs) jobs (no weekly limit reading yet)")
+        }
+        let when = reset.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+        let used = limit?.percentUsed.map { " · " + String(localized: "\(Int($0.rounded()))% used") } ?? ""
+        return String(localized: "Since the weekly reset · \(stats.jobs) jobs · resets \(when)") + used
+    }
+
+    private func section(_ title: String, @ViewBuilder rows: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(verbatim: title.uppercased())
+                .font(.system(size: 11, weight: .semibold))
+                .tracking(0.6)
+                .foregroundStyle(Theme.muted)
+            rows()
+        }
+    }
+}
+
+private struct StatRow: View {
+    let title: String
+    let tokens: Int
+
+    var body: some View {
+        HStack {
+            Text(verbatim: title).font(.system(size: 12.5)).foregroundStyle(Theme.text)
+            Spacer()
+            Text(verbatim: L10n.tokens(tokens)).font(.system(size: 12.5, weight: .semibold).monospacedDigit()).foregroundStyle(Theme.text)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(Theme.raised)
+        .modifier(JobCard())
+    }
+}

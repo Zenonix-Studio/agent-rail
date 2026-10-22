@@ -10,7 +10,7 @@ enum DebugCommands {
     static func run(arguments: [String]) -> Bool {
         if let i = arguments.firstIndex(of: "--snapshot") {
             guard let out = arguments.dropFirst(i + 1).first else {
-                FileHandle.standardError.write(Data("usage: --snapshot <out.png> [--expand <jobId>] [--expand-agent <agentId>]... [--collapse-agent <agentId>]... [--page history|legend] [--light]\n".utf8))
+                FileHandle.standardError.write(Data("usage: --snapshot <out.png> [--expand <jobId>] [--expand-agent <agentId>]... [--collapse-agent <agentId>]... [--page history|stats|legend] [--light]\n".utf8))
                 exit(2)
             }
             let expand = arguments.firstIndex(of: "--expand").flatMap { arguments.dropFirst($0 + 1).first }
@@ -21,6 +21,7 @@ enum DebugCommands {
             let page: PopoverView.Page = switch arguments.firstIndex(of: "--page").flatMap({ arguments.dropFirst($0 + 1).first }) {
             case "history": .history
             case "legend": .legend
+            case "stats": .stats
             default: .jobs
             }
             exit(snapshot(to: URL(fileURLWithPath: out), expandedJobID: expand, agents: agents, page: page,

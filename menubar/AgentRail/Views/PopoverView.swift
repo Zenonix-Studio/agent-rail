@@ -14,8 +14,8 @@ struct PopoverView: View {
     }
 
     @State private var expansion: Expansion
-    /// The live jobs, the finished-jobs history, or the color legend.
-    enum Page { case jobs, history, legend }
+    /// The live jobs, the finished-jobs history, the token stats, or the color legend.
+    enum Page { case jobs, history, stats, legend }
     @State private var page: Page = .jobs
     @AppStorage(JobNotifier.enabledKey) private var notificationsEnabled = true
 
@@ -76,6 +76,7 @@ struct PopoverView: View {
         switch page {
         case .jobs: list(items)
         case .history: HistoryView(store: store, agentExpansion: agentExpansion)
+        case .stats: StatsView(store: store)
         case .legend: LegendView()
         }
     }
@@ -88,7 +89,7 @@ struct PopoverView: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(Theme.muted)
-            Text(page == .history ? String(localized: "History") : String(localized: "Colors"))
+            Text(page == .history ? String(localized: "History") : page == .stats ? String(localized: "Stats") : String(localized: "Colors"))
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Theme.text)
             Spacer()
@@ -173,6 +174,10 @@ struct PopoverView: View {
                 .fixedSize()
             }
             .help(String(localized: "History"))
+            Button { show(.stats) } label: { Image(systemName: "chart.bar") }
+                .foregroundStyle(page == .stats ? Theme.accent : Theme.muted)
+                .help(String(localized: "Stats"))
+                .accessibilityLabel(String(localized: "Stats"))
             Button { show(.legend) } label: { Image(systemName: "questionmark.circle") }
                 .help(String(localized: "Colors"))
                 .accessibilityLabel(String(localized: "Colors"))
