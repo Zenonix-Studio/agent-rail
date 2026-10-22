@@ -5,6 +5,7 @@ struct AgentRailApp: App {
     @State private var store: SessionStore
     /// Open agent rows; kept here so the choice outlives the popover and every reload.
     @State private var agentExpansion = AgentExpansion()
+    @NSApplicationDelegateAdaptor private var appDelegate: AppDelegate
 
     init() {
         // Debug flags (e.g. --dump) print and exit before any UI or store starts.
@@ -12,7 +13,6 @@ struct AgentRailApp: App {
         let store = SessionStore()
         let notifier = JobNotifier()
         store.onTransition = { notifier.notify($0) }
-        JobNotifier.requestAuthorization()
         _store = State(initialValue: store)
     }
 
@@ -23,6 +23,18 @@ struct AgentRailApp: App {
             MenuBarLabel(store: store)
         }
         .menuBarExtraStyle(.window)
+    }
+}
+
+/// Asks for notification permission once the app has finished launching: asked from `App.init`,
+/// a menu bar (LSUIElement) app gets no prompt and the request is denied on the spot.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if CommandLine.arguments.contains("--notify-test") {
+            DebugCommands.notifyTest()
+        } else {
+            JobNotifier.requestAuthorization()
+        }
     }
 }
 

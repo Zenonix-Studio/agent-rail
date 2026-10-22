@@ -18,6 +18,18 @@ xcodebuild -project menubar/AgentRail.xcodeproj -scheme AgentRail \
   -destination 'platform=macOS' -derivedDataPath menubar/build build
 ```
 
+Install it to get notifications (job done, needs you, failing). macOS only asks for notification permission for an app in an Applications folder; run from `menubar/build`, the request is denied without a prompt. Sign it with your own development team:
+
+```sh
+xcodebuild -project menubar/AgentRail.xcodeproj -scheme AgentRail \
+  -destination 'platform=macOS' -derivedDataPath menubar/build build \
+  DEVELOPMENT_TEAM=<your team id> CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Development"
+cp -R menubar/build/Build/Products/Debug/AgentRail.app ~/Applications/
+open ~/Applications/AgentRail.app
+```
+
+If a denied prompt was recorded earlier, turn AgentRail on in System Settings > Notifications. `AgentRail.app/Contents/MacOS/AgentRail --notify-test` (via `open --args`) prints the permission state and posts a test notification.
+
 Run against the sample state (written to a temp dir, so the working tree stays clean; quit any running copy first, since `open -n` starts a second instance):
 
 ```sh
