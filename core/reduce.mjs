@@ -66,7 +66,8 @@ export function reduce(session, input, now) {
  * @returns {string} First 48 characters of the prompt, whitespace collapsed.
  */
 export function fallbackTitle(prompt) {
-  const t = typeof prompt === 'string' ? prompt.replace(/\s+/g, ' ').trim() : '';
+  // The desktop app wraps pasted text in <pasted_content> tags: keep the text, drop the tags.
+  const t = typeof prompt === 'string' ? prompt.replace(/<\/?pasted_content\b[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : '';
   return t.length > TITLE_MAX ? `${t.slice(0, TITLE_MAX - 1)}…` : t;
 }
 

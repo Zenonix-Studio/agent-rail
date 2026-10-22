@@ -112,14 +112,14 @@ struct Now: Decodable, Sendable {
     }
 }
 
-/// API token usage read from a transcript; `total` counts all four.
+/// API token usage read from a transcript; `total` leaves out cache reads (`tokenTotal` in core/render-ascii.mjs).
 struct Tokens: Decodable, Sendable {
     let input: Int
     let cacheRead: Int
     let cacheWrite: Int
     let output: Int
 
-    var total: Int { input + cacheRead + cacheWrite + output }
+    var total: Int { input + cacheWrite + output }
 
     private enum CodingKeys: String, CodingKey { case input, cacheRead, cacheWrite, output }
 

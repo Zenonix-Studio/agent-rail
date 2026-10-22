@@ -561,11 +561,15 @@ function agentsHint(n, compact) {
   return [seg(compact ? ` · ${n} ${noun}` : ` · ${n} ${noun} running`, 'dim')];
 }
 
-/** @param {unknown} t a stored `Tokens` @returns {number} input, cache and output tokens together */
+/**
+ * @param {unknown} t a stored `Tokens`
+ * @returns {number} tokens the job added: input, cache writes and output. Cache reads re-read the same
+ *   context on every call (most of a long session's count) and are left out.
+ */
 export function tokenTotal(t) {
   if (!t || typeof t !== 'object') return 0;
   const o = /** @type {Record<string, unknown>} */ (t);
-  return ['input', 'cacheRead', 'cacheWrite', 'output'].reduce((n, k) => n + (Number.isFinite(o[k]) ? /** @type {number} */ (o[k]) : 0), 0);
+  return ['input', 'cacheWrite', 'output'].reduce((n, k) => n + (Number.isFinite(o[k]) ? /** @type {number} */ (o[k]) : 0), 0);
 }
 
 /**

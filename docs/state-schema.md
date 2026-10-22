@@ -127,7 +127,7 @@ sessions have none.
 | `cacheWrite` | `number` | `cache_creation_input_tokens`. |
 | `output` | `number` | `output_tokens`. |
 
-Viewers show the sum of all four, compact (`64k tok`, `1.2M tok`).
+Viewers show `input + cacheWrite + output`, compact (`64k tok`, `1.2M tok`). Cache reads are left out: every call re-reads the same context, so they would count it again on each call.
 
 ## Milestone
 

@@ -5,7 +5,7 @@ import { basename } from 'node:path';
 // (`;`, `&`, `|`, newline, `(`), so `git commit -m "make it work"` or `cmake`
 // is not a Build. `cd x && make` matches through the `&&`.
 const LEAD = String.raw`(?:^|[;&|\n(])\s*(?:npx\s+)?`;
-const TEST = new RegExp(`${LEAD}(?:xcodebuild test|swift test|npm test|pytest|vitest|jest|cargo test|go test)\\b`);
+const TEST = new RegExp(`${LEAD}(?:xcodebuild test|swift test|npm test|node --test|pytest|vitest|jest|cargo test|go test)\\b`);
 const BUILD = new RegExp(`${LEAD}(?:xcodebuild|swift build|npm run build|pnpm build|yarn build|make|gradle|cargo build|tsc)\\b`);
 const SHELL_TOOLS = new Set(['Bash', 'shell', 'local_shell', 'exec_command', 'unified_exec', 'container.exec']);
 const DISPATCH_TOOLS = new Set(['Agent', 'Task']);
@@ -403,7 +403,7 @@ const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep it
  * them), so an agent's steps are `step:` lines in its own text, read from its transcript.
  */
 export const SUBAGENT_INSTRUCTION =
-  'Your progress is shown live from your steps. Work in 2–7 steps, and when you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>", where stage is plan, analyse, dev, fix or review (e.g. "step: analyse: read the reducer"). Right after it, write one more line: "progress: <at most 2 short sentences on the work itself: what you found or changed so far and what is left — not the step titles>". Do each step in its own tool calls, not one long script.';
+  'Your progress is shown live from your steps. Work in 2–7 steps, and when you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>", where stage is plan, analyse, dev, fix or review (e.g. "step: analyse: read the reducer"). Right after it, write one more line: "progress: <one short plain sentence (two at most) in the language of your task, on the work itself: what you found or changed so far and what is left — no file names, code or step titles>". Do each step in its own tool calls, not one long script.';
 
 /**
  * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge.
