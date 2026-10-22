@@ -23,7 +23,7 @@ name: rail
 description: Open the agent-rail live view (this session's job, steps and agents) in a terminal split beside Codex. Use when the user types $rail or asks to show the rail.
 ---
 
-Run this one shell command now, outside the sandbox (it opens a terminal split through tmux or AppleScript), then reply with its output only, nothing else:
+Run this one shell command now with \`sandbox_permissions\` set to \`require_escalated\` (justification: "open the agent-rail view in a terminal split"): inside the sandbox macOS refuses the AppleScript or tmux call that opens the split. Run nothing else, then reply with its output only:
 
 \`\`\`
 node "${openerPath}" codex

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { existsSync, readFileSync, appendFileSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { EVENTS, MARKER, PROMPT_MARKER, backup, collectorPath, configPath, hooksPath, isOurs, loadHooks, oldPromptPath, railSkill, saveHooks, skillPath } from './codex-hooks-lib.mjs';
 
@@ -77,3 +77,4 @@ if (existsSync(skillPath()) && !readFileSync(skillPath(), 'utf8').includes(PROMP
   console.log('skills/rail: added $rail (opens the live rail in a split)');
 }
 console.log(`Note: Codex may ask you to review/trust the new hooks (marker: ${MARKER}).`);
+console.log(`Tip: start Codex with the rail beside it in iTerm2 or tmux: alias codex-rail='${join(dirname(collectorPath), 'codex-rail')}'`);
