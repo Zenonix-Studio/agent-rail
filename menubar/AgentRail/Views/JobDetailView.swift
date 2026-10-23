@@ -54,8 +54,6 @@ private struct JobProgressView: View {
             Text(verbatim: "»").foregroundStyle(Theme.muted).accessibilityHidden(true)
             Text(verbatim: text)
                 .foregroundStyle(Theme.muted)
-                .lineLimit(3)
-                .truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .font(.system(size: 11.5))

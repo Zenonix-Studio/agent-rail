@@ -328,7 +328,7 @@ function onAgentMilestones(s, agentId, e, at) {
 }
 
 /** Longest agent summary, in characters (as flow.mjs PROGRESS_MAX). */
-const REPORT_MAX = 200;
+const REPORT_MAX = 1000;
 
 /**
  * The first two sentences of an agent's final report, as plain text: marker lines

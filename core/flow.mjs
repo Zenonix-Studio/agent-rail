@@ -488,7 +488,8 @@ function tailLines(path) {
 
 const STEP_LINE = /^[\s*_>-]*step:\s*(.+?)[\s*_]*$/gim;
 const PROGRESS_LINE = /^[\s*_>-]*progress:\s*(.+?)[\s*_]*$/gim;
-export const PROGRESS_MAX = 200;
+/** A runaway text guard only: summaries are shown whole, wrapped, never clipped by line. */
+export const PROGRESS_MAX = 1000;
 
 /**
  * A Claude subagent's own transcript: `<session transcript without .jsonl>/subagents/agent-<id>.jsonl`.
