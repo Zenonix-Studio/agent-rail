@@ -386,7 +386,7 @@ function agentBody(a, w) {
   const lines = [];
   const summary = str(a.summary);
   if (summary && summary !== str(a.name)) {
-    for (const t of wrapText(summary, w - pad.length, 2)) lines.push([seg(pad, 'plain'), seg(t, 'dim')]);
+    for (const t of wrapText(summary, w - pad.length, Infinity)) lines.push([seg(pad, 'plain'), seg(t, 'dim')]);
   }
   for (const s of agentSteps(a)) {
     const [g, gt, tt] = STEP_STYLE[s.state];
@@ -492,12 +492,12 @@ function progressLines(job, w) {
 }
 
 /**
- * The job's summary under its header, as on the menubar card: dim, up to 2 lines.
+ * The job's summary under its header, dim, wrapped, never clipped.
  * @param {RenderableJob} job @param {number} w @returns {Line[]}
  */
 function summaryLines(job, w) {
   const summary = str(job?.summary);
-  return summary ? wrapText(summary, w, 2).map((t) => [seg(t, 'dim')]) : [];
+  return summary ? wrapText(summary, w, Infinity).map((t) => [seg(t, 'dim')]) : [];
 }
 
 /**
