@@ -23,9 +23,12 @@ A native macOS menubar app that shows your running jobs. It reads the session fi
 - English and Turkish, following the system language.
 - A card with no activity can be hidden (**Hide**), or its session stopped (**Stop session…**, right-click or under the expanded card). Stopping ends the whole Claude Code or Codex session and its agents, after a confirmation; it is offered only while the process the hooks last ran under is still that one (same pid and start time).
 
-Requirements: macOS 14+ and Xcode 26.
+**Install:** download `AgentRail-<version>.dmg` from [Releases](https://github.com/Zenonix-Studio/agent-rail/releases), open it and drag AgentRail into Applications. It runs in the menubar (no Dock icon) and needs macOS 14 or later. Allow notifications when it asks, to hear when a job is done, needs you or is failing.
 
-Build:
+<details>
+<summary>Build from source</summary>
+
+Requirements: macOS 14+ and Xcode 26.
 
 ```sh
 xcodebuild -project menubar/AgentRail.xcodeproj -scheme AgentRail \
@@ -57,6 +60,10 @@ The Xcode project is generated from `menubar/project.yml`. After changing it, re
 ```sh
 cd menubar && xcodegen generate
 ```
+
+To pack a DMG: `scripts/release-menubar.sh --unsigned` for a local try, or with `DEVELOPER_ID` and `NOTARY_PROFILE` set for a signed, notarized one (the script prints the one-time setup).
+
+</details>
 
 ## History command
 
