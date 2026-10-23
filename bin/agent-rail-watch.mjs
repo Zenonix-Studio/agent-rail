@@ -4,9 +4,11 @@
 //   agent-rail-watch.mjs            the most recently active Codex session, followed as it changes
 //   agent-rail-watch.mjs claude     the same for Claude Code; `any` for either source
 //   agent-rail-watch.mjs <id>       one session, by the start of its id
-// `--agents` expands every agent row. Ctrl+C quits.
+// `--agents` expands every agent row. n / h / s switch to Now, History, Stats. q or Ctrl+C quits.
+import { execFileSync } from 'node:child_process';
 import { readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { jobAgents, readSession, stateRoot } from '../core/state.mjs';
 import { renderJobSegments } from '../core/render-ascii.mjs';
 
@@ -42,18 +44,42 @@ function pick() {
   return best && join(dir, best.f);
 }
 
+// Tabs as in the Claude pane: n Now, h History, s Stats. History and Stats are agent-rail-history's output.
+const TABS = [['now', 'Now'], ['history', 'History'], ['stats', 'Stats']];
+let page = 'now';
+const historyScript = join(dirname(fileURLToPath(import.meta.url)), 'agent-rail-history.mjs');
+let cached = { page: '', at: 0, lines: [] };
+// ponytail: one child process per 5 s on those tabs; read the files in-process if that ever shows up.
+function historyLines(now) {
+  if (cached.page !== page || now - cached.at > 5000) {
+    let text = '';
+    try { text = execFileSync(process.execPath, [historyScript, ...(page === 'stats' ? ['stats'] : [])], { encoding: 'utf8' }); } catch { text = 'Could not read the history.'; }
+    cached = { page, at: now, lines: text.trimEnd().split('\n') };
+  }
+  return cached.lines;
+}
+
 let last = '';
 function draw() {
   const now = Date.now();
   const cols = Math.max(20, (process.stdout.columns || 80) - 1);
-  const path = pick();
-  const s = path && readSession(path);
-  const job = Array.isArray(s?.jobs) && s.jobs.length ? s.jobs[s.jobs.length - 1] : null;
-  const head = paint('dim', s ? [s.source, s.project, String(s.sessionId ?? '').slice(0, 8)].filter(Boolean).join(' · ') : `agent-rail watch: no ${target} session yet`);
-  const body = job
-    ? renderJobSegments(job, cols, now, jobAgents(s, job.seq), { expandAll }).map((line) => line.map((seg) => paint(seg.tone, seg.text)).join(''))
-    : [paint('dim', 'No job yet in this session.')];
-  const out = [head, '', ...body].join('\n');
+  const rows = Math.max(5, process.stdout.rows || 40);
+  const tabs = TABS.map(([id, label]) => paint(id === page ? 'active' : 'dim', `[ ${label} ]`)).join(' ') + paint('dim', '   n · h · s');
+  let lines;
+  if (page === 'now') {
+    const path = pick();
+    const s = path && readSession(path);
+    const job = Array.isArray(s?.jobs) && s.jobs.length ? s.jobs[s.jobs.length - 1] : null;
+    const head = paint('dim', s ? [s.source, s.project, String(s.sessionId ?? '').slice(0, 8)].filter(Boolean).join(' · ') : `agent-rail watch: no ${target} session yet`);
+    const body = job
+      ? renderJobSegments(job, cols, now, jobAgents(s, job.seq), { expandAll }).map((line) => line.map((seg) => paint(seg.tone, seg.text)).join(''))
+      : [paint('dim', 'No job yet in this session.')];
+    lines = [head, '', ...body];
+  } else {
+    // Longer than the screen: the newest stay in view.
+    lines = historyLines(now).slice(0, rows - 3).map((l) => (l.length > cols ? `${l.slice(0, cols - 1)}…` : l));
+  }
+  const out = [tabs, '', ...lines].join('\n');
   if (out === last) return;
   last = out;
   // Home, then each line cleared to its end, then the rest of the screen: no flicker between frames.
@@ -65,5 +91,14 @@ const quit = () => { process.stdout.write('\x1b[?25h\n'); process.exit(0); };
 process.on('SIGINT', quit);
 process.on('SIGTERM', quit);
 process.stdout.on('resize', () => { last = ''; process.stdout.write('\x1b[2J'); draw(); });
+if (process.stdin.isTTY) {
+  process.stdin.setRawMode(true);
+  process.stdin.on('data', (b) => {
+    const k = b.toString().toLowerCase();
+    if (k === '\x03' || k === 'q') quit();
+    const next = { n: 'now', h: 'history', s: 'stats' }[k];
+    if (next && next !== page) { page = next; last = ''; process.stdout.write('\x1b[2J'); draw(); }
+  });
+}
 draw();
 setInterval(draw, POLL_MS);

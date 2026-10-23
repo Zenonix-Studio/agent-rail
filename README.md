@@ -92,7 +92,7 @@ Then, in a split beside Codex:
 node ~/agent-rail/bin/agent-rail-watch.mjs
 ```
 
-That is all: it follows the latest Codex session.
+That is all: it follows the latest Codex session. As in the Claude pane, `n`, `h` and `s` switch between **Now**, **History** and **Stats**; `q` quits.
 
 <p align="center"><img src="docs/images/codex-terminal.png" width="600" alt="The live rail of a Codex job in a terminal: its summary, stage-colored steps and durations, the current step's activity and the latest progress note"></p>
 
@@ -101,7 +101,7 @@ That is all: it follows the latest Codex session.
 <summary>More</summary>
 
 - Shortcut: the installer puts `rail` on PATH, the same command. Inside Codex, `$rail` opens it in a split in iTerm2, tmux, WezTerm or kitty (remote control on); elsewhere in a new Terminal window (the agent-rail hook opens it, outside the sandbox, so no approval is asked).
-- Add `claude` for the latest Claude Code session instead, an id prefix for one session, `--agents` to expand every agent row. Ctrl+C quits.
+- Add `claude` for the latest Claude Code session instead, an id prefix for one session, `--agents` to expand every agent row.
 - The installer adds the agent-rail hooks to `~/.codex/hooks.json` (backed up first, your own hooks kept), adds the `$rail` skill, and links `rail` into `~/.local/bin` (or the first writable folder of your PATH). Codex asks you to trust the new hooks on its next start.
 - Steps need Codex's `update_plan` tool. The installer asks before turning it on in `~/.codex/config.toml` (`--yes` turns it on, `--no-plan` skips the question; with no terminal to ask in, it skips). If your config already has a `[tools]` section it only prints the line to add yourself: `[tools.update_plan]` with `enabled = true`.
 - Codex jobs also show in the menubar, with their tokens (the main agent's and each subagent's).
