@@ -19,6 +19,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.agentrail.menubar
         INFOPLIST_KEY_LSUIElement: YES
         GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_IDENTITY: "-"
         # ponytail: the app sandbox is off because the app reads ~/.agent-rail.

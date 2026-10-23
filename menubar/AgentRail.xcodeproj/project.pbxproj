@@ -24,6 +24,7 @@
 		C7F9F9C8DD374D4A63C7140B /* RailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2D87377A9AEFC45DFC0806A /* RailView.swift */; };
 		D7C74F1336B21216C633FE8E /* AgentsSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1469638E9F117411394819F7 /* AgentsSectionView.swift */; };
 		E04B865F52B773F1D1956333 /* JobRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B8D33CA83CF78EA4049A549 /* JobRowView.swift */; };
+		F4FD47E826EC30C298F32BEB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2B1A4252C83CCF591F5D954B /* Assets.xcassets */; };
 		F544AA596082778876E4323B /* AgentRailApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3CC6A464E89A6139C0BFC50 /* AgentRailApp.swift */; };
 		F80CA3AB452F06BC8E81D150 /* RingIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49D5BB0D6E0D3FB459C3AD51 /* RingIcon.swift */; };
 /* End PBXBuildFile section */
@@ -34,6 +35,7 @@
 		0E59A1DA6A86F891F04E676B /* AgentRail.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentRail.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1469638E9F117411394819F7 /* AgentsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentsSectionView.swift; sourceTree = "<group>"; };
 		222015DD39B97F91F71F2C3A /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		2B1A4252C83CCF591F5D954B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2D1971ACA87B097057541204 /* NowBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowBlockView.swift; sourceTree = "<group>"; };
 		3086B936289461861FF17C12 /* HistoryLegendViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryLegendViews.swift; sourceTree = "<group>"; };
 		315DE324D9BB4179F07BF367 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
@@ -102,6 +104,7 @@
 			isa = PBXGroup;
 			children = (
 				F3CC6A464E89A6139C0BFC50 /* AgentRailApp.swift */,
+				2B1A4252C83CCF591F5D954B /* Assets.xcassets */,
 				93D4BE17BA97288D99D927AC /* Localizable.xcstrings */,
 				FFD079E1736F46BEE2500B5E /* Debug */,
 				04A599DEC358607EAE062A2B /* Model */,
@@ -178,6 +181,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F4FD47E826EC30C298F32BEB /* Assets.xcassets in Resources */,
 				8141938B7EAB0DC32D7C6C34 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
