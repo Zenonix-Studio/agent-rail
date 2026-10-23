@@ -247,11 +247,14 @@ struct PopoverView: View {
                 .onChange(of: notificationsEnabled) { _, on in
                     if on { JobNotifier.requestAuthorization() }
                 }
-            Button("Open folder") { NSWorkspace.shared.open(store.root) }
-                .fixedSize()
-            Button("Quit") { NSApplication.shared.terminate(nil) }
+            // Icons, not words: with every label spelled out the row outgrew the popover in English.
+            Button { NSWorkspace.shared.open(store.root) } label: { Image(systemName: "folder") }
+                .help(String(localized: "Open folder"))
+                .accessibilityLabel(String(localized: "Open folder"))
+            Button { NSApplication.shared.terminate(nil) } label: { Image(systemName: "power") }
                 .keyboardShortcut("q")
-                .fixedSize()
+                .help(String(localized: "Quit"))
+                .accessibilityLabel(String(localized: "Quit"))
         }
         .buttonStyle(.plain)
         .font(.system(size: 12))
