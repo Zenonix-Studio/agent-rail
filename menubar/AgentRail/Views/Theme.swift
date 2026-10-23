@@ -131,7 +131,7 @@ struct FlowLayout: Layout {
         for row in arrange(width: bounds.width, subviews: subviews) {
             var x = bounds.minX
             for index in row.indices {
-                let size = subviews[index].sizeThatFits(.unspecified)
+                let size = fitted(subviews[index], width: bounds.width)
                 subviews[index].place(at: CGPoint(x: x, y: y + (row.height - size.height) / 2),
                                       proposal: ProposedViewSize(size))
                 x += size.width + spacing
@@ -140,11 +140,19 @@ struct FlowLayout: Layout {
         }
     }
 
+    /// Its natural size, or, wider than a whole row, the row's width: a one-line label then truncates
+    /// instead of running past the container.
+    private func fitted(_ view: LayoutSubview, width: CGFloat) -> CGSize {
+        let size = view.sizeThatFits(.unspecified)
+        guard size.width > width, width.isFinite else { return size }
+        return view.sizeThatFits(ProposedViewSize(width: width, height: nil))
+    }
+
     private func arrange(width: CGFloat, subviews: Subviews) -> [(indices: [Int], width: CGFloat, height: CGFloat)] {
         var rows: [(indices: [Int], width: CGFloat, height: CGFloat)] = []
         var current: (indices: [Int], width: CGFloat, height: CGFloat) = ([], 0, 0)
         for index in subviews.indices {
-            let size = subviews[index].sizeThatFits(.unspecified)
+            let size = fitted(subviews[index], width: width)
             let needed = current.indices.isEmpty ? size.width : current.width + spacing + size.width
             if needed > width, !current.indices.isEmpty {
                 rows.append(current)

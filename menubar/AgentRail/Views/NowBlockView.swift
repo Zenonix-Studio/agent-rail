@@ -76,6 +76,7 @@ private struct PillView: View {
             .font(.system(size: 11, weight: isActive ? .semibold : .regular))
             .foregroundStyle(foreground)
             .lineLimit(1)
+            .truncationMode(.tail)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
             .background(isActive ? tint ?? Theme.accent : Theme.surface, in: Capsule())

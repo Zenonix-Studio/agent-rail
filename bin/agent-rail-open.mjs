@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 // Opens agent-rail-watch beside the terminal it runs in, then exits: Codex's $rail runs it.
-// tmux: a split to the right. iTerm2: a vertical split of the current session, the focus kept
-// where it was. Anything else: a new Terminal.app window. Arguments go to the watcher.
+// tmux, WezTerm, kitty (with remote control on): a split to the right. iTerm2: a vertical split of
+// the current session, the focus kept where it was. Anything else (Ghostty, Terminal.app): a new
+// Terminal.app window. Arguments go to the watcher.
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const watch = join(dirname(fileURLToPath(import.meta.url)), 'agent-rail-watch.mjs');
 const q = (s) => `'${s.replace(/'/g, `'\\''`)}'`;
-const command = [process.execPath, watch, ...process.argv.slice(2)].map(q).join(' ');
+const argv = [process.execPath, watch, ...process.argv.slice(2)];
+const command = argv.map(q).join(' ');
 const osa = (script) => execFileSync('osascript', ['-e', script], { stdio: ['ignore', 'ignore', 'pipe'] });
 const asString = (s) => `"${s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
@@ -16,6 +18,12 @@ try {
   if (process.env.TMUX) {
     execFileSync('tmux', ['split-window', '-h', '-d', '-l', '45%', command], { stdio: ['ignore', 'ignore', 'pipe'] });
     console.log('agent-rail: opened in a tmux split on the right.');
+  } else if (process.env.WEZTERM_PANE) {
+    execFileSync('wezterm', ['cli', 'split-pane', '--right', '--percent', '45', '--pane-id', process.env.WEZTERM_PANE, '--', ...argv], { stdio: ['ignore', 'ignore', 'pipe'] });
+    console.log('agent-rail: opened in a WezTerm split on the right.');
+  } else if (process.env.KITTY_WINDOW_ID) {
+    execFileSync('kitty', ['@', 'launch', '--location=vsplit', '--keep-focus', ...argv], { stdio: ['ignore', 'ignore', 'pipe'] });
+    console.log('agent-rail: opened in a kitty split on the right.');
   } else if (process.env.TERM_PROGRAM === 'iTerm.app' || process.env.ITERM_SESSION_ID) {
     osa(`tell application "iTerm2"
   tell current session of current window
