@@ -4,3 +4,8 @@ menubar/build/
 DerivedData/
 xcuserdata/
 .DS_Store
+
+# Internal working notes, kept locally
+docs/superpowers/
+docs/spike-notes.md
+tasks/
