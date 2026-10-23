@@ -88,6 +88,8 @@ node ~/agent-rail/bin/agent-rail-watch.mjs
 
 That is all: it follows the latest Codex session.
 
+<p align="center"><img src="docs/images/terminal.png" width="720" alt="The live rail in an iTerm2 split: a job with its summary, stage-colored steps and durations, the current step's activity, its agents and the latest progress note"></p>
+
 <details>
 <summary>More</summary>
 
