@@ -943,10 +943,17 @@ function onMarker(s, text, at) {
     // what this turn planned moves to the new job, the old one gets its last turn back.
     const b = job._beforeTurn;
     const next = newJob(s, job.seq + 1, s._turnPrompt, 'running', at);
-    next.milestones = job.milestones;
-    next.now = job.now;
-    next.progress = job.progress;
-    Object.assign(job, { milestones: b.milestones, now: b.now, progress: b.progress ?? job.progress, status: 'done', endedAt: b.endedAt ?? at, updatedAt: at });
+    // The same steps with new statuses: the turn closed the old plan (Codex re-sends it whole), not a new one.
+    const sameSteps = Array.isArray(b.milestones) && b.milestones.length > 0
+      && b.milestones.map((m) => m.title).join('\n') === job.milestones.map((m) => m.title).join('\n');
+    if (sameSteps) {
+      Object.assign(job, { progress: b.progress ?? job.progress, status: 'done', endedAt: at, updatedAt: at });
+    } else {
+      next.milestones = job.milestones;
+      next.now = job.now;
+      next.progress = job.progress;
+      Object.assign(job, { milestones: b.milestones, now: b.now, progress: b.progress ?? job.progress, status: 'done', endedAt: b.endedAt ?? at, updatedAt: at });
+    }
     delete job._beforeTurn;
     s.jobs.push(next);
     moveRunningAgents(s, job, next);
