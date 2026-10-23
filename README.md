@@ -13,7 +13,11 @@ Needs Node 18 or later on PATH. In Claude Code (terminal or desktop app):
 /plugin install agent-rail@agent-rail
 ```
 
-Restart Claude Code. The desktop app gets an **Agent rail** pane (`/rail`); the terminal gets `/agent-rail:history` and, if you add it, the status line below.
+Restart Claude Code. Both the desktop app and the terminal get an **Agent rail** pane beside the chat (`/rail` toggles it), plus `/agent-rail:history` and, if you add it, the status line below.
+
+<p align="center"><img src="docs/images/claude-desktop.png" width="900" alt="The Agent rail pane in the Claude desktop app, beside a finished job: four stage-colored steps with their durations, the Explore agent with its own steps, and the closing summary"></p>
+
+<p align="center"><img src="docs/images/claude-cli.png" width="900" alt="The Agent rail pane in the Claude Code terminal, beside the chat: the job at 25 percent, the current step, a running Explore agent with its own steps, and the latest progress note"></p>
 
 **What it changes in Claude.** To draw a rail, the plugin's prompt hook asks Claude to start each new task with one `rail: <title> — <summary>` line, to keep a 3–7 step task list with a stage on each step (`plan:`, `dev:`, `fix:`…), and to add a one-sentence progress note to its task updates. Subagents are asked to write short `step:` and `progress:` lines. Nothing else about how Claude works changes; uninstall the plugin to drop it.
 
@@ -71,19 +75,6 @@ To pack a DMG: `scripts/release-menubar.sh --unsigned` for a local try, or with 
 
 `/agent-rail:history` lists the last 50 finished jobs across sessions, newest first, in the terminal and the desktop app. `/agent-rail:history <number>` shows one of them in full: its steps, agents and closing summary. The menubar's **Done today** button shows the same list. `/agent-rail:history stats`, the pane's **Stats** tab (`/rail stats`) and the menubar's chart button show the tokens spent since the weekly limit reset: the last 1, 3 and 5 days and the last 3, 10, 25 and 50 jobs.
 
-## Terminal
-
-The same rail, live, in a terminal split beside Claude Code or Codex: steps with their stage, time per step, what the agent is doing now, its agents and its latest note.
-
-<p align="center"><img src="docs/images/terminal.png" width="900" alt="Two terminal windows side by side: the live rail of a Claude Code job and of a Codex job, each with its summary, stage-colored steps and durations, the current step's activity and the latest progress note"></p>
-
-```bash
-node ~/agent-rail/bin/agent-rail-watch.mjs claude   # the latest Claude Code session
-node ~/agent-rail/bin/agent-rail-watch.mjs          # the latest Codex session
-```
-
-It needs the repo cloned (see Codex below). `--agents` expands every agent row; Ctrl+C quits.
-
 ## Codex
 
 Codex has no pane, so the rail opens in a terminal split beside it. Set it up once:
@@ -100,6 +91,8 @@ node ~/agent-rail/bin/agent-rail-watch.mjs
 ```
 
 That is all: it follows the latest Codex session.
+
+<p align="center"><img src="docs/images/codex-terminal.png" width="600" alt="The live rail of a Codex job in a terminal: its summary, stage-colored steps and durations, the current step's activity and the latest progress note"></p>
 
 
 <details>
