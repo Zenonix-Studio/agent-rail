@@ -77,7 +77,7 @@ if (existsSync(skillPath()) && !readFileSync(skillPath(), 'utf8').includes(PROMP
   console.log('skills/rail: added $rail (opens the live rail in a split)');
 }
 console.log(`Note: Codex may ask you to review/trust the new hooks (marker: ${MARKER}).`);
-// `rail` and `codex-rail` on PATH: a command of that name that is not ours is left alone.
+// `rail` on PATH: a command of that name that is not ours is left alone.
 const { dir, onPath } = linkDir();
 mkdirSync(dir, { recursive: true });
 for (const [name, target] of Object.entries(LINKS)) {
@@ -88,5 +88,5 @@ for (const [name, target] of Object.entries(LINKS)) {
   if (current === null) symlinkSync(target, link);
   console.log(`${link}: linked`);
 }
-if (!onPath) console.log(`Add ${dir} to your PATH to use \`rail\` and \`codex-rail\`.`);
-console.log('Live view: run `rail` in a terminal split, or start Codex with `codex-rail` to open it beside Codex.');
+if (!onPath) console.log(`Add ${dir} to your PATH to use \`rail\`.`);
+console.log('Live view: run `rail` (or node ~/Projects/agent-rail/bin/agent-rail-watch.mjs) in a split beside Codex.');

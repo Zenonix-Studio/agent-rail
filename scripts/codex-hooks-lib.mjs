@@ -30,8 +30,8 @@ node "${openerPath}" codex
 \`\`\`
 `;
 
-/** Short commands the installer links onto PATH: `rail` (the live view here), `codex-rail` (Codex with it beside). */
-export const LINKS = { rail: resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-watch.mjs'), 'codex-rail': resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'codex-rail') };
+/** The short command the installer links onto PATH: `rail`, the live view in this terminal. */
+export const LINKS = { rail: resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-watch.mjs') };
 
 /** The first writable PATH folder of the usual user ones, else ~/.local/bin (created). */
 export function linkDir() {
