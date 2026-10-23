@@ -96,12 +96,13 @@ export function outcomeOf(out) {
   if (code) return Number(code[1]) === 0;
   const node = /^ℹ fail (\d+)$/m.exec(out);
   if (node) return node[1] === '0';
-  if (/^=+ .*\b\d+ (?:failed|errors?)\b.* =+$/m.test(out)) return false; // pytest
+  if (/^=+ .*\b[1-9]\d* (?:failed|errors?)\b.* =+$/m.test(out)) return false; // pytest
   if (/^=+ .*\b\d+ passed\b.* =+$/m.test(out)) return true;
-  const jest = /^Tests:\s+(?:(\d+) failed)?/m.exec(out) ?? /^\s*Tests\s+(?:(\d+) failed)?/m.exec(out);
-  if (jest) return jest[1] === undefined;
+  // jest `Tests:  1 failed, 3 passed`, vitest `Tests  1 failed | 3 passed (4)`: a count must follow.
+  const jest = /^\s*Tests:?\s+(?:(\d+) failed|\d+ passed)/m.exec(out);
+  if (jest) return jest[1] === undefined || jest[1] === '0';
   if (/^(?:--- )?FAIL\b/m.test(out) || /^test result: FAILED\b/m.test(out)) return false; // go, cargo
-  if (/^ok\s+\S+/m.test(out) || /^test result: ok\b/m.test(out)) return true;
+  if (/^ok\s+\S+\s+(?:[\d.]+s|\(cached\))/m.test(out) || /^test result: ok\b/m.test(out)) return true;
   return null;
 }
 
@@ -116,4 +117,12 @@ function plan(input) {
     items.push({ key: title, title, status });
   }
   return { type: 'plan', items, explanation: str(input.explanation) };
+}
+
+// Self-check: node core/normalize-codex.mjs
+if (typeof process !== 'undefined' && import.meta.url === `file://${process.argv[1]}`) {
+  const cases = [['Sources\nTests\n', null], ['ok we are done', null], ['===== 0 errors in build =====', null], ['ℹ fail 2', false],
+    ['Tests:  1 failed, 3 passed', false], [' Tests  4 passed (4)', true], ['ok  \tx.com/p\t0.01s', true], ['===== 2 failed in 0.1s =====', false]];
+  for (const [out, want] of cases) console.assert(outcomeOf(out) === want, JSON.stringify(out));
+  console.log('ok');
 }

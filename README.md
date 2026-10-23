@@ -2,6 +2,19 @@
 
 A live rail for your Claude Code and Codex jobs: progress, milestones and the agents behind them.
 
+## Claude Code
+
+Needs Node 18 or later on PATH. In Claude Code (terminal or desktop app):
+
+```
+/plugin marketplace add Zenonix-Studio/agent-rail
+/plugin install agent-rail@agent-rail
+```
+
+Restart Claude Code. The desktop app gets an **Agent rail** pane (`/rail`); the terminal gets `/agent-rail:history` and, if you add it, the status line below.
+
+**What it changes in Claude.** To draw a rail, the plugin's prompt hook asks Claude to start each new task with one `rail: <title> — <summary>` line, to keep a 3–7 step task list with a stage on each step (`plan:`, `dev:`, `fix:`…), and to add a one-sentence progress note to its task updates. Subagents are asked to write short `step:` and `progress:` lines. Nothing else about how Claude works changes; uninstall the plugin to drop it.
+
 ## Menubar app
 
 A native macOS menubar app that shows your running jobs. It reads the session files in `~/.agent-rail/sessions/*.json`.
@@ -54,13 +67,14 @@ cd menubar && xcodegen generate
 Codex has no pane, so the rail opens in a terminal split beside it. Set it up once:
 
 ```bash
-node ~/Projects/agent-rail/scripts/install-codex.mjs
+git clone https://github.com/Zenonix-Studio/agent-rail ~/agent-rail
+node ~/agent-rail/scripts/install-codex.mjs
 ```
 
 Then, in a split beside Codex:
 
 ```bash
-node ~/Projects/agent-rail/bin/agent-rail-watch.mjs
+node ~/agent-rail/bin/agent-rail-watch.mjs
 ```
 
 That is all: it follows the latest Codex session.
@@ -70,9 +84,10 @@ That is all: it follows the latest Codex session.
 
 - Shortcut: the installer puts `rail` on PATH, the same command. Inside Codex, `$rail` opens it in a split in iTerm2, tmux, WezTerm or kitty (remote control on); elsewhere in a new Terminal window (the agent-rail hook opens it, outside the sandbox, so no approval is asked).
 - Add `claude` for the latest Claude Code session instead, an id prefix for one session, `--agents` to expand every agent row. Ctrl+C quits.
-- The installer adds the agent-rail hooks to `~/.codex/hooks.json`, turns on `update_plan` in `~/.codex/config.toml` (both backed up first), adds the `$rail` skill, and links `rail` into `~/.local/bin` (or the first writable folder of your PATH). Codex asks you to trust the new hooks on its next start.
+- The installer adds the agent-rail hooks to `~/.codex/hooks.json` (backed up first, your own hooks kept), adds the `$rail` skill, and links `rail` into `~/.local/bin` (or the first writable folder of your PATH). Codex asks you to trust the new hooks on its next start.
+- Steps need Codex's `update_plan` tool. The installer asks before turning it on in `~/.codex/config.toml` (`--yes` turns it on, `--no-plan` skips the question; with no terminal to ask in, it skips). If your config already has a `[tools]` section it only prints the line to add yourself: `[tools.update_plan]` with `enabled = true`.
 - Codex jobs also show in the menubar, with their tokens (the main agent's and each subagent's).
-- Undo it all: `node ~/Projects/agent-rail/scripts/uninstall-codex.mjs`.
+- Undo it all: `node ~/agent-rail/scripts/uninstall-codex.mjs`.
 
 </details>
 
@@ -91,3 +106,11 @@ Add it to your Claude Code settings (`~/.claude/settings.json`):
 ```
 
 It prints nothing when the session has no job yet. Set `NO_COLOR` to drop the colors.
+
+## Privacy
+
+Everything stays on your machine; nothing is sent over the network. The hooks write one file per session to `~/.agent-rail/sessions/` (folder 0700, files 0600). Those files hold your prompts' text, job titles, step names, summaries, file names the agents touched and token counts. Files not written for 30 days are deleted. Collector errors go to `~/.agent-rail/collector.log`. Set `AGENT_RAIL_HOME` to keep them elsewhere.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

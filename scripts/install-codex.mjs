@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, appendFileSync, lstatSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
-import { EVENTS, MARKER, LINKS, PROMPT_MARKER, backup, linkDir, collectorPath, configPath, hooksPath, isOurs, loadHooks, oldPromptPath, railSkill, saveHooks, skillPath } from './codex-hooks-lib.mjs';
+import { EVENTS, MARKER, LINKS, PROMPT_MARKER, backup, linkDir, collectorPath, watchPath, configPath, hooksPath, isOurs, loadHooks, oldPromptPath, railSkill, saveHooks, skillPath } from './codex-hooks-lib.mjs';
 
 const args = process.argv.slice(2);
 
@@ -57,7 +57,7 @@ const MANUAL = {
 
 const toml = existsSync(configPath()) ? readFileSync(configPath(), 'utf8') : '';
 const form = toolsForm(toml);
-if (/^\s*\[tools\.update_plan\]/m.test(toml) || /update_plan/.test(toml)) {
+if (/^[^#\n]*update_plan/m.test(toml)) {
   console.log('config.toml: update_plan already configured, left untouched');
 } else if (form) {
   console.log(`config.toml: already defines \`tools\`, left untouched. To enable milestones, edit ${configPath()} by hand: ${MANUAL[form]}.`);
@@ -89,4 +89,4 @@ for (const [name, target] of Object.entries(LINKS)) {
   console.log(`${link}: linked`);
 }
 if (!onPath) console.log(`Add ${dir} to your PATH to use \`rail\`.`);
-console.log('Live view: run `rail` (or node ~/Projects/agent-rail/bin/agent-rail-watch.mjs) in a split beside Codex.');
+console.log(`Live view: run \`rail\` (or node "${watchPath}") in a split beside Codex.`);

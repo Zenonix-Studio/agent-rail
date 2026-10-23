@@ -2,7 +2,7 @@
   "name": "agent-rail",
   "description": "Local marketplace for the agent-rail plugin",
   "owner": {
-    "name": "agent-rail"
+    "name": "Zenonix Studio"
   },
   "plugins": [
     {

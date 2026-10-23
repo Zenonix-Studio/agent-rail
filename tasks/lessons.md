@@ -16,3 +16,7 @@
 ## Never chain a release onto an unverified edit
 - Pattern: an Edit sent in parallel with a bump-and-install command failed (file not read), and the command still bumped, committed and installed a release without the change. The bump also skipped the user's per-version OK.
 - Rule: make the edit, check it landed (grep or type-check), and only then bump. Every plugin bump waits for the user's yes, even for a one-line change.
+
+## Sandboxing an installer test
+- A fake HOME is not enough when the installer also writes into PATH folders: `PATH=...:$(dirname $(which node))` put /opt/homebrew/bin on PATH and the test linked a real `rail` there.
+- Rule: before running an install script in a test, read every place it writes (HOME, CODEX_HOME, PATH dirs) and point each one at the temp folder; check the real locations afterwards.
