@@ -71,6 +71,19 @@ To pack a DMG: `scripts/release-menubar.sh --unsigned` for a local try, or with 
 
 `/agent-rail:history` lists the last 50 finished jobs across sessions, newest first, in the terminal and the desktop app. `/agent-rail:history <number>` shows one of them in full: its steps, agents and closing summary. The menubar's **Done today** button shows the same list. `/agent-rail:history stats`, the pane's **Stats** tab (`/rail stats`) and the menubar's chart button show the tokens spent since the weekly limit reset: the last 1, 3 and 5 days and the last 3, 10, 25 and 50 jobs.
 
+## Terminal
+
+The same rail, live, in a terminal split beside Claude Code or Codex: steps with their stage, time per step, what the agent is doing now, its agents and its latest note.
+
+<p align="center"><img src="docs/images/terminal.png" width="900" alt="Two terminal windows side by side: the live rail of a Claude Code job and of a Codex job, each with its summary, stage-colored steps and durations, the current step's activity and the latest progress note"></p>
+
+```bash
+node ~/agent-rail/bin/agent-rail-watch.mjs claude   # the latest Claude Code session
+node ~/agent-rail/bin/agent-rail-watch.mjs          # the latest Codex session
+```
+
+It needs the repo cloned (see Codex below). `--agents` expands every agent row; Ctrl+C quits.
+
 ## Codex
 
 Codex has no pane, so the rail opens in a terminal split beside it. Set it up once:
@@ -88,7 +101,6 @@ node ~/agent-rail/bin/agent-rail-watch.mjs
 
 That is all: it follows the latest Codex session.
 
-<p align="center"><img src="docs/images/terminal.png" width="720" alt="The live rail in an iTerm2 split: a job with its summary, stage-colored steps and durations, the current step's activity, its agents and the latest progress note"></p>
 
 <details>
 <summary>More</summary>
