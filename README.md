@@ -71,7 +71,7 @@ That is all: it follows the latest Codex session.
 - Shortcuts the installer puts on PATH: `rail` is the same command; `codex-rail` opens it in an iTerm2 or tmux split and starts Codex (same arguments as `codex`). Inside Codex, `$rail` opens the split too (approve running it outside the sandbox).
 - Add `claude` for the latest Claude Code session instead, an id prefix for one session, `--agents` to expand every agent row. Ctrl+C quits.
 - The installer adds the agent-rail hooks to `~/.codex/hooks.json`, turns on `update_plan` in `~/.codex/config.toml` (both backed up first), adds the `$rail` skill, and links `rail` and `codex-rail` into `~/.local/bin` (or the first writable folder of your PATH). Codex asks you to trust the new hooks on its next start.
-- Codex jobs also show in the menubar, with the main agent's tokens (its subagents' are not counted yet).
+- Codex jobs also show in the menubar, with their tokens (the main agent's and each subagent's).
 - Undo it all: `node ~/Projects/agent-rail/scripts/uninstall-codex.mjs`.
 
 </details>

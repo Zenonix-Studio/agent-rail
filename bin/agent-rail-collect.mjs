@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock, sweepOldSessions } from '../core/state.mjs';
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
@@ -29,6 +29,17 @@ async function readStdin() {
   const chunks = [];
   for await (const c of process.stdin) chunks.push(c);
   return Buffer.concat(chunks).toString('utf8');
+}
+
+/** A Codex agent's rollout, beside the session's: `rollout-<time>-<agentId>.jsonl`; null when not found. */
+function codexRollout(transcriptPath, agentId) {
+  if (!agentId || typeof transcriptPath !== 'string') return null;
+  if (transcriptPath.endsWith(`-${agentId}.jsonl`)) return transcriptPath;
+  try {
+    const dir = dirname(transcriptPath);
+    const name = readdirSync(dir).find((f) => f.endsWith(`-${agentId}.jsonl`));
+    return name ? join(dir, name) : null;
+  } catch { return null; }
 }
 
 /** The nearest `claude` or `codex` ancestor of this hook: its pid and start time (pid reuse check). */
@@ -104,8 +115,7 @@ async function main() {
       if (found) event.event = { ...event.event, marker: found };
     }
     // Token usage since the last hook: only the transcripts' new bytes, from cursors kept in the session.
-    // Codex: the main rollout only (its subagents write rollouts of their own, not read yet).
-    if (source === 'claude' || (source === 'codex' && !event.agentId)) {
+    if (source === 'claude' || source === 'codex') {
       const cursors = prev?._usage && typeof prev._usage === 'object' ? prev._usage : {};
       // Hooks installed mid-session: the main transcript's earlier usage belongs to no job here, so start at its end.
       const midSession = Array.isArray(prev?.jobs) && prev.jobs.length > 0;
@@ -114,8 +124,11 @@ async function main() {
         const u = skip ? usageStart(p) : readUsage(p, cursors[p], agent === null);
         return u ? [{ ...u, agent }] : [];
       };
-      const usage = [...read(input.transcript_path, null),
-        ...(event.agentId ? read(input.agent_transcript_path ?? agentTranscriptPath(input.transcript_path, event.agentId), event.agentId) : [])];
+      // A Codex subagent writes a rollout of its own, named by its thread id, next to the main one;
+      // its hook may carry either path, so the main rollout is read only when it is not the agent's.
+      const own = source === 'codex' ? codexRollout(input.transcript_path, event.agentId) : null;
+      const usage = [...(own && own === input.transcript_path ? [] : read(input.transcript_path, null)),
+        ...(event.agentId ? read(source === 'codex' ? own : input.agent_transcript_path ?? agentTranscriptPath(input.transcript_path, event.agentId), event.agentId) : [])];
       if (usage.length) event.event = { ...event.event, usage };
     }
     writeSession(path, reduce(prev, { source, ...event }, new Date()));
