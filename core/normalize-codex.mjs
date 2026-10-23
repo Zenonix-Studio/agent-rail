@@ -78,9 +78,31 @@ function toolEvent(p, phase) {
       if (m) ok = Number(m[1]) === 0;
     }
   }
+  // Codex hooks pass a shell command's output, not its exit code (code mode keeps no exit code at all):
+  // a test runner's own summary line, or an exit code line when there is one, says how it went.
+  if (ok === null && phase === 'post' && typeof p.tool_response === 'string') ok = outcomeOf(p.tool_response);
   const step = describeTool(name, input);
   if (!step) return null;
   return { type: 'tool', phase, name, ...step, file, ok, id: str(p.tool_use_id) };
+}
+
+/**
+ * Pass or fail from a command's output: an exit code line, else the summary line of node:test,
+ * pytest, jest/vitest, go test or cargo test. null when nothing says.
+ * @param {string} out @returns {boolean|null}
+ */
+export function outcomeOf(out) {
+  const code = /^(?:Exit code|Process exited with code):? (-?\d+)\b/mi.exec(out);
+  if (code) return Number(code[1]) === 0;
+  const node = /^ℹ fail (\d+)$/m.exec(out);
+  if (node) return node[1] === '0';
+  if (/^=+ .*\b\d+ (?:failed|errors?)\b.* =+$/m.test(out)) return false; // pytest
+  if (/^=+ .*\b\d+ passed\b.* =+$/m.test(out)) return true;
+  const jest = /^Tests:\s+(?:(\d+) failed)?/m.exec(out) ?? /^\s*Tests\s+(?:(\d+) failed)?/m.exec(out);
+  if (jest) return jest[1] === undefined;
+  if (/^(?:--- )?FAIL\b/m.test(out) || /^test result: FAILED\b/m.test(out)) return false; // go, cargo
+  if (/^ok\s+\S+/m.test(out) || /^test result: ok\b/m.test(out)) return true;
+  return null;
 }
 
 /** @param {any} input @returns {Event|null} */
