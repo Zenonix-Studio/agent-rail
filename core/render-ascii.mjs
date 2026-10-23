@@ -367,12 +367,12 @@ function narrowAgentsLine(list, w) {
 }
 
 /**
- * One dim line under an agent row: its own `progress` summary; none until it writes one.
+ * Dim lines under an agent row: its own `progress` summary, wrapped, never clipped; none until it writes one.
  * @param {RenderableAgent} a @param {number} w @returns {Line[]}
  */
 function agentProgressLine(a, w) {
   const text = str(a.progress);
-  return text ? [[seg('    ', 'plain'), seg(clip(text, w - 4), 'dim')]] : [];
+  return text ? wrapText(text, w - 4, Infinity).map((t) => [seg('    ', 'plain'), seg(t, 'dim')]) : [];
 }
 
 /**

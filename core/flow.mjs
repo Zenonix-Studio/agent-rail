@@ -289,11 +289,12 @@ function step(label, o = {}) {
   return s;
 }
 
-const TASK_MAX = 100;
+// ponytail: a sanity cap only (as PROGRESS_MAX); the pane wraps it, never clips it.
+const TASK_MAX = 1000;
 const ROLE_LINE = /^(?:you are|you're|your name is|act as|sen |siz |adın )/i;
 
 /**
- * The first sentence of a dispatch prompt, one line, at most 100 characters.
+ * The first sentence of a dispatch prompt, one line, at most 1000 characters.
  * @param {unknown} prompt @returns {string|null} null when there is no prompt.
  */
 export function firstSentence(prompt) {
