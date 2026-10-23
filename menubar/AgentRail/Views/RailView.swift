@@ -51,6 +51,7 @@ private struct RailRow: View {
                     .font(.system(size: 12.5, weight: isActive ? .semibold : .regular))
                     .foregroundStyle(isActive ? Theme.text : Theme.muted)
                     .lineLimit(1)
+                    .help(milestone.title)
                     .truncationMode(.tail)
                 if let duration {
                     Spacer(minLength: 6)

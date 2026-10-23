@@ -33,6 +33,7 @@ struct NowBlockView: View {
                     .font(.system(size: 11, design: .monospaced))
                     .foregroundStyle(Theme.muted)
                     .lineLimit(1)
+                    .help(file)
                     .truncationMode(.head)
             }
         }
@@ -76,6 +77,7 @@ private struct PillView: View {
             .font(.system(size: 11, weight: isActive ? .semibold : .regular))
             .foregroundStyle(foreground)
             .lineLimit(1)
+            .help(pill.label)
             .truncationMode(.tail)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)

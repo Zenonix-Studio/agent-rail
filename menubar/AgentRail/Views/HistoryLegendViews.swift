@@ -109,6 +109,7 @@ private struct HistoryRowView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
+                    .help(displayTitle(item))
                 if job.status != .done {
                     Text("hidden").font(.system(size: 11)).foregroundStyle(Theme.muted).fixedSize()
                 }
@@ -128,6 +129,7 @@ private struct HistoryRowView: View {
                     .font(.system(size: 11.5))
                     .foregroundStyle(Theme.muted)
                     .lineLimit(2)
+                    .help(job.progress)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }

@@ -39,12 +39,14 @@ struct JobHeaderView: View {
                     .font(.system(size: 13, weight: expanded ? .semibold : .medium))
                     .foregroundStyle(Theme.text)
                     .lineLimit(1)
+                    .help(displayTitle(item))
                     .truncationMode(.tail)
                 // Only the step title truncates; the step count and the time left stay whole.
                 let subtitle = expanded ? detailSubtitle : rowSubtitle(p)
                 HStack(spacing: 0) {
                     Text(verbatim: subtitle.0)
                         .lineLimit(1)
+                        .help(subtitle.0 + (subtitle.1 ?? ""))
                         .truncationMode(.tail)
                     if let tail = subtitle.1 {
                         Text(verbatim: tail).lineLimit(1).fixedSize()

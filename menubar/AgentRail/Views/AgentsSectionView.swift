@@ -112,6 +112,7 @@ private struct AgentRowView: View {
                     .font(.system(size: 11.5))
                     .foregroundStyle(Theme.muted)
                     .lineLimit(2)
+                    .help(note)
                     .truncationMode(.tail)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -161,6 +162,7 @@ private struct AgentRowView: View {
             .font(.system(size: 12.5, weight: .semibold))
             .foregroundStyle(Theme.text)
             .lineLimit(1)
+            .help(agent.name)
             .truncationMode(.tail)
     }
 
@@ -172,6 +174,7 @@ private struct AgentRowView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(Theme.muted)
                 .lineLimit(1)
+                .help(currentStep)
                 .truncationMode(.tail)
         }
     }
@@ -238,6 +241,7 @@ private struct AgentStepRow: View {
             .font(.system(size: 12.5, weight: step.state == .current ? .semibold : .regular))
             .foregroundStyle(textColor)
             .lineLimit(2)
+            .help(step.label)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 18)
