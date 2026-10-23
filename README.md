@@ -15,9 +15,11 @@ Needs Node 18 or later on PATH. In Claude Code (terminal or desktop app):
 
 Restart Claude Code. Both the desktop app and the terminal get an **Agent rail** pane beside the chat (`/rail` toggles it), plus `/agent-rail:history` and, if you add it, the status line below.
 
-<p align="center"><img src="docs/images/claude-desktop.png" width="900" alt="The Agent rail pane in the Claude desktop app, beside a finished job: four stage-colored steps with their durations, the Explore agent with its own steps, and the closing summary"></p>
-
-<p align="center"><img src="docs/images/claude-cli.png" width="900" alt="The Agent rail pane in the Claude Code terminal, beside the chat: the job at 25 percent, the current step, a running Explore agent with its own steps, and the latest progress note"></p>
+<p align="center">
+  <img src="docs/images/claude-desktop.png" width="430" alt="The Agent rail pane in the Claude desktop app: a finished job with four stage-colored steps and their durations, the Explore agent with its own steps, and the closing summary">
+  <img src="docs/images/claude-cli.png" width="430" alt="The Agent rail pane in the Claude Code terminal: the job at 25 percent, the current step, a running Explore agent with its own steps, and the latest progress note">
+</p>
+<p align="center"><sub>The pane in the desktop app (left) and in the terminal (right)</sub></p>
 
 **What it changes in Claude.** To draw a rail, the plugin's prompt hook asks Claude to start each new task with one `rail: <title> — <summary>` line, to keep a 3–7 step task list with a stage on each step (`plan:`, `dev:`, `fix:`…), and to add a one-sentence progress note to its task updates. Subagents are asked to write short `step:` and `progress:` lines. Nothing else about how Claude works changes; uninstall the plugin to drop it.
 
