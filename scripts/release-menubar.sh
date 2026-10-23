@@ -25,7 +25,8 @@ if $UNSIGNED; then
   SIGN=(CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM=)
 else
   TEAM=$(sed -E 's/.*\(([A-Z0-9]+)\)$/\1/' <<<"$DEVELOPER_ID")
-  SIGN=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$DEVELOPER_ID" "DEVELOPMENT_TEAM=$TEAM" "OTHER_CODE_SIGN_FLAGS=--timestamp")
+  # No get-task-allow (the debugger entitlement Xcode adds by default): notarization refuses it.
+  SIGN=(CODE_SIGN_STYLE=Manual "CODE_SIGN_IDENTITY=$DEVELOPER_ID" "DEVELOPMENT_TEAM=$TEAM" "OTHER_CODE_SIGN_FLAGS=--timestamp" CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO)
 fi
 
 xcodebuild -project menubar/AgentRail.xcodeproj -scheme AgentRail -configuration Release \
@@ -38,7 +39,8 @@ codesign --verify --deep --strict "$APP"
 mkdir "$WORK/dmg"
 cp -R "$APP" "$WORK/dmg/"
 ln -s /Applications "$WORK/dmg/Applications"
-NAME="AgentRail-$VERSION$($UNSIGNED && echo -unsigned)"
+NAME="AgentRail-$VERSION"
+if $UNSIGNED; then NAME="$NAME-unsigned"; fi
 hdiutil create -quiet -volname "AgentRail $VERSION" -srcfolder "$WORK/dmg" -fs HFS+ -format UDZO "$WORK/$NAME.dmg"
 
 if ! $UNSIGNED; then
