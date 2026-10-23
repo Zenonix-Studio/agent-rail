@@ -832,6 +832,8 @@ function applyNames(s, names) {
 function finish(s, lastMessage, at, final, background = null) {
   const meta = extractMeta(lastMessage);
   let job = current(s);
+  // A follow-up turn that neither planned nor named a task (a quick question) does not extend the job.
+  const undecided = s._pendingPrompt !== null;
   // A follow-up's marker that reached the transcript only after its tool calls: the turn was another task.
   if (job && s._pendingPrompt !== null && meta && meta.title !== job.title) job = splitJob(s, job, at);
   s._pendingPrompt = null;
@@ -852,7 +854,7 @@ function finish(s, lastMessage, at, final, background = null) {
       job._mainStopped = true;
     } else {
       job.status = 'done';
-      job.endedAt = at;
+      job.endedAt = (undecided && job._prevEndedAt) || at;
       delete job._prevEndedAt;
       delete job._mainStopped;
     }

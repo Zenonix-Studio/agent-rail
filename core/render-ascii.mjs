@@ -481,12 +481,14 @@ function currentStep(a, ms) {
 }
 
 /**
- * The main agent's own summary of the work done and left, at the bottom of the job: dim, up to 2 lines.
+ * The main agent's own summary of the work done and left, at the bottom of the job: a blank line
+ * above it, then the whole text, never clipped.
  * @param {RenderableJob} job @param {number} w @returns {Line[]}
  */
 function progressLines(job, w) {
   const text = str(job?.progress);
-  return text ? wrapText(text, w - 2, 2).map((t, i) => [seg(i === 0 ? '» ' : '  ', 'dim'), seg(t, 'dim')]) : [];
+  if (!text) return [];
+  return [[], ...wrapText(text, w - 2, Infinity).map((t, i) => [seg(i === 0 ? '» ' : '  ', 'active'), seg(t, 'plain')])];
 }
 
 /**
@@ -603,7 +605,10 @@ function tailLen(tail) {
  */
 export function elapsed(job, nowMs) {
   const start = Date.parse(job?.startedAt ?? '');
-  const end = job?.endedAt ? Date.parse(job.endedAt) : nowMs;
+  // A follow-up prompt reopened the job and no plan has claimed it yet: the clock stays where it stopped.
+  const held = job?.status !== 'done' && !job?._mainStopped ? job?._prevEndedAt : null;
+  const stop = job?.endedAt ?? held;
+  const end = stop ? Date.parse(stop) : nowMs;
   if (!Number.isFinite(start) || !Number.isFinite(end)) return '–';
   return duration(end - start);
 }

@@ -104,7 +104,8 @@ async function main() {
       if (found) event.event = { ...event.event, marker: found };
     }
     // Token usage since the last hook: only the transcripts' new bytes, from cursors kept in the session.
-    if (source === 'claude') {
+    // Codex: the main rollout only (its subagents write rollouts of their own, not read yet).
+    if (source === 'claude' || (source === 'codex' && !event.agentId)) {
       const cursors = prev?._usage && typeof prev._usage === 'object' ? prev._usage : {};
       // Hooks installed mid-session: the main transcript's earlier usage belongs to no job here, so start at its end.
       const midSession = Array.isArray(prev?.jobs) && prev.jobs.length > 0;
