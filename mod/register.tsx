@@ -43,6 +43,20 @@ const TONE: Record<string, { color?: string; dimColor?: boolean; weight?: 'bold'
 
 let lastSignature = ''
 
+/** Spaced-out separator for one-line metadata. */
+const SEP = '   ·   '
+
+/** "just now", "7 min ago", "3 h ago", "yesterday", then the date. */
+function ago(ms: number): string {
+  const min = Math.floor(ms / 60_000)
+  if (min < 1) return 'just now'
+  if (min < 60) return `${min} min ago`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `${h} h ago`
+  if (h < 48) return 'yesterday'
+  return new Date(Date.now() - ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 /** The state root, or null with HOME unset. */
 async function stateDir($: EngineInterface): Promise<string | null> {
   const [root, home] = await Promise.all([$.env.get('AGENT_RAIL_HOME'), $.env.get('HOME')])
@@ -183,24 +197,40 @@ export const register: Register = on => {
       const w = await read($, limit)
       const { since, fromReset } = windowStart(w, now)
       const s = tokenStats(all.map(it => ({ time: it.ended, tokens: jobTokens(it.job, it.agents) })), { now, since })
-      const row = (label: string, tokens: number) => (
-        <Text wrap="truncate">{label.padEnd(18)}<Text weight="bold">{formatTokens(tokens).padStart(7)}</Text></Text>
-      )
-      const head = fromReset
-        ? `Since the weekly reset · resets in ${duration(Date.parse(w?.resetsAt ?? '') - now)}${w ? ` · ${w.percentUsed}% used` : ''}`
-        : 'Last 7 days (no weekly limit reading yet)'
+      // label, a bar against the window's total, the tokens: the rows read as one chart.
+      const barW = Math.max(6, Math.min(24, cols - 30))
+      const row = (label: string, tokens: number, tone: string) => {
+        const filled = s.total > 0 ? Math.max(tokens > 0 ? 1 : 0, Math.round((barW * tokens) / s.total)) : 0
+        return (
+          <Text wrap="truncate">
+            {`  ${label.padEnd(16)} `}
+            <Text {...TONE[tone]}>{'█'.repeat(filled)}</Text>
+            <Text dimColor>{'░'.repeat(barW - filled)}</Text>
+            <Text weight="bold">{`  ${formatTokens(tokens).padStart(8)}`}</Text>
+          </Text>
+        )
+      }
+      const used = w?.percentUsed
       return (
         <Box flexDirection="column">
           {tabs}
-          <Text dimColor wrap="truncate">{head}</Text>
-          <Box marginTop={1} flexDirection="column">
-            {row(`Total · ${s.jobs} jobs`, s.total)}
+          <Text wrap="truncate">
+            <Text weight="bold">{fromReset ? 'Since the weekly reset' : 'Last 7 days'}</Text>
+            {fromReset ? <Text dimColor>{SEP}</Text> : null}
+            {fromReset ? <Text color="claude">{`resets in ${duration(Date.parse(w?.resetsAt ?? '') - now)}`}</Text> : <Text dimColor>{'  (no weekly limit reading yet)'}</Text>}
+            {fromReset && used !== undefined ? <Text dimColor>{SEP}</Text> : null}
+            {fromReset && used !== undefined ? <Text color={used >= 80 ? 'error' : used >= 50 ? 'warning' : 'success'}>{`${used}% used`}</Text> : null}
+          </Text>
+          <Box marginTop={1}>
+            <Text wrap="truncate"><Text weight="bold">{formatTokens(s.total)}</Text><Text dimColor>{`  in ${s.jobs} job${s.jobs === 1 ? '' : 's'}`}</Text></Text>
           </Box>
           <Box marginTop={1} flexDirection="column">
-            {s.days.map(d => row(`Last ${d.d} day${d.d > 1 ? 's' : ''}`, d.tokens))}
+            <Text dimColor>BY DAY</Text>
+            {s.days.map(d => row(`Last ${d.d} day${d.d > 1 ? 's' : ''}`, d.tokens, 'analyse'))}
           </Box>
           <Box marginTop={1} flexDirection="column">
-            {s.last.map(l => row(`Last ${l.n} jobs${l.count < l.n ? ` (${l.count})` : ''}`, l.tokens))}
+            <Text dimColor>BY JOB</Text>
+            {s.last.map(l => row(`Last ${l.n} jobs${l.count < l.n ? ` (${l.count})` : ''}`, l.tokens, 'review'))}
           </Box>
         </Box>
       )
@@ -213,7 +243,7 @@ export const register: Register = on => {
           <Box flexDirection="column">
             {tabs}
             <Button key="back" hotkey="b" plain dimColor onPress={() => void update($, page, () => ({ name: 'history' }) as RailPage)}>‹ Back to history</Button>
-            <Text dimColor wrap="truncate">{`${it.project} · ended ${duration(now - it.ended)} ago`}</Text>
+            <Text wrap="truncate"><Text dimColor>{'ended '}</Text><Text color="claude">{ago(now - it.ended)}</Text><Text dimColor>{SEP}</Text><Text>{it.project}</Text></Text>
             {draw(it.job, it.ended, it.agents, true)}
           </Box>
         )
@@ -226,16 +256,29 @@ export const register: Register = on => {
         {items.map((it, i) => {
           const tok = jobTokens(it.job, it.agents)
           const took = duration(it.ended - (Date.parse(it.job.startedAt) || it.ended))
-          const meta = [`${duration(now - it.ended)} ago`, it.project, took, tok > 0 ? formatTokens(tok) : null].filter(Boolean).join(' · ')
           const summary = (it.job.progress ?? '').split(/(?<=[.!?])\s+(?=\p{Lu})/u)[0]
-          // One block per job: the title to press, then what it was and how it ended, dim.
+          const source = it.id.startsWith('codex') ? 'codex' : 'claude'
+          // One block per job: number and title to press; when, where, how long and how much, each in
+          // its own tone with room between; then how it ended.
           return (
             <Box key={it.id} flexDirection="column" marginBottom={1}>
               <Button key={it.id} plain onPress={() => void update($, page, () => ({ name: 'job', picked: it.id }) as RailPage)}>
-                {`${String(i + 1).padStart(2)}. ${it.job.title || it.job.prompt || 'Untitled job'}`}
+                <Text dimColor>{`${String(i + 1).padStart(2)}  `}</Text>
+                <Text weight="bold">{it.job.title || it.job.prompt || 'Untitled job'}</Text>
               </Button>
-              <Text dimColor wrap="truncate">{`    ${meta}`}</Text>
-              {summary ? <Text dimColor wrap="truncate">{`    ${summary}`}</Text> : null}
+              <Text wrap="truncate">
+                <Text>{'    '}</Text>
+                <Text color={source === 'codex' ? '#7fa8f0' : 'claude'}>{source.toUpperCase()}</Text>
+                <Text dimColor>{SEP}</Text>
+                <Text color="claude">{ago(now - it.ended)}</Text>
+                <Text dimColor>{SEP}</Text>
+                <Text>{it.project}</Text>
+                <Text dimColor>{SEP}</Text>
+                <Text>{took}</Text>
+                {tok > 0 ? <Text dimColor>{SEP}</Text> : null}
+                {tok > 0 ? <Text {...TONE.review}>{formatTokens(tok)}</Text> : null}
+              </Text>
+              {summary ? <Text dimColor italic wrap="truncate">{`    ↳ ${summary}`}</Text> : null}
             </Box>
           )
         })}
