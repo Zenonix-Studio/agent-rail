@@ -77,12 +77,19 @@ function apply(s, input, at) {
   // The main agent's usage belongs to the job it was spent in: fold it before a prompt starts the next one;
   // an agent's after this event, which may be the one that lists it.
   addUsage(s, usage.filter((u) => !str(u.agent)));
+  const before = current(s);
+  const wasDone = before?.status === 'done';
   applyEvent(s, input, at);
   addUsage(s, usage.filter((u) => str(u.agent)));
   // The main agent's own `progress:` line: its 1–2 sentence summary of the whole job.
   const e = input.event;
   const job = current(s);
   if (job && isObj(e) && !str(input.agentId) && str(e.progress)) job.progress = e.progress;
+  // A job this stop finished, with no closing recap: its final message says how it ended, not a mid-run line.
+  if (job && isObj(e) && !str(input.agentId) && e.type === 'stop' && !e.recap && job.status === 'done' && !(job === before && wasDone)) {
+    const report = reportSummary(e.finalMessage ?? e.lastMessage);
+    if (report) job.progress = report;
+  }
   if (isObj(e) && !str(input.agentId) && isObj(e.proc) && Number.isInteger(e.proc.pid) && str(e.proc.start)) s.proc = { pid: e.proc.pid, start: e.proc.start };
 }
 

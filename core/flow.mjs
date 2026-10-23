@@ -445,9 +445,10 @@ export function findMarkerInTranscript(path) {
 /**
  * The main agent's latest summary of this turn (PROGRESS_NUDGE): a plan call's `progress` input or a `progress:` text line, scanning back to the latest user prompt.
  * @param {string|null|undefined} path transcript_path from the hook payload
+ * @param {boolean} [recapOnly] only the desktop wrap_up's recap
  * @returns {string|null}
  */
-export function findProgressInTranscript(path) {
+export function findProgressInTranscript(path, recapOnly = false) {
   try {
     const lines = tailLines(path).slice(-TRANSCRIPT_TAIL_LINES);
     for (let i = lines.length - 1; i >= 0; i--) {
@@ -458,13 +459,13 @@ export function findProgressInTranscript(path) {
       if (role === 'user') return null;
       if (role !== 'assistant') continue;
       let last = null;
-      for (const t of texts) for (const m of t.matchAll(PROGRESS_LINE)) last = m[1];
+      if (!recapOnly) for (const t of texts) for (const m of t.matchAll(PROGRESS_LINE)) last = m[1];
       // A plan call's `progress` input (PROGRESS_NUDGE.claude), or the desktop wrap_up's closing recap,
       // in the same order as the text.
       for (const c of Array.isArray(o.message?.content) ? o.message.content : []) {
         const p = c?.type !== 'tool_use' ? null
           : c.name === 'mcp__ccd_turn__wrap_up' ? c.input?.recap
-          : (c.input?.progress ?? c.input?.metadata?.progress);
+          : recapOnly ? null : (c.input?.progress ?? c.input?.metadata?.progress);
         if (typeof p === 'string' && p !== '') last = p;
       }
       if (last) return clipText(last.replace(/\s+/g, ' '), PROGRESS_MAX);

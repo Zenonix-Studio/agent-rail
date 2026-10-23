@@ -77,7 +77,7 @@ async function main() {
   // Stop's last message is the end of the turn; the marker is in the first reply, so read the transcript.
   if (event.event?.type === 'stop' && !extractMeta(event.event.lastMessage)) {
     const found = findMarkerInTranscript(input.transcript_path);
-    if (found) event.event = { ...event.event, lastMessage: found };
+    if (found) event.event = { ...event.event, lastMessage: found, finalMessage: event.event.lastMessage };
   }
   // A Claude subagent's `step:` lines (its task list when it has no task tools), on each of its calls and its stop.
   if (source === 'claude' && event.agentId && ((event.event?.type === 'tool' && event.event.phase === 'pre') || event.event?.type === 'agent-stop')) {
@@ -88,6 +88,11 @@ async function main() {
   // The main agent's summary comes in its plan call's input; a `progress:` line in its transcript is the
   // fallback (Codex, older prompts), read on its plan changes and its stop.
   const mainType = event.event?.type;
+  // A turn's closing recap is its summary; without one the reducer takes the final message's.
+  if (!event.agentId && mainType === 'stop') {
+    const recap = findProgressInTranscript(input.transcript_path, true);
+    if (recap) event.event = { ...event.event, progress: recap, recap: true };
+  }
   if (!event.agentId && !event.event?.progress && ['plan', 'plan-step', 'task-create', 'task-update', 'stop'].includes(mainType)) {
     const progress = findProgressInTranscript(input.transcript_path);
     if (progress) event.event = { ...event.event, progress };
