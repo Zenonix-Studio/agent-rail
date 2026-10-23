@@ -2,6 +2,8 @@
 
 A live rail for your Claude Code and Codex jobs: progress, milestones and the agents behind them.
 
+<p align="center"><img src="docs/images/menubar.png" width="454" alt="The AgentRail menubar popover: three jobs with their steps, the current step's activity and the agents running under them"></p>
+
 ## Claude Code
 
 Needs Node 18 or later on PATH. In Claude Code (terminal or desktop app):
