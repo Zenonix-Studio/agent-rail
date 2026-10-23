@@ -79,7 +79,8 @@ private struct AgentRowView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(accessibilityLabel(p))
                 .accessibilityValue(expanded ? Text("expanded") : Text("collapsed"))
-            if expanded { detail }
+            // An agent with no summary of its own and no steps has nothing to unfold: no empty strip.
+            if expanded, hasDetail { detail }
         }
         .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Theme.line, lineWidth: 1))
@@ -132,6 +133,7 @@ private struct AgentRowView: View {
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(Theme.muted)
                 .rotationEffect(.degrees(expanded ? 90 : 0))
+                .opacity(hasDetail ? 1 : 0)
                 .frame(width: 10)
             AgentStatusDot(status: agent.status)
             // One line as in the mockup when name and step fit; else the step goes under the name,
@@ -177,6 +179,10 @@ private struct AgentRowView: View {
                 .help(currentStep)
                 .truncationMode(.tail)
         }
+    }
+
+    private var hasDetail: Bool {
+        (!agent.summary.isEmpty && agent.summary != agent.name) || !agentSteps(agent).isEmpty
     }
 
     private var detail: some View {
