@@ -68,7 +68,7 @@ That is all: it follows the latest Codex session.
 <details>
 <summary>More</summary>
 
-- Shortcut: the installer puts `rail` on PATH, the same command. Inside Codex, `$rail` opens it in an iTerm2 or tmux split (approve running it outside the sandbox).
+- Shortcut: the installer puts `rail` on PATH, the same command. Inside Codex, `$rail` opens it in an iTerm2 or tmux split (the agent-rail hook opens it, outside the sandbox, so no approval is asked).
 - Add `claude` for the latest Claude Code session instead, an id prefix for one session, `--agents` to expand every agent row. Ctrl+C quits.
 - The installer adds the agent-rail hooks to `~/.codex/hooks.json`, turns on `update_plan` in `~/.codex/config.toml` (both backed up first), adds the `$rail` skill, and links `rail` into `~/.local/bin` (or the first writable folder of your PATH). Codex asks you to trust the new hooks on its next start.
 - Codex jobs also show in the menubar, with their tokens (the main agent's and each subagent's).

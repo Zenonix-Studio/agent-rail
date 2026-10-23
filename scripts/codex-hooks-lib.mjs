@@ -12,6 +12,7 @@ export const codexDir = () => process.env.CODEX_HOME || join(homedir(), '.codex'
 export const hooksPath = () => join(codexDir(), 'hooks.json');
 export const configPath = () => join(codexDir(), 'config.toml');
 export const collectorPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-collect.mjs');
+export const watchPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-watch.mjs');
 export const openerPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'agent-rail-open.mjs');
 /** Codex's skill behind `$rail` (also listed under /skills); ours when it names the opener. */
 export const skillPath = () => join(codexDir(), 'skills', 'rail', 'SKILL.md');
@@ -20,14 +21,10 @@ export const oldPromptPath = () => join(codexDir(), 'prompts', 'rail.md');
 export const PROMPT_MARKER = 'agent-rail-open';
 export const railSkill = () => `---
 name: rail
-description: Open the agent-rail live view (this session's job, steps and agents) in a terminal split beside Codex. Use when the user types $rail or asks to show the rail.
+description: Open the agent-rail live view (this session's job, steps and agents) in a terminal split beside Codex. Use when the user types $rail.
 ---
 
-Run this one shell command now with \`sandbox_permissions\` set to \`require_escalated\` (justification: "open the agent-rail view in a terminal split"): inside the sandbox macOS refuses the AppleScript or tmux call that opens the split. Run nothing else, then reply with its output only:
-
-\`\`\`
-node "${openerPath}" codex
-\`\`\`
+The agent-rail hook has already opened the live view in a terminal split beside Codex when this message arrived (it runs outside the sandbox). Run nothing. Reply with one short line in the user's language saying the rail is open beside Codex, and that if no split appeared they can run \`node "${watchPath}"\` in a split themselves.
 `;
 
 /** The short command the installer links onto PATH: `rail`, the live view in this terminal. */

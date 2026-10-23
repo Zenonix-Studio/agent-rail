@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import { appendFileSync, readdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { SCHEMA_VERSION, ensureDir, stateRoot, sessionPath, readSession, writeSession, withSessionLock, sweepOldSessions } from '../core/state.mjs';
 import { normalize as normalizeClaude } from '../core/normalize-claude.mjs';
 import { normalize as normalizeCodex } from '../core/normalize-codex.mjs';
@@ -90,6 +91,11 @@ async function main() {
   if (!event.agentId && !event.event?.progress && ['plan', 'plan-step', 'task-create', 'task-update', 'stop'].includes(mainType)) {
     const progress = findProgressInTranscript(input.transcript_path);
     if (progress) event.event = { ...event.event, progress };
+  }
+  // Codex's `$rail`: hooks run outside Codex's sandbox, which refuses the AppleScript or tmux call
+  // that opens a split (and full-auto refuses to escalate), so the hook opens it.
+  if (source === 'codex' && event.event?.type === 'prompt' && /^\s*\$rail\b/.test(event.event.text ?? '')) {
+    spawn(process.execPath, [join(dirname(fileURLToPath(import.meta.url)), 'agent-rail-open.mjs'), 'codex'], { detached: true, stdio: 'ignore' }).unref();
   }
   // On a prompt, the agent process these hooks run under, so the menubar can stop the session.
   if (event.event?.type === 'prompt' && !event.agentId) {
