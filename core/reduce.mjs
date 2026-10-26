@@ -174,6 +174,9 @@ function applyEvent(s, input, at) {
         const a = agent(s, agentId, at);
         a.status = e.ok === false ? 'error' : 'done';
         a.endedAt = at;
+        // Calls still open never ended (a parallel batch cancelled after a sibling failed): not steps it took.
+        if (Array.isArray(a.steps)) a.steps = a.steps.filter((p) => p?.kind !== 'active');
+        a._open = [];
         // Codex does not wake its main agent when a subagent ends, so no later Stop decides the job:
         // the last one ending after the main turn did decides it (Claude's main agent is woken instead).
         const job = current(s);
@@ -620,12 +623,37 @@ function onTool(s, agentId, e, at) {
   if (stage.counted) counts[ck] = (counts[ck] ?? 0) + 1;
   markFailing(job, now._fails ?? 0, at);
   if (e.phase === 'pre') now.stage = noteStage(job.milestones, stage.stage) ?? now.stage ?? null;
+  if (e.phase === 'pre' && job.milestones.length === 0) observePhase(job, stage.stage, now.pills[now.pills.length - 1]?.label, at);
   // R18: a failure starts a retry count for steps that do not always count.
   if (e.phase !== 'pre' && e.ok === false && !RETRY_KEYS.has(ck) && !(ck in now._retryBase)) now._retryBase[ck] = (counts[ck] ?? 1) - 1;
   const n = counts[ck] ?? 1;
   now.attempt = RETRY_KEYS.has(ck) ? n : ck in now._retryBase ? n - now._retryBase[ck] : 1;
   if (file) now.file = file;
   job.updatedAt = at;
+}
+
+/** Observed steps kept for a planless job; older ones fold into a count. */
+const MAX_PHASES = 12;
+
+/**
+ * A planless job's steps, observed: consecutive tool calls of one stage are one step, named after
+ * its latest pill ("Reading 2 files"). Calls with no stage join the current step.
+ * @param {Job} job @param {string|null} stage @param {string|undefined} label
+ */
+function observePhase(job, stage, label, at) {
+  const phases = (job.phases ??= []);
+  const last = phases[phases.length - 1];
+  if (last && (!stage || last.stage === stage)) {
+    if (stage && str(label)) last.title = label;
+    return;
+  }
+  if (!stage) return;
+  if (last) last.endedAt = at;
+  phases.push({ stage, title: str(label) ?? stage, startedAt: at });
+  if (phases.length > MAX_PHASES) {
+    job.phasesFolded = (job.phasesFolded ?? 0) + phases.length - MAX_PHASES;
+    phases.splice(0, phases.length - MAX_PHASES);
+  }
 }
 
 /**

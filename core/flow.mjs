@@ -5,7 +5,8 @@ import { basename } from 'node:path';
 // (`;`, `&`, `|`, newline, `(`), so `git commit -m "make it work"` or `cmake`
 // is not a Build. `cd x && make` matches through the `&&`.
 const LEAD = String.raw`(?:^|[;&|\n(])\s*(?:npx\s+)?`;
-const TEST = new RegExp(`${LEAD}(?:xcodebuild test|swift test|npm test|node --test|pytest|vitest|jest|cargo test|go test)\\b`);
+// Plain `node test.mjs` / `node tests/foo.test.js` count too: a script named for tests.
+const TEST = new RegExp(`${LEAD}(?:xcodebuild test|swift test|(?:npm|pnpm|yarn|bun)(?: run)? test|node --test|pytest|vitest|jest|mocha|cargo test|go test|node\\s+\\S*test\\S*\\.[cm]?[jt]s)\\b`);
 const BUILD = new RegExp(`${LEAD}(?:xcodebuild|swift build|npm run build|pnpm build|yarn build|make|gradle|cargo build|tsc)\\b`);
 const SHELL_TOOLS = new Set(['Bash', 'shell', 'local_shell', 'exec_command', 'unified_exec', 'container.exec']);
 const DISPATCH_TOOLS = new Set(['Agent', 'Task']);
@@ -382,8 +383,9 @@ const STAGE_NUDGE = ' Start each step title with its stage (plan:, analyse:, dev
 const PLAN_NUDGE = {
   claude: ' For work with more than two steps, create a task list (3–7 steps) with your task tool before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
   codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
-  // The CLI's task tools are deferred: loading them, the plan and its closing update each cost a turn. Text lines cost none.
-  'claude-cli': ' For work with more than two steps, track it in your reply text, not with a task tool. In your first reply, write the whole plan as one line: "plan: <stage>: <title> | <stage>: <title> | …" (3–7 steps). Then, when you start each step, write one line before its tool calls: "step: <stage>: <title>" with that step\'s title from the plan. Stage is plan, analyse, dev (writing or running code), fix or review.',
+  // The CLI's task tools are deferred: loading them, the plan and its closing update each cost a turn. Text lines cost none,
+  // but a task list the agent already keeps (its user's workflow) is left as it is: the rail reads either.
+  'claude-cli': ' For work with more than two steps: if you already keep a task list, keep using it and start each step title with its stage (plan:, analyse:, dev:, fix: or review:). If not, do not start one; track it in your reply text instead. In your first reply, write the whole plan as one line: "plan: <stage>: <title> | <stage>: <title> | …" (3–7 steps). Then, when you start each step, write one line before its tool calls: "step: <stage>: <title>" with that step\'s title from the plan. Stage is plan, analyse, dev (writing or running code), fix or review.',
 };
 
 // Shown as-is in the rail and in the done notification: plain words a non-engineer can read.
@@ -414,7 +416,7 @@ export const RAIL_REMINDER = 'agent-rail: same rules as earlier in this session 
  * The CLI's reminder spells its line format out: the session may have started in the desktop app
  * (task tools there) or lost the full text to compaction.
  */
-export const RAIL_REMINDER_CLI = 'agent-rail: begin a new task with "rail: <title> — <summary>". For more than two steps, use no task tool: write "plan: <stage>: <title> | <stage>: <title> | …" once, then as you start each step "step: <stage>: <title>" and "progress: <one plain sentence: done and left>" (stage: plan, analyse, dev, fix or review).';
+export const RAIL_REMINDER_CLI = 'agent-rail: begin a new task with "rail: <title> — <summary>". For more than two steps, keep a task list you already use (stage-prefixed titles); else, no task tool: write "plan: <stage>: <title> | <stage>: <title> | …" once, then as you start each step "step: <stage>: <title>" and "progress: <one plain sentence: done and left>" (stage: plan, analyse, dev, fix or review).';
 
 /**
  * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge,

@@ -159,13 +159,15 @@ async function main() {
   sweepOldSessions();
   // Stdout carries hook context only, never anything else. UserPromptSubmit: ask the main agent
   // for the title/summary marker and a plan (spike Q5 shape, both tools).
-  if (event.event?.type === 'prompt' && !event.agentId) {
+  // Free (the default) only watches; railed (AGENT_RAIL_MODE=railed) also asks the agents for a title, plan and steps.
+  const railed = process.env.AGENT_RAIL_MODE === 'railed';
+  if (railed && event.event?.type === 'prompt' && !event.agentId) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: railInstruction(source, firstPrompt, cli) },
     }));
   }
   // Claude Code adds a SubagentStart hook's context to the subagent: ask it for its `step:` lines.
-  if (source === 'claude' && event.event?.type === 'agent-start' && event.agentId) {
+  if (railed && source === 'claude' && event.event?.type === 'agent-start' && event.agentId) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: SUBAGENT_INSTRUCTION },
     }));

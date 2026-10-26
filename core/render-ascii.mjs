@@ -83,15 +83,21 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
   const hintLen = tailLen(hint);
 
   if (total === 0) {
-    // "Planning · 0/?" comes from the missing plan, whatever the status says.
-    const label = `${isDone ? `Done · ${elapsed(job, nowMs)}` : 'Planning · 0/?'}${tok}`;
+    // "Planning · 0/?" comes from the missing plan, whatever the status says; steps seen from tool calls say "Working".
+    const observed = w >= COMPACT_WIDTH ? phaseMilestones(job, isDone) : [];
+    const label = `${isDone ? `Done · ${elapsed(job, nowMs)}` : observed.length ? `Working · ${elapsed(job, nowMs)}` : 'Planning · 0/?'}${tok}`;
     const lead = `${clip(title, w - label.length - 2 - tailLen(tail) - hintLen)}  `;
     /** @type {Line[]} */
     const lines = [[seg(lead, 'bold'), seg(label, isDone ? 'done' : 'dim'), ...tail, ...hint]];
     if (w >= COMPACT_WIDTH) lines.push(...summaryLines(job, w));
     // Spec §7 fallback: a planless job still shows what the agent is doing.
     const now = job?.now;
-    if (!isDone && now && typeof now === 'object') {
+    if (observed.length) {
+      // Its steps as seen from the tool calls: no pending ones, so no %.
+      const folded = Number(job?.phasesFolded) || 0;
+      if (folded > 0) lines.push([seg('✓', 'done'), seg(` ${folded} earlier`, 'dim')]);
+      lines.push(...railLines(observed, w, isDone, !isDone && now && typeof now === 'object' ? now : null, nowMs));
+    } else if (!isDone && now && typeof now === 'object') {
       lines.push(...flowLines(now, w, '  '));
     } else if (isDone && now && typeof now === 'object') {
       const recent = recentLine(now, w);
@@ -157,6 +163,23 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
  * @param {number} nowMs clock for the active milestone's running duration
  * @returns {Line[]}
  */
+/**
+ * A planless job's observed steps (reduce.mjs observePhase) as milestones: the last one active
+ * until the job is done.
+ * @param {any} job @param {boolean} isDone @returns {import('./state.mjs').Milestone[]}
+ */
+function phaseMilestones(job, isDone) {
+  const phases = Array.isArray(job?.phases) ? job.phases.filter((p) => p && typeof p === 'object') : [];
+  return phases.map((p, i) => ({
+    key: `obs:${i}`,
+    title: str(p.title) || str(p.stage) || '?',
+    status: i < phases.length - 1 || isDone ? 'done' : 'active',
+    stage: str(p.stage) || undefined,
+    startedAt: p.startedAt,
+    endedAt: p.endedAt ?? (isDone ? job?.endedAt : undefined),
+  }));
+}
+
 function railLines(milestones, w, isDone, now, nowMs) {
   // Anchor the flow under now.milestone (a key); else the active-status node.
   const byKey = now ? milestones.findIndex((m) => str(m?.key) !== '' && m.key === now.milestone) : -1;
