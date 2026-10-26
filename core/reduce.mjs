@@ -128,7 +128,8 @@ function applyEvent(s, input, at) {
   if (agentId && input.source === 'claude' && !str(input.agentType) && e.type !== 'agent-start' && !isObj(s.agents[agentId])) return;
   // The agent's `rail:` line, read from the transcript on a main-agent tool or plan call: names the job mid-turn.
   if (!agentId && typeof e.marker === 'string') onMarker(s, e.marker, at);
-  if (agentId && Array.isArray(e.steps)) onAgentSteps(s, agentId, e.steps, e.type === 'agent-stop', at);
+  if (agentId && (Array.isArray(e.steps) || Array.isArray(e.plan))) onAgentSteps(s, agentId, e.steps ?? [], e.plan ?? null, e.type === 'agent-stop', at);
+  if (!agentId && (Array.isArray(e.mainSteps) || Array.isArray(e.mainPlan))) onMainSteps(s, e.mainSteps ?? [], e.mainPlan ?? null, e.type === 'stop', at);
   // The agent's own `progress:` line: its 1–2 sentence summary of what is done and what is left.
   if (agentId && str(e.progress) && isObj(s.agents[agentId])) s.agents[agentId].progress = e.progress;
   // Its final report says how it ended: that wins, and covers agents that never wrote a progress line.
@@ -338,17 +339,18 @@ function onAgentMilestones(s, agentId, e, at) {
 const REPORT_MAX = 1000;
 
 /**
- * The first two sentences of an agent's final report, as plain text: marker lines
+ * The first two sentences of an agent's final report's first paragraph, as plain text: marker lines
  * (`step:`, `progress:`, `rail:`), headings, emphasis and code fences dropped.
  * @param {unknown} text @returns {string} '' when there is none
  */
 function reportSummary(text) {
   if (!str(text)) return '';
-  const plain = /** @type {string} */ (text)
+  // Only the first paragraph: a table or list after it would read as part of the second sentence.
+  const lines = /** @type {string} */ (text)
     .split('\n')
     .filter((l) => !/^\s*(?:(?:step|progress|rail):|```|#)/i.test(l))
-    .map((l) => l.replace(/^\s*>\s*/, ''))
-    .join(' ')
+    .map((l) => l.replace(/^\s*>\s*/, ''));
+  const plain = (lines.join('\n').split(/\n\s*\n/).find((p) => p.trim()) ?? '')
     .replace(/[*`]+/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -359,19 +361,57 @@ function reportSummary(text) {
 /** Keys of milestones made from an agent's `step:` lines. */
 const STEP_KEY = 'step:';
 
+/** A step's title for matching a `step:` line to its `plan:` entry: no stage, case and spacing ignored. @param {string} t */
+const stepMatch = (t) => splitStage(t).title.toLowerCase().replace(/\s+/g, ' ').trim();
+
 /**
- * A subagent's `step:` lines, read from its transcript: its plan when it has no task tools.
- * The latest step is active, earlier ones are done, all are done once it stops. A plan of its
- * own task tools wins.
- * @param {string[]} steps titles with their stage prefix, in order @param {boolean} stopped
+ * Plan items from a `plan:` line and the `step:` lines written so far. Each step marks its plan
+ * entry (by title, else the next one) and every entry before it; the latest is active until the
+ * agent stops, then done. Entries not reached stay pending; steps beyond the plan are added.
+ * @param {string[]|null} plan @param {string[]} steps @param {boolean} stopped
+ * @returns {{key: string, title: string, status: string}[]}
  */
-function onAgentSteps(s, agentId, steps, stopped, at) {
+function stepItems(plan, steps, stopped) {
+  const titles = (plan ?? []).filter((t) => str(t));
+  let cur = -1;
+  for (const t of steps.filter((x) => str(x))) {
+    let i = titles.findIndex((p) => stepMatch(p) === stepMatch(t));
+    if (i < 0) {
+      i = cur + 1;
+      if (i < titles.length) titles[i] = t;
+      else titles.push(t);
+    }
+    cur = Math.max(cur, i);
+  }
+  return titles.map((t, i) => ({ key: STEP_KEY + t, title: t, status: i < cur || (i === cur && stopped) ? 'done' : i === cur ? 'active' : 'pending' }));
+}
+
+/**
+ * The main agent's `plan:` and `step:` lines this turn (the CLI, where it has no plan tool
+ * calls): a plan snapshot. A plan of task tools wins.
+ * @param {string[]} steps @param {string[]|null} plan @param {boolean} stopped
+ */
+function onMainSteps(s, steps, plan, stopped, at) {
+  const job = ensureJob(s, at);
+  if (job.milestones.some((m) => !m.key.startsWith(STEP_KEY)) && s._pendingPrompt === null) return;
+  const items = stepItems(plan, steps, stopped);
+  if (items.length === 0) return;
+  const same = items.length === job.milestones.length && items.every((it, i) => job.milestones[i].key === it.key && job.milestones[i].status === it.status);
+  if (!same) onMilestones(s, { type: 'plan', items, explanation: null }, at);
+}
+
+/**
+ * A subagent's `plan:` and `step:` lines, read from its transcript: its plan when it has no task
+ * tools (see stepItems). A plan of its own task tools wins.
+ * @param {string[]} steps titles with their stage prefix, in order @param {string[]|null} plan @param {boolean} stopped
+ */
+function onAgentSteps(s, agentId, steps, plan, stopped, at) {
   const a = agent(s, agentId, at);
   if (a.milestones.some((m) => !m.key.startsWith(STEP_KEY))) return;
-  // Only the transcript's tail is read: in long runs early `step:` lines fall out of it, so keep the steps already known.
-  const known = a.milestones.map((m) => m.key.slice(STEP_KEY.length));
+  // Only the transcript's tail is read: in long runs early lines fall out of it, so keep what is already known.
+  const known = a.milestones.filter((m) => m.status !== 'pending').map((m) => m.key.slice(STEP_KEY.length));
   const all = [...known, ...steps.filter((t) => str(t) && !known.includes(t))];
-  const items = all.map((t, i) => ({ key: STEP_KEY + t, title: t, status: stopped || i < all.length - 1 ? 'done' : 'active' }));
+  const items = stepItems(plan ?? (a.milestones.length ? a.milestones.map((m) => m.key.slice(STEP_KEY.length)) : null), all, stopped);
   if (items.length === 0) return;
   const same = items.length === a.milestones.length && items.every((it, i) => a.milestones[i].key === it.key && a.milestones[i].status === it.status);
   if (!same) onAgentMilestones(s, agentId, { type: 'plan', items, explanation: null, fromSteps: true }, at);

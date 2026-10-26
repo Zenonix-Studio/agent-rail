@@ -376,12 +376,14 @@ export function extractMeta(text) {
 export const MARKER_INSTRUCTION =
   'When you start a new task, begin your first reply with one line: "rail: <title, max 6 words> — <summary, max 2 sentences>". Do this once per task.';
 
-/** Asks for a stage prefix on each step, and one tool call per step so the rail can follow it. */
-const STAGE_NUDGE = ' Start each step title with its stage (plan:, analyse:, dev:, fix: or review:), and do each step in its own tool calls, not one long script.';
+/** Asks for a stage prefix on each step, and plan updates that ride along with real work (no turn of their own). */
+const STAGE_NUDGE = ' Start each step title with its stage (plan:, analyse:, dev:, fix: or review:). Send each task-list update in the same message as another tool call, never on its own.';
 
 const PLAN_NUDGE = {
   claude: ' For work with more than two steps, create a task list (3–7 steps) with your task tool before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
   codex: ' For work with more than two steps, call update_plan with 3–7 steps before starting, and keep each step\'s status updated as you go.' + STAGE_NUDGE,
+  // The CLI's task tools are deferred: loading them, the plan and its closing update each cost a turn. Text lines cost none.
+  'claude-cli': ' For work with more than two steps, track it in your reply text, not with a task tool. In your first reply, write the whole plan as one line: "plan: <stage>: <title> | <stage>: <title> | …" (3–7 steps). Then, when you start each step, write one line before its tool calls: "step: <stage>: <title>" with that step\'s title from the plan. Stage is plan, analyse, dev (writing or running code), fix or review.',
 };
 
 // Shown as-is in the rail and in the done notification: plain words a non-engineer can read.
@@ -394,10 +396,8 @@ const PROGRESS_TEXT = '<one short plain sentence (two at most) in the language t
 const PROGRESS_NUDGE = {
   claude: ` Each time you start a step, also pass "progress": "${PROGRESS_TEXT}" in that task tool call: as a top-level "progress" field of update_plan, or as metadata.progress of TaskCreate / TaskUpdate.`,
   codex: ` Each time you start a step, also write one line "progress: ${PROGRESS_TEXT}".`,
+  'claude-cli': ` Right after each step line, write one line "progress: ${PROGRESS_TEXT}".`,
 };
-
-/** Asks the main agent to have its subagents plan too, so each agent row has its own progress. */
-const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep its own short task list (3–7 steps) updated as it works.';
 
 /**
  * Injected into a Claude subagent on SubagentStart (hookSpecificOutput.additionalContext).
@@ -405,16 +405,31 @@ const AGENT_PLAN_NUDGE = ' When you dispatch agents, ask each of them to keep it
  * them), so an agent's steps are `step:` lines in its own text, read from its transcript.
  */
 export const SUBAGENT_INSTRUCTION =
-  'Your progress is shown live from your steps. Work in 2–7 steps, and when you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>", where stage is plan, analyse, dev, fix or review (e.g. "step: analyse: read the reducer"). Right after it, write one more line: "progress: <one short plain sentence (two at most) in the language of your task, on the work itself: what you found or changed so far and what is left — no file names, code or step titles>". Do each step in its own tool calls, not one long script.';
+  'Your progress is shown live from your steps. Work in 1–7 steps. In your first reply, write them all as one line: "plan: <stage>: <title> | <stage>: <title> | …". When you start each one, write one line in your reply text before its tool calls: "step: <stage>: <title>" with its title from the plan, where stage is plan, analyse, dev (writing or running code), fix or review (e.g. "step: analyse: read the reducer"). Right after it, write one more line: "progress: <one short plain sentence (two at most) in the language of your task, on the work itself: what you found or changed so far and what is left — no file names, code or step titles>".';
+
+/** Later prompts of a session: the full instruction is already in its context, so only point back at it. */
+export const RAIL_REMINDER = 'agent-rail: same rules as earlier in this session (a "rail:" line for a new task, staged steps, progress).';
 
 /**
- * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge.
+ * The CLI's reminder spells its line format out: the session may have started in the desktop app
+ * (task tools there) or lost the full text to compaction.
+ */
+export const RAIL_REMINDER_CLI = 'agent-rail: begin a new task with "rail: <title> — <summary>". For more than two steps, use no task tool: write "plan: <stage>: <title> | <stage>: <title> | …" once, then as you start each step "step: <stage>: <title>" and "progress: <one plain sentence: done and left>" (stage: plan, analyse, dev, fix or review).';
+
+/**
+ * The UserPromptSubmit instruction for one tool: the marker request plus a plan nudge,
+ * in full on a session's first prompt and as a one-line reminder after that.
  * @param {string|undefined} source 'claude' | 'codex'
+ * @param {boolean} [first] the session's first prompt
+ * @param {boolean} [cli] Claude Code outside the desktop app: steps as `step:` lines, not task tools
  * @returns {string}
  */
-export function railInstruction(source) {
-  const nudge = PLAN_NUDGE[/** @type {'claude'|'codex'} */ (source)];
-  return MARKER_INSTRUCTION + (nudge ? nudge + PROGRESS_NUDGE[/** @type {'claude'|'codex'} */ (source)] + AGENT_PLAN_NUDGE : '');
+export function railInstruction(source, first = true, cli = false) {
+  // ponytail: a compacted context may drop the full text; resend it on every prompt if that bites.
+  if (!first) return source === 'claude' && cli ? RAIL_REMINDER_CLI : RAIL_REMINDER;
+  const kind = /** @type {'claude'|'codex'|'claude-cli'} */ (source === 'claude' && cli ? 'claude-cli' : source);
+  const nudge = PLAN_NUDGE[kind];
+  return MARKER_INSTRUCTION + (nudge ? nudge + PROGRESS_NUDGE[kind] : '');
 }
 
 const TRANSCRIPT_TAIL_LINES = 200;
@@ -489,6 +504,7 @@ function tailLines(path) {
 }
 
 const STEP_LINE = /^[\s*_>-]*step:\s*(.+?)[\s*_]*$/gim;
+const PLAN_LINE = /^[\s*_>-]*plan:\s*(.+?\|.+?)[\s*_]*$/gim;
 const PROGRESS_LINE = /^[\s*_>-]*progress:\s*(.+?)[\s*_]*$/gim;
 /** A runaway text guard only: summaries are shown whole, wrapped, never clipped by line. */
 export const PROGRESS_MAX = 1000;
@@ -504,29 +520,44 @@ export function agentTranscriptPath(transcriptPath, agentId) {
 }
 
 /**
- * The `step: <stage>: <title>` lines a subagent wrote (SUBAGENT_INSTRUCTION), in order, once each,
- * and its latest `progress:` line: its own 1–2 sentence summary of what is done and what is left.
+ * The `step: <stage>: <title>` lines an agent wrote (SUBAGENT_INSTRUCTION, or the CLI's main agent), in order,
+ * once each, its latest `plan:` line (its entries split on "|") and its latest `progress:` line: its own
+ * 1–2 sentence summary of what is done and what is left.
  * @param {string|null|undefined} path the agent's transcript
- * @returns {{steps: string[], progress: string|null}} step titles with their stage prefix ([] when none
- *   or unreadable), and the latest progress line (null when none)
+ * @param {boolean} [turnOnly] only lines after the latest user prompt (the main agent's current turn)
+ * @returns {{steps: string[], plan: string[]|null, progress: string|null}} step titles with their stage prefix
+ *   ([] when none or unreadable), the plan's entries (null when none), and the latest progress line (null when none)
  */
-export function findStepsInTranscript(path) {
-  const steps = [];
+export function findStepsInTranscript(path, turnOnly = false) {
+  let steps = [];
+  /** @type {string[]|null} */
+  let plan = null;
   let progress = null;
   try {
     for (const l of tailLines(path)) {
-      if (!l.includes('step:') && !l.includes('progress:')) continue;
+      if (!l.includes('step:') && !l.includes('plan:') && !l.includes('progress:') && !(turnOnly && l.includes('"user"'))) continue;
       let o;
       try { o = JSON.parse(l); } catch { continue; }
       const { role, texts } = transcriptLine(o);
+      // The main agent's steps belong to its current turn: a prompt starts them over. A background
+      // task's `<task-notification>` arrives as a user message too, but the turn goes on.
+      if (turnOnly && role === 'user' && !isNotification(o)) { steps = []; plan = null; progress = null; continue; }
       if (role !== 'assistant') continue;
       for (const t of texts) {
+        for (const m of t.matchAll(PLAN_LINE)) plan = m[1].split('|').map((x) => x.trim()).filter(Boolean);
         for (const m of t.matchAll(STEP_LINE)) if (!steps.includes(m[1])) steps.push(m[1]);
         for (const m of t.matchAll(PROGRESS_LINE)) progress = clipText(m[1].replace(/\s+/g, ' '), PROGRESS_MAX);
       }
     }
   } catch { /* the transcript is a best-effort source */ }
-  return { steps, progress };
+  return { steps, plan, progress };
+}
+
+/** A Claude Code user line that only carries a background task's notification. @param {any} o */
+function isNotification(o) {
+  const c = o?.message?.content;
+  const t = typeof c === 'string' ? c : Array.isArray(c) ? c.filter((x) => x?.type === 'text').map((x) => x.text).join('') : '';
+  return /^\s*<task-notification>/.test(t);
 }
 
 /** @returns {{role: 'user'|'assistant'|null, texts: string[]}} */

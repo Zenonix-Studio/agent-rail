@@ -81,9 +81,18 @@ async function main() {
   }
   // A Claude subagent's `step:` lines (its task list when it has no task tools), on each of its calls and its stop.
   if (source === 'claude' && event.agentId && ((event.event?.type === 'tool' && event.event.phase === 'pre') || event.event?.type === 'agent-stop')) {
-    const { steps, progress } = findStepsInTranscript(input.agent_transcript_path ?? agentTranscriptPath(input.transcript_path, event.agentId));
+    const { steps, plan, progress } = findStepsInTranscript(input.agent_transcript_path ?? agentTranscriptPath(input.transcript_path, event.agentId));
     if (steps.length > 0) event.event = { ...event.event, steps };
+    if (plan) event.event = { ...event.event, plan };
     if (progress) event.event = { ...event.event, progress };
+  }
+  // Claude Code outside the desktop app writes its steps as `step:` lines (no task tools): read this turn's.
+  const cli = source === 'claude' && process.env.CLAUDE_CODE_ENTRYPOINT !== 'claude-desktop';
+  if (cli && !event.agentId && ((event.event?.type === 'tool' && event.event.phase === 'pre') || event.event?.type === 'stop')) {
+    const { steps, plan, progress } = findStepsInTranscript(input.transcript_path, true);
+    if (steps.length > 0) event.event = { ...event.event, mainSteps: steps };
+    if (plan) event.event = { ...event.event, mainPlan: plan };
+    if (progress && !event.event.progress) event.event = { ...event.event, progress };
   }
   // The main agent's summary comes in its plan call's input; a `progress:` line in its transcript is the
   // fallback (Codex, older prompts), read on its plan changes and its stop.
@@ -108,8 +117,11 @@ async function main() {
     if (proc) event.event = { ...event.event, proc };
   }
   const path = sessionPath(source, event.sessionId);
+  // A session with no job yet has not seen the rail instruction: its first prompt gets it in full.
+  let firstPrompt = true;
   withSessionLock(path, () => {
     const prev = readSession(path);
+    firstPrompt = !Array.isArray(prev?.jobs) || prev.jobs.length === 0;
     // A newer collector owns this file: never downgrade it.
     if (typeof prev?.schema === 'number' && prev.schema > SCHEMA_VERSION) {
       logError(`skipped ${path}: schema ${prev.schema} is newer than ${SCHEMA_VERSION}`);
@@ -149,10 +161,10 @@ async function main() {
   // for the title/summary marker and a plan (spike Q5 shape, both tools).
   if (event.event?.type === 'prompt' && !event.agentId) {
     process.stdout.write(JSON.stringify({
-      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: railInstruction(source) },
+      hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: railInstruction(source, firstPrompt, cli) },
     }));
   }
-  // Claude Code adds a SubagentStart hook's context to the subagent: ask it to keep its own task list.
+  // Claude Code adds a SubagentStart hook's context to the subagent: ask it for its `step:` lines.
   if (source === 'claude' && event.event?.type === 'agent-start' && event.agentId) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: 'SubagentStart', additionalContext: SUBAGENT_INSTRUCTION },
