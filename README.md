@@ -40,15 +40,15 @@ The rail has two modes. **Free** is the default.
 
 **Which one.** Railed helps the person watching, not the agent. In our tests (Claude Opus, 20 runs of two coding tasks scored by hidden checks) both modes scored the same every time; railed used 9–17% more tokens, 3–5% more cost. What railed adds is the view: you see the plan in the first minute and can stop a wrong one early, and you know how much is left. Use railed when you follow long jobs live; keep free when you let jobs run on their own, or want the agents untouched.
 
-**Switching.** Set `AGENT_RAIL_MODE` to `railed`, or remove it for free. For Claude Code (terminal and desktop app), put it in `~/.claude/settings.json`:
+**Switching.** In Claude Code (terminal and desktop app), pick the mode in the plugin's settings: `/config`, then agent-rail's **Mode**, `free` or `railed`. It is stored in `~/.claude/settings.json`:
 
 ```json
 {
-  "env": { "AGENT_RAIL_MODE": "railed" }
+  "pluginConfigs": { "agent-rail@agent-rail": { "options": { "mode": "railed" } } }
 }
 ```
 
-For Codex, set it in the shell that starts Codex: `AGENT_RAIL_MODE=railed codex`. Restart Claude Code or Codex after changing it.
+The `AGENT_RAIL_MODE` environment variable, when set, overrides the setting: `"env": { "AGENT_RAIL_MODE": "railed" }` in `~/.claude/settings.json`, or for Codex, which has no plugin settings, in the shell that starts it: `AGENT_RAIL_MODE=railed codex`. Restart Claude Code or Codex after changing it.
 
 ## Menubar app
 

@@ -6,5 +6,17 @@
     "name": "Zenonix Studio"
   },
   "license": "MIT",
-  "types": "./mod/types.d.ts"
+  "types": "./mod/types.d.ts",
+  "userConfig": {
+    "mode": {
+      "type": "string",
+      "title": "Mode",
+      "options": [
+        "free",
+        "railed"
+      ],
+      "default": "free",
+      "description": "free only watches the agents; railed also asks them for a title, a staged plan and progress notes (a few more tokens). The AGENT_RAIL_MODE environment variable overrides it."
+    }
+  }
 }

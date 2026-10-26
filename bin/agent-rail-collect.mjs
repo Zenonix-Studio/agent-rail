@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { appendFileSync, readdirSync } from 'node:fs';
+import { appendFileSync, readdirSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { execFileSync, spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +57,22 @@ function agentProcess() {
     }
   } catch { /* no ps, or the process is gone: nothing to record */ }
   return null;
+}
+
+/**
+ * The rail mode: AGENT_RAIL_MODE when set, else the plugin's `mode` setting (Claude Code keeps it in
+ * settings.json `pluginConfigs[<plugin>].options`), else free.
+ * @returns {'free'|'railed'}
+ */
+function railMode() {
+  const env = process.env.AGENT_RAIL_MODE;
+  if (env) return env === 'railed' ? 'railed' : 'free';
+  try {
+    const dir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+    const configs = JSON.parse(readFileSync(join(dir, 'settings.json'), 'utf8')).pluginConfigs ?? {};
+    const key = Object.keys(configs).find((k) => k === 'agent-rail' || k.startsWith('agent-rail@'));
+    return key && configs[key]?.options?.mode === 'railed' ? 'railed' : 'free';
+  } catch { return 'free'; }
 }
 
 async function main() {
@@ -159,8 +176,8 @@ async function main() {
   sweepOldSessions();
   // Stdout carries hook context only, never anything else. UserPromptSubmit: ask the main agent
   // for the title/summary marker and a plan (spike Q5 shape, both tools).
-  // Free (the default) only watches; railed (AGENT_RAIL_MODE=railed) also asks the agents for a title, plan and steps.
-  const railed = process.env.AGENT_RAIL_MODE === 'railed';
+  // Free (the default) only watches; railed also asks the agents for a title, plan and steps.
+  const railed = railMode() === 'railed';
   if (railed && event.event?.type === 'prompt' && !event.agentId) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: railInstruction(source, firstPrompt, cli) },
