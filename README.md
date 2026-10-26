@@ -28,7 +28,7 @@ The rail has two modes. **Free** is the default.
 **Free: watch only.** The plugin adds nothing to the conversation. It builds the rail from what the agents already do: each tool call becomes a step, its stage inferred from the tool (reading and searching is `analyse`, editing is `dev`, an edit after a failing build or test is `fix`, builds and tests are `review`), and agent rows show each subagent's own calls.
 
 - You watch the agents as they would work without the plugin.
-- No extra tokens, nothing for the agent to follow.
+- Nothing for the agent to follow.
 - The rail shows the steps already taken, not the ones still to come, so a job has no percentage. The title is the start of your prompt. In the desktop app, Claude's own plan still gives the full step list.
 
 **Railed: the agents report to the rail.** The plugin's prompt hook asks the agent to start each new task with a `rail: <title> — <summary>` line, to lay out a 3–7 step plan with a stage on each step (`plan:`, `analyse:`, `dev:`, `fix:`, `review:`) and to add a one-sentence progress note as it goes. In the Claude desktop app and in Codex the plan goes in the agent's task list; in the Claude Code terminal, in a task list it already keeps, else in `plan:` and `step:` lines in its reply, so no extra tool calls are needed. Subagents write the same lines.
@@ -36,9 +36,9 @@ The rail has two modes. **Free** is the default.
 - A short title and summary written for the task.
 - The whole plan up front: steps still to come, `2/4` and a percentage.
 - Stages chosen by the agent, and progress notes in plain words.
-- It costs a few lines of text per step, and it changes what the agent writes, so it is not the untouched flow. If you already keep your own task list or plan files, the two can overlap.
+- It adds a few lines to what the agent writes, so it is not the untouched flow. If you already keep your own task list or plan files, the two can overlap.
 
-**Which one.** Railed helps the person watching, not the agent. In our tests (Claude Opus, 20 runs of two coding tasks scored by hidden checks) both modes scored the same every time; railed used 9–17% more tokens, 3–5% more cost. What railed adds is the view: you see the plan in the first minute and can stop a wrong one early, and you know how much is left. Use railed when you follow long jobs live; keep free when you let jobs run on their own, or want the agents untouched.
+**Which one.** Railed helps the person watching, not the agent. In our tests (Claude Opus, 20 runs of two coding tasks scored by hidden checks) both modes scored the same every time. What railed adds is the view: you see the plan in the first minute and can stop a wrong one early, and you know how much is left. Use railed when you follow long jobs live; keep free when you let jobs run on their own, or want the agents untouched.
 
 **Switching.** In Claude Code (terminal and desktop app), pick the mode in the plugin's settings: `/config`, then agent-rail's **Mode**, `free` or `railed`. It is stored in `~/.claude/settings.json`:
 
