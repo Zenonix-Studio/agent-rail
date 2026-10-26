@@ -1,6 +1,6 @@
 {
   "name": "agent-rail",
-  "version": "0.2.32",
+  "version": "0.2.33",
   "description": "A live progress rail for Claude Code and Codex jobs: steps, agents, tokens and history, kept in local files under ~/.agent-rail",
   "author": {
     "name": "Zenonix Studio"
