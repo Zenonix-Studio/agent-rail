@@ -57,11 +57,13 @@ function ago(ms: number): string {
   return new Date(Date.now() - ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
-/** The state root, or null with HOME unset. */
+/** The state root, or null with no home to find. Matches core/state.mjs, whose os.homedir() reads USERPROFILE on Windows, where HOME is usually unset. */
 async function stateDir($: EngineInterface): Promise<string | null> {
-  const [root, home] = await Promise.all([$.env.get('AGENT_RAIL_HOME'), $.env.get('HOME')])
-  return typeof root === 'string' && root !== '' ? root
-    : typeof home === 'string' && home !== '' ? `${home}/.agent-rail`
+  const [root, home, profile] = await Promise.all([$.env.get('AGENT_RAIL_HOME'), $.env.get('HOME'), $.env.get('USERPROFILE')])
+  const set = (v: unknown): v is string => typeof v === 'string' && v !== ''
+  return set(root) ? root
+    : set(home) ? `${home}/.agent-rail`
+    : set(profile) ? `${profile}/.agent-rail`
     : null
 }
 
@@ -110,7 +112,7 @@ async function readLimit($: EngineInterface, dir: string | null): Promise<void> 
 async function tick($: EngineInterface): Promise<void> {
   const [sessionId, dir] = await Promise.all([$.session.id(), stateDir($)])
   await readLimit($, dir)
-  // No state root to read (HOME unset): draw "No job yet" rather than read `undefined/...`.
+  // No state root to read (no AGENT_RAIL_HOME, HOME or USERPROFILE): draw "No job yet" rather than read `undefined/...`.
   const text = dir === null
     ? ''
     : await $.fs.read(`${dir}/sessions/claude-${sessionId.replace(/[^A-Za-z0-9._-]/g, '_')}.json`).catch(() => '')
