@@ -204,8 +204,9 @@ function applyEvent(s, input, at) {
     }
     case 'stop':
       if (!agentId) {
-        if (Array.isArray(e.shells)) markShells(s, new Set(e.shells));
-        finish(s, e.lastMessage, at, false, Array.isArray(e.background) ? e.background.filter((id) => !foreignShell(s, id)) : null);
+        const shells = Array.isArray(e.shells) ? new Set(e.shells) : null;
+        if (shells) markShells(s, shells);
+        finish(s, e.lastMessage, at, false, Array.isArray(e.background) ? e.background.filter((id) => holdsJob(s, id, shells)) : null);
       }
       break;
     case 'session-end':
@@ -658,14 +659,17 @@ function markShells(s, running) {
 }
 
 /**
- * A background command started by another job (a server left running for an earlier task): it does
- * not keep the current job busy. Commands of no known job still do, as before.
- * @param {Session} s @param {string} id
+ * Whether a task the Stop lists as running keeps the current job busy. Agents do; a shell command
+ * only when the current job started it: a server left running for another task, or one started
+ * before commands were tracked, says nothing about this job. Without the Stop's shell list (older
+ * Claude Code), only a command another job started is left out.
+ * @param {Session} s @param {string} id @param {Set<string>|null} shells
  */
-function foreignShell(s, id) {
+function holdsJob(s, id, shells) {
   const cur = current(s);
   const owner = s.jobs.find((j) => (j.background ?? []).some((b) => b.id === id));
-  return !!owner && owner !== cur;
+  if (shells?.has(id)) return owner === cur;
+  return !owner || owner === cur;
 }
 
 /** Observed steps kept for a planless job; older ones fold into a count. */
@@ -970,6 +974,8 @@ function finish(s, lastMessage, at, final, background = null) {
       delete job._mainStopped;
     }
   }
+  // The main agent's turn is over: none of its own steps is still under way.
+  for (const p of job?.now?.pills ?? []) if (p.kind === 'active') p.kind = 'info';
   // I5: subagents still marked running when the job or session ends never reported back.
   if (final) closeAgents(s, at, null);
   else if (job?.status === 'done') closeAgents(s, at, job.seq);
