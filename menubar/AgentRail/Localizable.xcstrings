@@ -869,6 +869,16 @@
         }
       }
     },
+    "In background: %@": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arka planda: %@"
+          }
+        }
+      }
+    },
     "Hide": {
       "localizations": {
         "tr": {

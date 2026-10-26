@@ -203,7 +203,10 @@ function applyEvent(s, input, at) {
       break;
     }
     case 'stop':
-      if (!agentId) finish(s, e.lastMessage, at, false, Array.isArray(e.background) ? e.background : null);
+      if (!agentId) {
+        if (Array.isArray(e.shells)) markShells(s, new Set(e.shells));
+        finish(s, e.lastMessage, at, false, Array.isArray(e.background) ? e.background.filter((id) => !foreignShell(s, id)) : null);
+      }
       break;
     case 'session-end':
       if (!agentId) finish(s, null, at, true);
@@ -220,6 +223,12 @@ function onPrompt(s, text, at) {
   s._dispatch = s._dispatch.filter((d) => d.job === (job?.seq ?? null) && (d.claimed || d.agent));
   if (!job) {
     s.jobs.push(newJob(s, 1, text, 'planning', at));
+    return;
+  }
+  // A finished job with no plan has nothing a follow-up could extend or be told apart from (free
+  // mode writes no marker): the next prompt is a job of its own.
+  if (job.status === 'done' && job.milestones.length === 0) {
+    s.jobs.push(newJob(s, job.seq + 1, text, 'planning', at));
     return;
   }
   if (job.status === 'done' || job.status === 'waiting' || job._mainStopped) {
@@ -369,8 +378,10 @@ const stepMatch = (t) => splitStage(t).title.toLowerCase().replace(/\s+/g, ' ').
 
 /**
  * Plan items from a `plan:` line and the `step:` lines written so far. Each step marks its plan
- * entry (by title, else the next one) and every entry before it; the latest is active until the
- * agent stops, then done. Entries not reached stay pending; steps beyond the plan are added.
+ * entry (by title, else the next one) and every entry before it; the latest is active, entries
+ * not reached are pending, steps beyond the plan are added. Once the agent stops, all are done:
+ * Claude Code does not always save the text before a tool call, so a step line can be missing.
+ * The ceiling: an agent that stops mid-plan to ask something reads as finished.
  * @param {string[]|null} plan @param {string[]} steps @param {boolean} stopped
  * @returns {{key: string, title: string, status: string}[]}
  */
@@ -386,7 +397,7 @@ function stepItems(plan, steps, stopped) {
     }
     cur = Math.max(cur, i);
   }
-  return titles.map((t, i) => ({ key: STEP_KEY + t, title: t, status: i < cur || (i === cur && stopped) ? 'done' : i === cur ? 'active' : 'pending' }));
+  return titles.map((t, i) => ({ key: STEP_KEY + t, title: t, status: stopped || i < cur ? 'done' : i === cur ? 'active' : 'pending' }));
 }
 
 /**
@@ -610,6 +621,9 @@ function onTool(s, agentId, e, at) {
   const job = ensureJob(s, at);
   // The main agent works again (e.g. a turn after a hand-back): its next Stop decides anew.
   delete job._mainStopped;
+  if (isObj(e.background) && str(e.background.id)) {
+    job.background = [...(job.background ?? []).filter((b) => b.id !== e.background.id), { id: e.background.id, label: str(e.background.label) ?? e.background.id, startedAt: at, running: true }].slice(-MAX_BACKGROUND);
+  }
   // R17: main-agent tool activity means the job runs, plan or not.
   if (job.status === 'waiting' || job.status === 'planning') job.status = 'running';
   const key = activeKey(job);
@@ -630,6 +644,28 @@ function onTool(s, agentId, e, at) {
   now.attempt = RETRY_KEYS.has(ck) ? n : ck in now._retryBase ? n - now._retryBase[ck] : 1;
   if (file) now.file = file;
   job.updatedAt = at;
+}
+
+/** Background commands kept per job. */
+const MAX_BACKGROUND = 5;
+
+/**
+ * A Stop lists the shell commands still running: each job's own commands are marked running or not.
+ * @param {Session} s @param {Set<string>} running
+ */
+function markShells(s, running) {
+  for (const j of s.jobs) for (const b of j.background ?? []) b.running = running.has(b.id);
+}
+
+/**
+ * A background command started by another job (a server left running for an earlier task): it does
+ * not keep the current job busy. Commands of no known job still do, as before.
+ * @param {Session} s @param {string} id
+ */
+function foreignShell(s, id) {
+  const cur = current(s);
+  const owner = s.jobs.find((j) => (j.background ?? []).some((b) => b.id === id));
+  return !!owner && owner !== cur;
 }
 
 /** Observed steps kept for a planless job; older ones fold into a count. */

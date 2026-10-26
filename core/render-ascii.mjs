@@ -103,6 +103,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
       const recent = recentLine(now, w);
       if (recent.length) lines.push(recent);
     }
+    if (w >= COMPACT_WIDTH) lines.push(...backgroundLines(job, w));
     lines.push(...block);
     if (w >= COMPACT_WIDTH) lines.push(...progressLines(job, w));
     return lines.map((l) => fit(l.filter(nonEmpty), w));
@@ -138,6 +139,7 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
 
   const now = !isDone && job?.now && typeof job.now === 'object' ? job.now : null;
   lines.push(...railLines(milestones, w, isDone, now, nowMs));
+  lines.push(...backgroundLines(job, w));
   lines.push(...block);
   const recap = progressLines(job, w);
   if (block.length && recap.length) lines.push([]);
@@ -163,6 +165,15 @@ export function renderJobSegments(job, width, nowMs = Date.now(), agents = 0, op
  * @param {number} nowMs clock for the active milestone's running duration
  * @returns {Line[]}
  */
+/**
+ * The job's commands still running in the background (a server, a long loop), one line each.
+ * @param {any} job @param {number} w @returns {Line[]}
+ */
+function backgroundLines(job, w) {
+  const list = Array.isArray(job?.background) ? job.background.filter((b) => b && b.running === true) : [];
+  return list.map((b) => [seg('⧗', 'active'), seg(' in background: ', 'dim'), seg(clip(str(b.label) || str(b.id) || '?', w - 17), 'plain')]);
+}
+
 /**
  * A planless job's observed steps (reduce.mjs observePhase) as milestones: the last one active
  * until the job is done.

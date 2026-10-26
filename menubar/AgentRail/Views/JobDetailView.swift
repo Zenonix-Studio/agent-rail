@@ -27,6 +27,9 @@ struct JobDetailView: View {
                         .padding(.bottom, 12)
                 }
                 RailView(job: item.job, clock: now)
+                ForEach(item.job.background.filter(\.running), id: \.id) { command in
+                    BackgroundCommandView(label: command.label).padding(.bottom, 8)
+                }
                 let subagents = agents(of: item)
                 if !subagents.isEmpty {
                     AgentsSectionView(agents: subagents, now: now, expansion: agentExpansion).padding(.top, 2)
@@ -42,6 +45,24 @@ struct JobDetailView: View {
         }
         .opacity(isStale(item, now: now) ? 0.55 : 1)
         .modifier(JobCard())
+    }
+}
+
+/// A command the job left running in the background (a server, a long loop): why the job still runs.
+private struct BackgroundCommandView: View {
+    let label: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Image(systemName: "hourglass").foregroundStyle(Theme.muted).accessibilityHidden(true)
+            Text(verbatim: L10n.inBackground(label))
+                .foregroundStyle(Theme.muted)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(label)
+        }
+        .font(.system(size: 11.5))
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

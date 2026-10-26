@@ -7,21 +7,23 @@ struct RailView: View {
     let clock: Date
 
     var body: some View {
-        let activeKey = activeMilestoneKey(job)
+        let rail = railMilestones(job)
+        // Observed steps have no now.milestone: the last one, while active, holds the now block.
+        let activeKey = job.milestones.isEmpty ? rail.last(where: { $0.status == .active })?.key : activeMilestoneKey(job)
         let pills = job.now?.pills ?? []
         VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(job.milestones.enumerated()), id: \.offset) { index, milestone in
+            ForEach(Array(rail.enumerated()), id: \.offset) { index, milestone in
                 let isActive = milestone.key == activeKey
                 RailRow(milestone: milestone,
                         isActive: isActive,
-                        isLast: index == job.milestones.count - 1,
+                        isLast: index == rail.count - 1,
                         now: isActive ? job.now : nil,
                         duration: isActive || milestone.status == .done ? stepDuration(milestone, now: clock) : nil)
             }
             // No milestone to anchor to (e.g. planning, or `now.milestone` is empty): show it under the rail.
             if activeKey == nil, job.status != .done, let now = job.now, !pills.isEmpty {
                 NowBlockView(now: now)
-                    .padding(.top, job.milestones.isEmpty ? 0 : 2)
+                    .padding(.top, rail.isEmpty ? 0 : 2)
                     .padding(.bottom, 11)
             }
         }

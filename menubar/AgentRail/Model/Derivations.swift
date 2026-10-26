@@ -18,6 +18,19 @@ func jobTokens(_ item: JobItem) -> Int {
     agents(of: item).reduce(item.job.tokens?.total ?? 0) { $0 + ($1.tokens?.total ?? 0) }
 }
 
+/// The steps the rail draws: the job's plan, else its observed steps (`phaseMilestones` in
+/// core/render-ascii.mjs), the last one active until the job is done.
+func railMilestones(_ job: Job) -> [Milestone] {
+    guard job.milestones.isEmpty else { return job.milestones }
+    let done = job.status == .done
+    return job.phases.enumerated().map { i, p in
+        Milestone(key: "obs:\(i)", title: p.title,
+                  status: i < job.phases.count - 1 || done ? .done : .active,
+                  stage: p.stage, startedAt: p.startedAt,
+                  endedAt: p.endedAt ?? (done ? job.endedAt : nil))
+    }
+}
+
 func progress(_ job: Job) -> (done: Int, total: Int, pct: Int?) {
     let total = job.milestones.count
     let done = job.milestones.filter { $0.status == .done }.count

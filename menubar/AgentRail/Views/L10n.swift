@@ -15,6 +15,7 @@ enum L10n {
     static let notifications = String(localized: "Notifications")
 
     static func moreAgents(_ n: Int) -> String { String(localized: "+\(n) more") }
+    static func inBackground(_ label: String) -> String { String(localized: "In background: \(label)") }
 
     /// The locale of the language the UI strings resolved to (not the system region's formats).
     private static let uiLocale = Locale(identifier: Bundle.main.preferredLocalizations.first ?? "en")

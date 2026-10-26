@@ -77,6 +77,18 @@ struct Milestone: Decodable, Sendable {
     }
 }
 
+extension Milestone {
+    /// An observed step drawn as a milestone (see `railMilestones`).
+    init(key: String, title: String, status: MilestoneStatus, stage: Stage?, startedAt: Date?, endedAt: Date?) {
+        self.key = key
+        self.title = title
+        self.status = status
+        self.stage = stage
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+    }
+}
+
 struct Pill: Decodable, Sendable {
     let label: String
     let kind: PillKind
@@ -156,9 +168,13 @@ struct Job: Decodable, Sendable {
     let progress: String
     /// The main agent's token usage during the job; nil until seen (and for Codex).
     let tokens: Tokens?
+    /// A planless job's steps as seen from its tool calls (`observePhase` in core/reduce.mjs); empty otherwise.
+    let phases: [Phase]
+    /// Commands the job started in the background (a server, a long loop).
+    let background: [BackgroundCommand]
 
     private enum CodingKeys: String, CodingKey {
-        case id, seq, title, summary, prompt, status, milestones, startedAt, updatedAt, endedAt, now, progress, tokens
+        case id, seq, title, summary, prompt, status, milestones, startedAt, updatedAt, endedAt, now, progress, tokens, phases, background
     }
 
     init(from decoder: Decoder) throws {
@@ -176,6 +192,42 @@ struct Job: Decodable, Sendable {
         now = try c.decodeIfPresent(Now.self, forKey: .now)
         progress = (try? c.decodeIfPresent(String.self, forKey: .progress)) ?? ""
         tokens = c.decodeTokens(forKey: .tokens)
+        phases = ((try? c.decodeIfPresent([Phase].self, forKey: .phases)) ?? nil) ?? []
+        background = ((try? c.decodeIfPresent([BackgroundCommand].self, forKey: .background)) ?? nil) ?? []
+    }
+}
+
+/// One observed step of a planless job: consecutive tool calls of one stage.
+struct Phase: Decodable, Sendable {
+    let stage: Stage?
+    let title: String
+    let startedAt: Date?
+    let endedAt: Date?
+
+    private enum CodingKeys: String, CodingKey { case stage, title, startedAt, endedAt }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        stage = c.decodeStage(forKey: .stage)
+        title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? "?"
+        startedAt = (try? c.decodeIfPresent(Date.self, forKey: .startedAt)) ?? nil
+        endedAt = (try? c.decodeIfPresent(Date.self, forKey: .endedAt)) ?? nil
+    }
+}
+
+/// A command a job started in the background, and whether the last Stop still listed it.
+struct BackgroundCommand: Decodable, Sendable {
+    let id: String
+    let label: String
+    let running: Bool
+
+    private enum CodingKeys: String, CodingKey { case id, label, running }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        label = (try? c.decodeIfPresent(String.self, forKey: .label)) ?? id
+        running = (try? c.decodeIfPresent(Bool.self, forKey: .running)) ?? false
     }
 }
 

@@ -81,7 +81,7 @@ function toEvent(p) {
     case 'SubagentStop':
       return { type: 'agent-stop', ok: true, names: taskNames(p.background_tasks), lastMessage: str(p.last_assistant_message) };
     case 'Stop':
-      return { type: 'stop', lastMessage: str(p.last_assistant_message), background: runningTasks(p.background_tasks), names: taskNames(p.background_tasks) };
+      return { type: 'stop', lastMessage: str(p.last_assistant_message), background: runningTasks(p.background_tasks), names: taskNames(p.background_tasks), shells: runningShells(p.background_tasks) };
     case 'SessionEnd':
       return { type: 'session-end' };
     default:
@@ -126,6 +126,9 @@ function toolEvent(p, phase, ok) {
   };
   // The Agent call's response names the agent it started: the link to its SubagentStart.
   if (step.group === 'dispatch' && phase === 'post') e.spawned = str(p.tool_response?.agentId);
+  // A command started in the background: its task id, for the job that started it.
+  const bg = phase === 'post' ? str(p.tool_response?.backgroundTaskId) : null;
+  if (bg) e.background = { id: bg, label: str(input.description) ?? str(input.command) ?? bg };
   return e;
 }
 
@@ -138,6 +141,12 @@ function toolEvent(p, phase, ok) {
 function withProgress(e, input) {
   const progress = str(input.progress) ?? str(input.metadata?.progress);
   return e && progress ? { ...e, progress: clipText(progress.replace(/\s+/g, ' '), PROGRESS_MAX) } : e;
+}
+
+/** @param {unknown} tasks Stop's `background_tasks` @returns {string[]|null} ids of the shell commands still running; null when absent */
+function runningShells(tasks) {
+  if (!Array.isArray(tasks)) return null;
+  return tasks.filter((t) => t && t.type === 'shell' && t.status === 'running' && str(t.id)).map((t) => t.id);
 }
 
 /** @param {unknown} tasks Stop's `background_tasks` @returns {string[]|null} ids still running; null when absent */
