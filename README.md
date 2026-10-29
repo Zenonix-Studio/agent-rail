@@ -15,6 +15,8 @@ Needs Node 18 or later on PATH. In Claude Code (terminal or desktop app):
 
 Restart Claude Code. Both the desktop app and the terminal get an **Agent rail** pane beside the chat (`/rail` toggles it), plus `/agent-rail:history` and, if you add it, the status line below.
 
+The rail starts in **free** mode, which only watches. To have the agents report a plan and progress notes, open `/config` and set agent-rail's **Mode** to `railed` (see [Modes](#modes-free-and-railed)).
+
 <p align="center">
   <img src="docs/images/claude-desktop.png" width="430" alt="The Agent rail pane in the Claude desktop app: a finished job with four stage-colored steps and their durations, the Explore agent with its own steps, and the closing summary">
   <img src="docs/images/claude-cli.png" width="430" alt="The Agent rail pane in the Claude Code terminal: the job at 25 percent, the current step, a running Explore agent with its own steps, and the latest progress note">
@@ -23,7 +25,7 @@ Restart Claude Code. Both the desktop app and the terminal get an **Agent rail**
 
 ## Modes: free and railed
 
-The rail has two modes. **Free** is the default.
+The rail has two modes. **Free** is the default; pick one in `/config` under agent-rail's **Mode** (see [Switching](#switching) below).
 
 **Free: watch only.** The plugin adds nothing to the conversation. It builds the rail from what the agents already do: each tool call becomes a step, its stage inferred from the tool (reading and searching is `analyse`, editing is `dev`, an edit after a failing build or test is `fix`, builds and tests are `review`), and agent rows show each subagent's own calls.
 
@@ -40,7 +42,9 @@ The rail has two modes. **Free** is the default.
 
 **Which one.** Railed helps the person watching, not the agent. In our tests (Claude Opus, 20 runs of two coding tasks scored by hidden checks) both modes scored the same every time. What railed adds is the view: you see the plan in the first minute and can stop a wrong one early, and you know how much is left. Use railed when you follow long jobs live; keep free when you let jobs run on their own, or want the agents untouched.
 
-**Switching.** In Claude Code (terminal and desktop app), pick the mode in the plugin's settings: `/config`, then agent-rail's **Mode**, `free` or `railed`. It is stored in `~/.claude/settings.json`:
+### Switching
+
+In Claude Code (terminal and desktop app), pick the mode in the plugin's settings: `/config`, then agent-rail's **Mode**, `free` or `railed`. It is stored in `~/.claude/settings.json`:
 
 ```json
 {
