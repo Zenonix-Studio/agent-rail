@@ -106,26 +106,31 @@ To pack a DMG: `scripts/release-menubar.sh --unsigned` for a local try, or with 
 
 ## Web viewer
 
-The same view in a browser, for Windows and Linux (it runs on macOS too). It reads the session files in `~/.agent-rail/sessions/*.json`, like the menubar app.
+The same view in a browser, for Windows and Linux (it runs on macOS too). It reads the session files in `~/.agent-rail/sessions/*.json`, like the menubar app, so set up the [Claude Code plugin](#claude-code) or [Codex](#codex) first: they write those files.
 
 - Running jobs with their steps and agents, plus history, token stats and a legend of the stage colors.
 - **Hide** a quiet card, or **Stop session…** to end a Claude Code or Codex session and its agents, after a confirmation.
 - English and Turkish, following the browser language.
 - Local: it listens on `127.0.0.1` only and answers no other host name.
 
-**Run:** needs Node 18 or later. From a clone of this repository:
+**Windows: one command.** Open PowerShell (Start menu, type `powershell`) and paste:
 
 ```
-node web/server.mjs
+irm https://raw.githubusercontent.com/Zenonix-Studio/agent-rail/main/web/install.ps1 | iex
 ```
 
-Then open http://127.0.0.1:4317. Set `PORT` to use another port.
+It installs Node.js first if you don't have it (it asks, then uses winget), puts the viewer in `%LOCALAPPDATA%\agent-rail` and starts it. Then:
 
-**Windows tray:** `web/tray.ps1` starts the viewer, opens it as a small window from the tray icon, and shows a notification when a job is done, needs you or is failing:
+- Click the agent-rail icon in the taskbar tray (it may be under the `^` arrow) to open it as a small window.
+- A notification tells you when a job is done, needs you or is failing, even with the window closed.
+- It starts with Windows and is in the Start menu as **agent-rail**. Right-click the tray icon to quit.
+- To update, run the same command again. To remove it:
 
 ```
-powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File web\tray.ps1
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/Zenonix-Studio/agent-rail/main/web/install.ps1))) -Uninstall
 ```
+
+**Linux and macOS:** needs Node 18 or later. From a clone of this repository, run `node web/server.mjs` and open http://127.0.0.1:4317 (set `PORT` to use another port).
 
 ## History command
 
