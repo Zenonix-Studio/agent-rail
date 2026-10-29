@@ -1,0 +1,17 @@
+{
+  "sessionId": "bbb",
+  "project": "docs",
+  "updatedAt": "2026-10-20T08:00:00Z",
+  "jobs": [
+    {
+      "id": "codex:bbb:1",
+      "seq": 1,
+      "title": "Write README",
+      "status": "planning",
+      "startedAt": "2026-10-20T07:50:00Z",
+      "updatedAt": "2026-10-20T08:00:00Z",
+      "milestones": []
+    }
+  ],
+  "agents": {}
+}

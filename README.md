@@ -104,6 +104,29 @@ To pack a DMG: `scripts/release-menubar.sh --unsigned` for a local try, or with 
 
 </details>
 
+## Web viewer
+
+The same view in a browser, for Windows and Linux (it runs on macOS too). It reads the session files in `~/.agent-rail/sessions/*.json`, like the menubar app.
+
+- Running jobs with their steps and agents, plus history, token stats and a legend of the stage colors.
+- **Hide** a quiet card, or **Stop session…** to end a Claude Code or Codex session and its agents, after a confirmation.
+- English and Turkish, following the browser language.
+- Local: it listens on `127.0.0.1` only and answers no other host name.
+
+**Run:** needs Node 18 or later. From a clone of this repository:
+
+```
+node web/server.mjs
+```
+
+Then open http://127.0.0.1:4317. Set `PORT` to use another port.
+
+**Windows tray:** `web/tray.ps1` starts the viewer, opens it as a small window from the tray icon, and shows a notification when a job is done, needs you or is failing:
+
+```
+powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File web\tray.ps1
+```
+
 ## History command
 
 `/agent-rail:history` lists the last 50 finished jobs across sessions, newest first, in the terminal and the desktop app. `/agent-rail:history <number>` shows one of them in full: its steps, agents and closing summary. The menubar's **Done today** button shows the same list. `/agent-rail:history stats`, the pane's **Stats** tab (`/rail stats`) and the menubar's chart button show the tokens spent since the weekly limit reset: the last 1, 3 and 5 days and the last 3, 10, 25 and 50 jobs.
