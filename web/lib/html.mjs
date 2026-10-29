@@ -22,7 +22,7 @@ const TR = {
   'Since the weekly reset · {0} jobs · resets {1}': 'Haftalık sıfırlamadan beri · {0} iş · sıfırlanma {1}', '{0}% used': '%{0} kullanıldı',
   'Last 7 days · {0} jobs (no weekly limit reading yet)': 'Son 7 gün · {0} iş (haftalık limit henüz okunmadı)',
   'By day': 'Güne göre', 'By job': 'İşe göre', 'Last 1 day': 'Son 1 gün', 'Last {0} days': 'Son {0} gün',
-  'Last {0} jobs': 'Son {0} iş', 'Last {0} jobs ({1})': 'Son {0} iş ({1})',
+  'Last {0} jobs': 'Son {0} iş', 'Last {0} jobs ({1})': 'Son {0} iş ({1})', '+{0} more': '+{0} daha',
 };
 
 /** Runs in the browser: serialized into the page, so it may only use its arguments and browser globals. */
@@ -84,8 +84,10 @@ function client(lang, dict) {
       ${j.progress ? `<span class="note">${escape(j.progress)}</span>` : ''}
     </summary><div class="detail"></div></details></li>`;
 
-  // Agents: the menubar's agentCurrentStep / agentSteps.
-  const openAgents = new Set();
+  // Agents: the menubar's agentCurrentStep / agentSteps. Open by default: all of up to 3 agents, else the
+  // first running one; a click overrides that per agent.
+  const agentChoice = new Map();
+  const AGENTS_SHOWN = 6, OPEN_ALL_MAX = 3;
   const quietMin = (a, now) => (a.status === 'running' && now - time(a.updatedAt) >= 5 * MIN ? Math.floor((now - time(a.updatedAt)) / MIN) : null);
   const currentStep = (a) => (a.milestones.find((m) => m.status === 'active') ?? a.milestones.find((m) => m.status === 'pending'))?.title || a.activity;
   const agentSteps = (a) => {
@@ -97,13 +99,23 @@ function client(lang, dict) {
     }
     return a.steps.map((p) => ({ label: p.label, state: p.kind === 'ok' ? 'done' : p.kind === 'warn' ? 'failed' : p.kind === 'active' && run ? 'active' : '' }));
   };
-  const agentRow = (a, now) => {
+  const agentRow = (a, now, byDefault) => {
     const q = quietMin(a, now);
     const steps = agentSteps(a);
-    return `<li class="agent" data-agent-id="${escape(a.id)}" data-status="${q === null ? escape(a.status) : 'quiet'}"><details${openAgents.has(a.id) ? ' open' : ''}><summary>
+    // The summary adds nothing when it only repeats the name (a dispatch with no prompt).
+    const summary = a.summary && a.summary !== a.name ? `<p class="summary">${escape(a.summary)}</p>` : '';
+    const body = summary + (steps.length ? `<ol class="ms">${steps.map((s) => `<li class="${s.state}"><span class="dot"></span>${escape(s.label)}</li>`).join('')}</ol>` : '');
+    return `<li class="agent" data-agent-id="${escape(a.id)}" data-status="${q === null ? escape(a.status) : 'quiet'}"><details${body && (agentChoice.get(a.id) ?? byDefault) ? ' open' : ''}><summary>
       <span class="dot"></span><strong>${escape(a.name)}</strong><span class="percent">${a.tokens ? fmt(a.tokens) : ''}</span>
       <span class="meta">${escape(q === null ? currentStep(a) || t(STATUS[a.status] ?? a.status) : t('quiet {0}m', q))}</span>
-    </summary>${steps.length ? `<ol class="ms">${steps.map((s) => `<li class="${s.state}"><span class="dot"></span>${escape(s.label)}</li>`).join('')}</ol>` : ''}</details></li>`;
+      ${a.progress ? `<span class="note">${escape(a.progress)}</span>` : ''}
+    </summary>${body}</details></li>`;
+  };
+  const agentList = (agents, now) => {
+    const firstRunning = agents.find((a) => a.status === 'running')?.id;
+    const rows = agents.slice(0, AGENTS_SHOWN).map((a) => agentRow(a, now, agents.length <= OPEN_ALL_MAX || a.id === firstRunning)).join('');
+    const more = agents.length > AGENTS_SHOWN ? `<li class="more">${escape(t('+{0} more', agents.length - AGENTS_SHOWN))}</li>` : '';
+    return `<ul class="agents">${rows}${more}</ul>`;
   };
   const detail = (d, now) => {
     const running = d.agents.filter((a) => a.status === 'running').length;
@@ -111,10 +123,12 @@ function client(lang, dict) {
       isStale(d, now) && !isHidden(d) ? `<button data-act="hide" title="${escape(t('Hide this job here; its session is not stopped'))}">${t('Hide')}</button>` : '',
       d.canStop ? `<button data-act="stop" class="danger" title="${escape(t('Ends the whole session and its agents'))}">${t('Stop session…')}</button>` : '',
     ].join('');
-    return (d.milestones.length
+    return (d.summary ? `<p class="summary">${escape(d.summary)}</p>` : '')
+      + (d.milestones.length
       ? `<ol class="ms">${d.milestones.map((m) => `<li class="${escape(m.status)}" data-stage="${escape(m.stage ?? '')}"><span class="dot"></span>${escape(m.title)}</li>`).join('')}</ol>`
       : `<p class="none">${t('No steps')}</p>`)
-      + (d.agents.length ? `<h3>${running ? t('Agents · {0} running', running) : t('Agents')}</h3><ul class="agents">${d.agents.map((a) => agentRow(a, now)).join('')}</ul>` : '')
+      + (d.agents.length ? `<h3>${running ? t('Agents · {0} running', running) : t('Agents')}</h3>${agentList(d.agents, now)}` : '')
+      + (d.progress ? `<p class="progress">${escape(d.progress)}</p>` : '')
       + (actions ? `<div class="actions">${actions}</div>` : '');
   };
 
@@ -146,6 +160,8 @@ function client(lang, dict) {
   const today = document.getElementById('today'), notify = document.getElementById('notify');
   let jobs = [], week = null, ready = false;
   const details = new Map();
+  // Open cards across live updates: the first live job opens by default (the menubar's), a click overrides it.
+  const jobChoice = new Map();
 
   function render() {
     const now = Date.now();
@@ -160,13 +176,14 @@ function client(lang, dict) {
     if (page === 'legend') { view.innerHTML = legend(); return; }
     if (page === 'stats') { view.innerHTML = week ? statsView(week) : `<p class="empty">${t('Loading…')}</p>`; return; }
     if (!ready) { view.innerHTML = `<p class="empty">${t('Loading…')}</p>`; return; }
-    // Keep expanded cards open across live updates; the toggle event reloads their detail.
-    const open = new Set([...view.querySelectorAll('.job > details[open]')].map((d) => d.parentElement.dataset.jobId));
     const needle = q.value.toLocaleLowerCase(lang);
     const shown = (page === 'history' ? historyJobs() : live).filter((j) => String(j.title).toLocaleLowerCase(lang).includes(needle));
     view.innerHTML = `<ul>${shown.map((j) => (page === 'history' ? historyRow(j) : row(j, now))).join('')
       || `<li class="empty">${t(page === 'history' ? 'No finished jobs yet' : 'No live jobs')}</li>`}</ul>`;
-    for (const li of view.querySelectorAll('.job')) if (open.has(li.dataset.jobId)) li.querySelector('details').open = true;
+    // Opening fires the toggle event, which loads the card's detail.
+    [...view.querySelectorAll('.job')].forEach((li, i) => {
+      if (jobChoice.get(li.dataset.jobId) ?? (page === 'jobs' && i === 0)) li.querySelector('details').open = true;
+    });
   }
 
   async function loadDetail(li) {
@@ -185,8 +202,8 @@ function client(lang, dict) {
 
   view.addEventListener('toggle', (e) => {
     const li = e.target.parentElement;
-    if (li.classList.contains('agent')) { if (e.target.open) openAgents.add(li.dataset.agentId); else openAgents.delete(li.dataset.agentId); }
-    else if (e.target.open) loadDetail(li);
+    if (li.classList.contains('agent')) agentChoice.set(li.dataset.agentId, e.target.open);
+    else { jobChoice.set(li.dataset.jobId, e.target.open); if (e.target.open) loadDetail(li); }
   }, true);
   view.addEventListener('click', async (e) => {
     const act = e.target.closest('[data-act]')?.dataset.act;
@@ -263,7 +280,11 @@ summary::-webkit-details-marker { display: none; }
 strong { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .percent { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
 .meta, .note { grid-column: 2 / 4; color: var(--dim); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.note { font-size: 11.5px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.note { font-size: 11.5px; white-space: normal; }
+/* An open history card shows its note at the bottom, so not in its header too. */
+.job > details[open] > summary > .note { display: none; }
+.summary { margin: 0 0 8px; font-size: 12px; } .progress { margin: 10px 0 0; color: var(--dim); font-size: 12px; }
+.agents .summary { margin: 0 0 4px 16px; color: var(--dim); font-size: 11.5px; } .more { color: var(--dim); font-size: 11px; padding: 2px 0; }
 progress { grid-column: 2 / 4; width: 100%; height: 4px; appearance: none; border: 0; border-radius: 2px; background: var(--line); overflow: hidden; }
 progress::-webkit-progress-bar { background: var(--line); }
 /* Separate rules: a selector list with an unknown pseudo-element is dropped whole. */

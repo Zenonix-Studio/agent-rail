@@ -23,10 +23,11 @@ export function summarize(session, job) {
     // Running first, then in start order, so rows do not jump around while the agents work.
     .sort((a, b) => (b.status === 'running') - (a.status === 'running') || time(a.startedAt) - time(b.startedAt))
     .map((a) => ({ id: a.id, name: a.name, status: a.status, activity: a.activity ?? '', updatedAt: a.updatedAt, tokens: tokenSum(a.tokens),
+      summary: a.summary ?? '', progress: a.progress ?? '',
       milestones: steps(a.milestones), steps: (Array.isArray(a.steps) ? a.steps : []).slice(-6).map((p) => ({ label: p.label, kind: p.kind })) }));
   return {
     id: job.id, title: job.title || job.prompt || session.project, status: job.status, project: session.project, source: session.source ?? null,
-    updatedAt: job.updatedAt, startedAt: job.startedAt, endedAt: job.endedAt ?? null, progress: job.progress ?? '',
+    updatedAt: job.updatedAt, startedAt: job.startedAt, endedAt: job.endedAt ?? null, summary: job.summary ?? '', progress: job.progress ?? '',
     // Liveness inputs: only a session's last job is live, and a session gone quiet makes its card stale.
     latest: Array.isArray(session.jobs) && session.jobs.at(-1) === job, sessionUpdatedAt: session.updatedAt ?? job.updatedAt,
     toolInFlight: pills.at(-1)?.kind === 'active', warn: pills.findLast((p) => p.kind === 'warn')?.label ?? null,
