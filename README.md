@@ -52,7 +52,7 @@ In Claude Code (terminal and desktop app), pick the mode in the plugin's setting
 }
 ```
 
-The `AGENT_RAIL_MODE` environment variable, when set, overrides the setting: `"env": { "AGENT_RAIL_MODE": "railed" }` in `~/.claude/settings.json`, or for Codex, which has no plugin settings, in the shell that starts it: `AGENT_RAIL_MODE=railed codex`. Restart Claude Code or Codex after changing it.
+Codex's hooks read the same setting, so with Claude Code installed one switch covers both. Without Claude Code, or to override the setting, set the `AGENT_RAIL_MODE` environment variable: `"env": { "AGENT_RAIL_MODE": "railed" }` in `~/.claude/settings.json`, or in the shell that starts Codex: `AGENT_RAIL_MODE=railed codex`. When set, it wins over the setting. Restart Claude Code or Codex after changing it.
 
 ## Menubar app
 
