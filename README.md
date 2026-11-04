@@ -13,7 +13,7 @@ Needs Node 18 or later on PATH. In Claude Code (terminal or desktop app):
 /plugin install agent-rail@agent-rail
 ```
 
-Restart Claude Code. Both the desktop app and the terminal get an **Agent rail** pane beside the chat (`/rail` toggles it), plus `/agent-rail:history` and, if you add it, the status line below.
+Restart Claude Code. Both the desktop app and the terminal get an **Agent rail** pane beside the chat, opened when a session starts (`/rail` toggles it; a `/config` switch keeps it closed, see [What runs on its own](#what-runs-on-its-own-and-how-to-turn-it-off)), plus `/agent-rail:history` and, if you add it, the status line below.
 
 The rail starts in **free** mode, which only watches. To have the agents report a plan and progress notes, open `/config` and set agent-rail's **Mode** to `railed` (see [Modes](#modes-free-and-railed)).
 
@@ -123,7 +123,7 @@ It installs Node.js first if you don't have it (it asks, then uses winget), puts
 
 - Click the agent-rail icon in the taskbar tray (it may be under the `^` arrow) to open it as a small window.
 - A notification tells you when a job is done, needs you or is failing, even with the window closed.
-- It starts with Windows and is in the Start menu as **agent-rail**. Right-click the tray icon to quit.
+- It starts with Windows and is in the Start menu as **agent-rail**. Right-click the tray icon to quit; to keep it from starting with Windows, see [What runs on its own](#what-runs-on-its-own-and-how-to-turn-it-off).
 - To update, run the same command again. To remove it:
 
 ```
@@ -183,6 +183,21 @@ Add it to your Claude Code settings (`~/.claude/settings.json`):
 ```
 
 It prints nothing when the session has no job yet. Set `NO_COLOR` to drop the colors.
+
+## What runs on its own, and how to turn it off
+
+| What | Default | To turn it off |
+|---|---|---|
+| The Agent rail pane opens when a Claude Code session starts | on | `/config` → agent-rail → **Open the pane at start**: off. `/rail` still opens it. |
+| The current job is drawn above the prompt while the pane is not shown (terminal) | on | `/config` → agent-rail → **Rail above the prompt**: off. |
+| The agents are asked for a title, a plan and progress notes | off (free mode) | `/config` → agent-rail → **Mode**: `free`. See [Modes](#modes-free-and-railed). |
+| The hooks write a file per session to `~/.agent-rail` and delete files older than 30 days | on | Uninstall the plugin (`/plugin uninstall agent-rail@agent-rail`), then delete `~/.agent-rail`. See [Privacy](#privacy). |
+| The menubar app notifies when a job is done, needs you or is failing | on, after you allow it | System Settings → Notifications → AgentRail. |
+| The Windows tray starts when you sign in | on | Task Manager → Startup apps → agent-rail → **Disable**, or delete the agent-rail shortcut in `shell:startup` (Win+R). |
+| The Windows tray shows notifications | on | Settings → System → Notifications → Windows PowerShell: off. |
+| The web viewer notifies in the browser | on, after you allow it | Untick **Notifications** at the bottom of the page. |
+
+The `/config` switches take effect in the next session.
 
 ## Privacy
 

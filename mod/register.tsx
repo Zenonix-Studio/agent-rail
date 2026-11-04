@@ -139,7 +139,11 @@ async function tick($: EngineInterface): Promise<void> {
   if (shown !== (await read($, isPaneShown))) await update($, isPaneShown, () => shown)
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  // The plugin's /config switches (userConfig); both default to on.
+  const openPane = options.openPane !== false
+  const band = options.band !== false
+
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'rail',
@@ -147,7 +151,7 @@ export const register: Register = on => {
       argumentHint: '[history|stats|agents]',
     })
     // Unasked, the pane is placed only on a wide terminal; the band covers the rest.
-    void $.ui.open({ id: PANE, title: TITLE })
+    if (openPane) void $.ui.open({ id: PANE, title: TITLE })
     $.clock.every(POLL_MS, () => void tick($).catch(() => undefined))
     void tick($).catch(() => undefined)
     return next(e)
@@ -290,7 +294,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const { job, at, agents } = await read($, view)
-    if (e.props.hasSurvey || job === null || (await read($, isPaneShown))) return next(e)
+    if (!band || e.props.hasSurvey || job === null || (await read($, isPaneShown))) return next(e)
     const { Box, Text } = $.ui.resolve(e)
     const opts = { expandAll: await read($, expandAll) }
     const lines = renderJobSegments(job, e.props.bodyColumns, at, agents, opts).slice(0, Math.max(1, e.props.maxRows))

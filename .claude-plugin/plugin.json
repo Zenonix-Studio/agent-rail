@@ -17,6 +17,18 @@
       ],
       "default": "free",
       "description": "free only watches the agents; railed also asks them for a title, a staged plan and progress notes (a few more tokens). The AGENT_RAIL_MODE environment variable overrides it."
+    },
+    "openPane": {
+      "type": "boolean",
+      "title": "Open the pane at start",
+      "default": true,
+      "description": "Open the Agent rail pane when a session starts. Off: it opens only when you run /rail."
+    },
+    "band": {
+      "type": "boolean",
+      "title": "Rail above the prompt",
+      "default": true,
+      "description": "While the pane is not shown, draw the current job in a few lines above the prompt."
     }
   }
 }
