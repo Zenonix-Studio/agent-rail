@@ -130,7 +130,15 @@ It installs Node.js first if you don't have it (it asks, then uses winget), puts
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/Zenonix-Studio/agent-rail/main/web/install.ps1))) -Uninstall
 ```
 
-**Linux and macOS:** needs Node 18 or later. From a clone of this repository, run `node web/server.mjs` and open http://127.0.0.1:4317 (set `PORT` to use another port).
+**Run from source (any OS, including Windows without the installer):** needs Node 18 or later and git.
+
+```bash
+git clone https://github.com/Zenonix-Studio/agent-rail.git
+cd agent-rail
+node web/server.mjs
+```
+
+Then open http://127.0.0.1:4317 (set `PORT` to use another port). It runs while that terminal stays open. To update, run `git pull` in the folder and start it again.
 
 ## History command
 
