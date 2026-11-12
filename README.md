@@ -125,6 +125,7 @@ It installs Node.js first if you don't have it (it asks, then uses winget), puts
 - Click the agent-rail icon in the taskbar tray (it may be under the `^` arrow) to open it as a small window.
 - A notification tells you when a job is done, needs you or is failing, even with the window closed.
 - It starts with Windows and is in the Start menu as **agent-rail**. Right-click the tray icon to turn **Start with Windows** off or on, or to quit.
+- It runs in the background with no window. If a console window opens at sign-in (an install from before November 12), run the install command again to update; closing that window stops agent-rail.
 - To update, run the same command again. To remove it:
 
 ```
