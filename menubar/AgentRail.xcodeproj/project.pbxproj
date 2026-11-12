@@ -15,6 +15,7 @@
 		384469475F0D1177D6364FD3 /* JobNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08E103524CC41605F1A8B741 /* JobNotifier.swift */; };
 		3F38090D20C94C55808AB90C /* DebugCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = E02E650C8994758EEDED5A2E /* DebugCommands.swift */; };
 		4C1FE95B724D53C927F8CC70 /* StateRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845804CA23A1A0D141769DC7 /* StateRoot.swift */; };
+		5475F2D18F06EA3359C6A2CD /* PluginConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87D75D393EA0707A9A9ED00A /* PluginConfig.swift */; };
 		6EF61933AB3F0C4D3CAD3D25 /* HistoryLegendViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3086B936289461861FF17C12 /* HistoryLegendViews.swift */; };
 		79CABB374A54BAF54427657F /* Derivations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85410834CAD890C2E50AF983 /* Derivations.swift */; };
 		7ED98985281BECA37F08E20F /* LoginItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ACC5DBECDEF2DA7B932D56E /* LoginItem.swift */; };
@@ -45,6 +46,7 @@
 		7CBCD95C88FF44D6989C3846 /* JobDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobDetailView.swift; sourceTree = "<group>"; };
 		845804CA23A1A0D141769DC7 /* StateRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateRoot.swift; sourceTree = "<group>"; };
 		85410834CAD890C2E50AF983 /* Derivations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Derivations.swift; sourceTree = "<group>"; };
+		87D75D393EA0707A9A9ED00A /* PluginConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PluginConfig.swift; sourceTree = "<group>"; };
 		93D4BE17BA97288D99D927AC /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		98A5B30FF275308FD402A271 /* SessionProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProcess.swift; sourceTree = "<group>"; };
 		9ACC5DBECDEF2DA7B932D56E /* LoginItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginItem.swift; sourceTree = "<group>"; };
@@ -62,6 +64,7 @@
 				85410834CAD890C2E50AF983 /* Derivations.swift */,
 				08E103524CC41605F1A8B741 /* JobNotifier.swift */,
 				9ACC5DBECDEF2DA7B932D56E /* LoginItem.swift */,
+				87D75D393EA0707A9A9ED00A /* PluginConfig.swift */,
 				98A5B30FF275308FD402A271 /* SessionProcess.swift */,
 				222015DD39B97F91F71F2C3A /* SessionStore.swift */,
 				794CEAA74D22171BD23873F4 /* StateModels.swift */,
@@ -207,6 +210,7 @@
 				04FAADE5F23FF3127A8CBE74 /* L10n.swift in Sources */,
 				7ED98985281BECA37F08E20F /* LoginItem.swift in Sources */,
 				25BB4E371AA8845C3E2486C3 /* NowBlockView.swift in Sources */,
+				5475F2D18F06EA3359C6A2CD /* PluginConfig.swift in Sources */,
 				ADF1B75160B3023A7B129455 /* PopoverView.swift in Sources */,
 				C7F9F9C8DD374D4A63C7140B /* RailView.swift in Sources */,
 				F80CA3AB452F06BC8E81D150 /* RingIcon.swift in Sources */,

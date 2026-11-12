@@ -159,6 +159,46 @@
         }
       }
     },
+    "Claude Code plugin": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Claude Code eklentisi"
+          }
+        }
+      }
+    },
+    "Open the pane at start": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Başlangıçta paneli aç"
+          }
+        }
+      }
+    },
+    "Rail above the prompt": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "İstemin üstünde rail"
+          }
+        }
+      }
+    },
+    "Railed mode": {
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Railed mod"
+          }
+        }
+      }
+    },
     "Settings": {
       "localizations": {
         "tr": {

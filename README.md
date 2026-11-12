@@ -44,7 +44,7 @@ The rail has two modes. **Free** is the default; pick one in `/config` under age
 
 ### Switching
 
-In Claude Code (terminal and desktop app), pick the mode in the plugin's settings: `/config`, then agent-rail's **Mode**, `free` or `railed`. It is stored in `~/.claude/settings.json`:
+In Claude Code (terminal and desktop app), pick the mode in the plugin's settings: `/config`, then agent-rail's **Mode**, `free` or `railed` (the menubar app's gear menu has the same switch as **Railed mode**). It is stored in `~/.claude/settings.json`:
 
 ```json
 {
@@ -60,7 +60,7 @@ A native macOS menubar app that shows your running jobs. It reads the session fi
 
 - Local: it never writes to the state folder and sends nothing over the network.
 - English and Turkish, following the system language.
-- Settings (gear icon at the bottom): **Notifications** and **Open at login**. Open at login is off until you turn it on, and matches System Settings → General → Login Items.
+- Settings (gear icon at the bottom): **Notifications** and **Open at login**. Open at login is off until you turn it on, and matches System Settings → General → Login Items. With the Claude Code plugin installed, the same menu also has the plugin's `/config` switches (**Railed mode**, **Open the pane at start**, **Rail above the prompt**). Both read and write `~/.claude/settings.json`, so a change in one shows in the other.
 - A card with no activity can be hidden (**Hide**), or its session stopped (**Stop session…**, right-click or under the expanded card). Stopping ends the whole Claude Code or Codex session and its agents, after a confirmation; it is offered only while the process the hooks last ran under is still that one (same pid and start time).
 
 **Install:** download `AgentRail-<version>.dmg` from [Releases](https://github.com/Zenonix-Studio/agent-rail/releases), open it and drag AgentRail into Applications. It runs in the menubar (no Dock icon) and needs macOS 14 or later. Allow notifications when it asks, to hear when a job is done, needs you or is failing.
@@ -198,9 +198,9 @@ It prints nothing when the session has no job yet. Set `NO_COLOR` to drop the co
 
 | What | Default | To turn it off |
 |---|---|---|
-| The Agent rail pane opens when a Claude Code session starts | on | `/config` → agent-rail → **Open the pane at start**: off. `/rail` still opens it. |
-| The current job is drawn above the prompt while the pane is not shown (terminal) | on | `/config` → agent-rail → **Rail above the prompt**: off. |
-| The agents are asked for a title, a plan and progress notes | off (free mode) | `/config` → agent-rail → **Mode**: `free`. See [Modes](#modes-free-and-railed). |
+| The Agent rail pane opens when a Claude Code session starts | on | `/config` → agent-rail → **Open the pane at start** (or the menubar's gear menu): off. `/rail` still opens it. |
+| The current job is drawn above the prompt while the pane is not shown (terminal) | on | `/config` → agent-rail → **Rail above the prompt** (or the menubar's gear menu): off. |
+| The agents are asked for a title, a plan and progress notes | off (free mode) | `/config` → agent-rail → **Mode** (or the menubar's gear menu → **Railed mode**): `free`. See [Modes](#modes-free-and-railed). |
 | The hooks write a file per session to `~/.agent-rail` and delete files older than 30 days | on | Uninstall the plugin (`/plugin uninstall agent-rail@agent-rail`), then delete `~/.agent-rail`. See [Privacy](#privacy). |
 | The menubar app opens when you log in | off | Gear icon → **Open at login** turns it on or off (same as System Settings → General → Login Items). |
 | The menubar app notifies when a job is done, needs you or is failing | on, after you allow it | Gear icon → **Notifications**, or System Settings → Notifications → AgentRail. |

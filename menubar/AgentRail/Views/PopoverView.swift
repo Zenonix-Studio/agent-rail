@@ -20,6 +20,16 @@ struct PopoverView: View {
     @AppStorage(JobNotifier.enabledKey) private var notificationsEnabled = true
     /// Mirrors macOS's login items; re-read each time the popover opens, as System Settings can change it.
     @State private var openAtLogin = LoginItem.isEnabled
+    /// The Claude Code plugin's `/config` options, re-read each time the popover opens, as `/config` can change them.
+    @State private var plugin = PluginOptions.read()
+
+    struct PluginOptions {
+        var available = false, railed = false, openPane = true, band = true
+        static func read() -> Self {
+            Self(available: PluginConfig.isAvailable, railed: PluginConfig.railed,
+                 openPane: PluginConfig.openPane, band: PluginConfig.band)
+        }
+    }
 
     init(store: SessionStore, agentExpansion: AgentExpansion, scrollable: Bool = true, expandedJobID: String? = nil, page: Page = .jobs) {
         self.store = store
@@ -223,6 +233,19 @@ struct PopoverView: View {
             Toggle(String(localized: "Open at login"), isOn: Binding(
                 get: { openAtLogin },
                 set: { openAtLogin = LoginItem.set($0) }))
+            if plugin.available {
+                Section(String(localized: "Claude Code plugin")) {
+                    Toggle(String(localized: "Railed mode"), isOn: Binding(
+                        get: { plugin.railed },
+                        set: { PluginConfig.setRailed($0); plugin = .read() }))
+                    Toggle(String(localized: "Open the pane at start"), isOn: Binding(
+                        get: { plugin.openPane },
+                        set: { PluginConfig.setOpenPane($0); plugin = .read() }))
+                    Toggle(String(localized: "Rail above the prompt"), isOn: Binding(
+                        get: { plugin.band },
+                        set: { PluginConfig.setBand($0); plugin = .read() }))
+                }
+            }
         } label: { Image(systemName: "gearshape") }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
@@ -232,7 +255,7 @@ struct PopoverView: View {
             .onChange(of: notificationsEnabled) { _, on in
                 if on { JobNotifier.requestAuthorization() }
             }
-            .onAppear { openAtLogin = LoginItem.isEnabled }
+            .onAppear { openAtLogin = LoginItem.isEnabled; plugin = .read() }
     }
 
     private var footer: some View {
