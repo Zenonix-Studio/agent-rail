@@ -164,7 +164,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude Code eklentisi"
+            "value": "Claude Code plugin"
           }
         }
       }
@@ -184,7 +184,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "İstemin üstünde rail"
+            "value": "Rail promptun üstünde"
           }
         }
       }
@@ -244,7 +244,7 @@
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Claude eklentisini kur veya scripts/install-codex.mjs çalıştır"
+            "value": "Claude plugin'ini kur veya scripts/install-codex.mjs çalıştır"
           }
         }
       }
