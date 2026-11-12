@@ -9,9 +9,9 @@ $server = Start-Process node -ArgumentList "`"$PSScriptRoot\server.mjs`"" -Windo
 
 $tr = (Get-Culture).TwoLetterISOLanguageName -eq 'tr'
 $T = if ($tr) {
-  @{ Open = 'Aç'; Quit = 'Çık'; Jobs = '{0} iş çalışıyor'; Done = 'Bitti'; Waiting = 'Seni bekliyor'; Failing = 'Hata veriyor' }
+  @{ Open = 'Aç'; Quit = 'Çık'; StartWithWindows = 'Windows ile başlat'; Jobs = '{0} iş çalışıyor'; Done = 'Bitti'; Waiting = 'Seni bekliyor'; Failing = 'Hata veriyor' }
 } else {
-  @{ Open = 'Open'; Quit = 'Quit'; Jobs = '{0} running'; Done = 'Done'; Waiting = 'Needs you'; Failing = 'Failing' }
+  @{ Open = 'Open'; Quit = 'Quit'; StartWithWindows = 'Start with Windows'; Jobs = '{0} running'; Done = 'Done'; Waiting = 'Needs you'; Failing = 'Failing' }
 }
 
 $tray = New-Object System.Windows.Forms.NotifyIcon
@@ -29,8 +29,34 @@ $open = {
 $tray.add_MouseClick({ if ($_.Button -eq 'Left') { & $open } })
 $tray.add_BalloonTipClicked({ & $open })
 
+# Start with Windows: the startup shortcut, unless Task Manager's Startup apps has it disabled,
+# so the menu and Task Manager always agree.
+$startupLink = Join-Path ([Environment]::GetFolderPath('Startup')) 'agent-rail.lnk'
+$approvedKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder'
+function Get-StartWithWindows {
+  if (-not (Test-Path $startupLink)) { return $false }
+  # Task Manager's Disable keeps the shortcut and stores a flag with an odd first byte.
+  $flag = (Get-ItemProperty $approvedKey -Name 'agent-rail.lnk' -ErrorAction SilentlyContinue).'agent-rail.lnk'
+  return -not ($flag -and ($flag[0] -band 1))
+}
+function Set-StartWithWindows([bool]$on) {
+  Remove-ItemProperty $approvedKey -Name 'agent-rail.lnk' -ErrorAction SilentlyContinue
+  if (-not $on) { Remove-Item $startupLink -Force -ErrorAction SilentlyContinue; return }
+  $s = (New-Object -ComObject WScript.Shell).CreateShortcut($startupLink)
+  $s.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+  $s.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSScriptRoot\tray.ps1`""
+  $s.WorkingDirectory = $PSScriptRoot
+  $s.Description = 'agent-rail: a live view of your Claude Code and Codex jobs'
+  $s.Save()
+}
+
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 [void]$menu.Items.Add($T.Open, $null, { & $open })
+$startItem = New-Object System.Windows.Forms.ToolStripMenuItem($T.StartWithWindows)
+$startItem.add_Click({ Set-StartWithWindows (-not $startItem.Checked); $startItem.Checked = Get-StartWithWindows })
+[void]$menu.Items.Add($startItem)
+# Re-read on every open: Task Manager or the installer may have changed it meanwhile.
+$menu.add_Opening({ $startItem.Checked = Get-StartWithWindows })
 [void]$menu.Items.Add($T.Quit, $null, { [System.Windows.Forms.Application]::Exit() })
 $tray.ContextMenuStrip = $menu
 

@@ -7,10 +7,11 @@ $ErrorActionPreference = 'Stop'
 
 $dir = Join-Path $env:LOCALAPPDATA 'agent-rail'
 $web = Join-Path $dir 'web'
-$links = @(
-  (Join-Path ([Environment]::GetFolderPath('Programs')) 'agent-rail.lnk'),
-  (Join-Path ([Environment]::GetFolderPath('Startup')) 'agent-rail.lnk')
-)
+$startMenuLink = Join-Path ([Environment]::GetFolderPath('Programs')) 'agent-rail.lnk'
+$startupLink = Join-Path ([Environment]::GetFolderPath('Startup')) 'agent-rail.lnk'
+$links = @($startMenuLink, $startupLink)
+# Start with Windows is on for a first install only: an update keeps what the tray menu or Task Manager set.
+$firstInstall = -not (Test-Path $dir)
 
 # A running tray and its server, found by our install path in their command lines (an update replaces their files).
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='node.exe'" |
@@ -50,11 +51,11 @@ New-Item -ItemType Directory $dir -Force | Out-Null
 Copy-Item (Join-Path $tmp 'agent-rail-main\web') $dir -Recurse
 Remove-Item $zip, $tmp -Recurse -Force -ErrorAction SilentlyContinue
 
-# The tray runs under Windows PowerShell (WinForms), hidden, from the Start menu and at sign-in.
+# The tray runs under Windows PowerShell (WinForms), hidden, from the Start menu and (first install) at sign-in.
 $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$web\tray.ps1`""
 $shell = New-Object -ComObject WScript.Shell
-foreach ($l in $links) {
+foreach ($l in @($startMenuLink) + @($startupLink | Where-Object { $firstInstall })) {
   $s = $shell.CreateShortcut($l)
   $s.TargetPath = $ps
   $s.Arguments = $arguments
@@ -66,4 +67,5 @@ Start-Process $ps -ArgumentList $arguments -WindowStyle Hidden
 
 Write-Host ''
 Write-Host 'agent-rail is running. Click its icon in the taskbar tray (it may be under the ^ arrow) to open it.'
-Write-Host 'It starts with Windows, and is in the Start menu as "agent-rail". Run the same command again to update.'
+Write-Host 'It is in the Start menu as "agent-rail". Right-click the tray icon to turn "Start with Windows" on or off.'
+Write-Host 'Run the same command again to update.'

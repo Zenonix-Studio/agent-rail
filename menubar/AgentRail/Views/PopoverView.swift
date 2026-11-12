@@ -18,6 +18,8 @@ struct PopoverView: View {
     enum Page { case jobs, history, stats, legend }
     @State private var page: Page = .jobs
     @AppStorage(JobNotifier.enabledKey) private var notificationsEnabled = true
+    /// Mirrors macOS's login items; re-read each time the popover opens, as System Settings can change it.
+    @State private var openAtLogin = LoginItem.isEnabled
 
     init(store: SessionStore, agentExpansion: AgentExpansion, scrollable: Bool = true, expandedJobID: String? = nil, page: Page = .jobs) {
         self.store = store
@@ -215,6 +217,24 @@ struct PopoverView: View {
         .padding(.horizontal, 12)
     }
 
+    private var settingsMenu: some View {
+        Menu {
+            Toggle(L10n.notifications, isOn: $notificationsEnabled)
+            Toggle(String(localized: "Open at login"), isOn: Binding(
+                get: { openAtLogin },
+                set: { openAtLogin = LoginItem.set($0) }))
+        } label: { Image(systemName: "gearshape") }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(String(localized: "Settings"))
+            .accessibilityLabel(String(localized: "Settings"))
+            .onChange(of: notificationsEnabled) { _, on in
+                if on { JobNotifier.requestAuthorization() }
+            }
+            .onAppear { openAtLogin = LoginItem.isEnabled }
+    }
+
     private var footer: some View {
         HStack(spacing: 10) {
             // Looks like a button on purpose: as plain text it read as a label.
@@ -241,12 +261,11 @@ struct PopoverView: View {
                 .help(String(localized: "Colors"))
                 .accessibilityLabel(String(localized: "Colors"))
             Spacer()
-            Toggle(L10n.notifications, isOn: $notificationsEnabled)
-                .toggleStyle(.checkbox)
-                .fixedSize()
-                .onChange(of: notificationsEnabled) { _, on in
-                    if on { JobNotifier.requestAuthorization() }
-                }
+            // Settings in one menu, so the row keeps its width as switches are added.
+            // ImageRenderer cannot draw a Menu, so the snapshot gets the bare icon.
+            if !scrollable {
+                Image(systemName: "gearshape")
+            } else { settingsMenu }
             // Icons, not words: with every label spelled out the row outgrew the popover in English.
             Button { NSWorkspace.shared.open(store.root) } label: { Image(systemName: "folder") }
                 .help(String(localized: "Open folder"))

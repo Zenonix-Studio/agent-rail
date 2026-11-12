@@ -60,6 +60,7 @@ A native macOS menubar app that shows your running jobs. It reads the session fi
 
 - Local: it never writes to the state folder and sends nothing over the network.
 - English and Turkish, following the system language.
+- Settings (gear icon at the bottom): **Notifications** and **Open at login**. Open at login is off until you turn it on, and matches System Settings → General → Login Items.
 - A card with no activity can be hidden (**Hide**), or its session stopped (**Stop session…**, right-click or under the expanded card). Stopping ends the whole Claude Code or Codex session and its agents, after a confirmation; it is offered only while the process the hooks last ran under is still that one (same pid and start time).
 
 **Install:** download `AgentRail-<version>.dmg` from [Releases](https://github.com/Zenonix-Studio/agent-rail/releases), open it and drag AgentRail into Applications. It runs in the menubar (no Dock icon) and needs macOS 14 or later. Allow notifications when it asks, to hear when a job is done, needs you or is failing.
@@ -123,7 +124,7 @@ It installs Node.js first if you don't have it (it asks, then uses winget), puts
 
 - Click the agent-rail icon in the taskbar tray (it may be under the `^` arrow) to open it as a small window.
 - A notification tells you when a job is done, needs you or is failing, even with the window closed.
-- It starts with Windows and is in the Start menu as **agent-rail**. Right-click the tray icon to quit; to keep it from starting with Windows, see [What runs on its own](#what-runs-on-its-own-and-how-to-turn-it-off).
+- It starts with Windows and is in the Start menu as **agent-rail**. Right-click the tray icon to turn **Start with Windows** off or on, or to quit.
 - To update, run the same command again. To remove it:
 
 ```
@@ -200,8 +201,9 @@ It prints nothing when the session has no job yet. Set `NO_COLOR` to drop the co
 | The current job is drawn above the prompt while the pane is not shown (terminal) | on | `/config` → agent-rail → **Rail above the prompt**: off. |
 | The agents are asked for a title, a plan and progress notes | off (free mode) | `/config` → agent-rail → **Mode**: `free`. See [Modes](#modes-free-and-railed). |
 | The hooks write a file per session to `~/.agent-rail` and delete files older than 30 days | on | Uninstall the plugin (`/plugin uninstall agent-rail@agent-rail`), then delete `~/.agent-rail`. See [Privacy](#privacy). |
-| The menubar app notifies when a job is done, needs you or is failing | on, after you allow it | System Settings → Notifications → AgentRail. |
-| The Windows tray starts when you sign in | on | Task Manager → Startup apps → agent-rail → **Disable**, or delete the agent-rail shortcut in `shell:startup` (Win+R). |
+| The menubar app opens when you log in | off | Gear icon → **Open at login** turns it on or off (same as System Settings → General → Login Items). |
+| The menubar app notifies when a job is done, needs you or is failing | on, after you allow it | Gear icon → **Notifications**, or System Settings → Notifications → AgentRail. |
+| The Windows tray starts when you sign in | on | Right-click the tray icon → **Start with Windows**. Task Manager → Startup apps shows and changes the same setting; an update keeps your choice. |
 | The Windows tray shows notifications | on | Settings → System → Notifications → Windows PowerShell: off. |
 | The web viewer notifies in the browser | on, after you allow it | Untick **Notifications** at the bottom of the page. |
 
