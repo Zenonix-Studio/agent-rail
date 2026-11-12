@@ -1,18 +1,28 @@
 ﻿# Windows tray for agent-rail: runs the viewer, left-click opens it as a small popover window,
 # and a balloon tells when a job finishes, waits for you or starts failing (the window may be closed).
-# Usage: powershell -WindowStyle Hidden -ExecutionPolicy Bypass -File tray.ps1
+# Usage: conhost.exe --headless powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File tray.ps1
+# (conhost --headless: with Windows Terminal as the default terminal, -WindowStyle Hidden alone leaves a window open.)
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
 $port = if ($env:PORT) { $env:PORT } else { 4317 }
 $url = "http://127.0.0.1:$port"
-$server = Start-Process node -ArgumentList "`"$PSScriptRoot\server.mjs`"" -WindowStyle Hidden -PassThru
+# No console at all for the server: Start-Process would give it one, which Windows Terminal shows.
+$si = New-Object System.Diagnostics.ProcessStartInfo 'node', "`"$PSScriptRoot\server.mjs`""
+$si.UseShellExecute = $false
+$si.CreateNoWindow = $true
+$server = [System.Diagnostics.Process]::Start($si)
 
 $tr = (Get-Culture).TwoLetterISOLanguageName -eq 'tr'
 $T = if ($tr) {
-  @{ Open = 'Aç'; Quit = 'Çık'; StartWithWindows = 'Windows ile başlat'; Jobs = '{0} iş çalışıyor'; Done = 'Bitti'; Waiting = 'Seni bekliyor'; Failing = 'Hata veriyor' }
+  @{ Open = 'Aç'; Quit = 'Çık'; StartWithWindows = 'Windows ile başlat'
+     Note = "agent-rail çalışıyor: görev çubuğundaki simgesine tıkla ya da {0} adresini aç.`nBu pencereyi kapatırsan agent-rail durur.`nWindows açılışında başlamasın istersen: simgeye sağ tıkla, 'Windows ile başlat'ın işaretini kaldır."; Jobs = '{0} iş çalışıyor'; Done = 'Bitti'; Waiting = 'Seni bekliyor'; Failing = 'Hata veriyor' }
 } else {
-  @{ Open = 'Open'; Quit = 'Quit'; StartWithWindows = 'Start with Windows'; Jobs = '{0} running'; Done = 'Done'; Waiting = 'Needs you'; Failing = 'Failing' }
+  @{ Open = 'Open'; Quit = 'Quit'; StartWithWindows = 'Start with Windows'
+     Note = "agent-rail is running: click its icon in the taskbar tray, or open {0}.`nClosing this window stops agent-rail.`nTo keep it from starting with Windows: right-click the icon and untick 'Start with Windows'."; Jobs = '{0} running'; Done = 'Done'; Waiting = 'Needs you'; Failing = 'Failing' }
 }
+
+# Normally no window shows; if one does anyway (an older shortcut, another terminal), it explains itself.
+Write-Host ($T.Note -f $url)
 
 $tray = New-Object System.Windows.Forms.NotifyIcon
 $tray.Icon = [System.Drawing.SystemIcons]::Application
@@ -43,8 +53,8 @@ function Set-StartWithWindows([bool]$on) {
   Remove-ItemProperty $approvedKey -Name 'agent-rail.lnk' -ErrorAction SilentlyContinue
   if (-not $on) { Remove-Item $startupLink -Force -ErrorAction SilentlyContinue; return }
   $s = (New-Object -ComObject WScript.Shell).CreateShortcut($startupLink)
-  $s.TargetPath = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-  $s.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSScriptRoot\tray.ps1`""
+  $s.TargetPath = Join-Path $env:SystemRoot 'System32\conhost.exe'
+  $s.Arguments = "--headless `"$(Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe')`" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSScriptRoot\tray.ps1`""
   $s.WorkingDirectory = $PSScriptRoot
   $s.Description = 'agent-rail: a live view of your Claude Code and Codex jobs'
   $s.Save()

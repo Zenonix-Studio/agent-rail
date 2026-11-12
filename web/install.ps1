@@ -51,19 +51,22 @@ New-Item -ItemType Directory $dir -Force | Out-Null
 Copy-Item (Join-Path $tmp 'agent-rail-main\web') $dir -Recurse
 Remove-Item $zip, $tmp -Recurse -Force -ErrorAction SilentlyContinue
 
-# The tray runs under Windows PowerShell (WinForms), hidden, from the Start menu and (first install) at sign-in.
+# The tray runs under Windows PowerShell (WinForms) from the Start menu and (first install) at sign-in,
+# through conhost --headless: with Windows Terminal as the default terminal, -WindowStyle Hidden alone leaves a window.
+$conhost = Join-Path $env:SystemRoot 'System32\conhost.exe'
 $ps = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-$arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$web\tray.ps1`""
+$arguments = "--headless `"$ps`" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$web\tray.ps1`""
 $shell = New-Object -ComObject WScript.Shell
-foreach ($l in @($startMenuLink) + @($startupLink | Where-Object { $firstInstall })) {
+# An existing startup shortcut is rewritten too, so older installs lose their window; a removed one stays removed.
+foreach ($l in @($startMenuLink) + @($startupLink | Where-Object { $firstInstall -or (Test-Path $_) })) {
   $s = $shell.CreateShortcut($l)
-  $s.TargetPath = $ps
+  $s.TargetPath = $conhost
   $s.Arguments = $arguments
   $s.WorkingDirectory = $web
   $s.Description = 'agent-rail: a live view of your Claude Code and Codex jobs'
   $s.Save()
 }
-Start-Process $ps -ArgumentList $arguments -WindowStyle Hidden
+Start-Process $conhost -ArgumentList $arguments -WindowStyle Hidden
 
 Write-Host ''
 Write-Host 'agent-rail is running. Click its icon in the taskbar tray (it may be under the ^ arrow) to open it.'
